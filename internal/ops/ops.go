@@ -7,6 +7,22 @@ import (
 	"github.com/hpungsan/moss/internal/errors"
 )
 
+// Pagination limits
+const (
+	DefaultListLimit      = 20
+	MaxListLimit          = 100
+	DefaultInventoryLimit = 100
+	MaxInventoryLimit     = 500
+)
+
+// Pagination contains pagination metadata for list operations.
+type Pagination struct {
+	Limit   int  `json:"limit"`
+	Offset  int  `json:"offset"`
+	HasMore bool `json:"has_more"`
+	Total   int  `json:"total"`
+}
+
 // Address represents a validated capsule address.
 type Address struct {
 	ByID      bool

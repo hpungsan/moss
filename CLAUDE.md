@@ -43,6 +43,8 @@ internal/
 - Tasks: `~/.claude/tasks/` (CC Tasks integration, see `docs/agents/TASKS.md`)
 
 ## Docs
+`docs/agents/` — supplementary reference docs for AI agents
+
 | Doc | Purpose |
 |-----|---------|
 | `docs/moss/OVERVIEW.md` | Concepts, use cases |
@@ -50,3 +52,8 @@ internal/
 | `docs/moss/v1.0/BACKLOG.md` | Post-v1.0 features |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/TASKS.md` | CC Tasks integration |
+
+## Dev (gitignored)
+| Doc | Purpose |
+|-----|---------|
+| `dev/build/v1.0/BUILD.md` | Build phases + task checklist |

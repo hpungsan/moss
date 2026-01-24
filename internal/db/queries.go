@@ -272,3 +272,223 @@ func fromNullString(ns sql.NullString) *string {
 	}
 	return &ns.String
 }
+
+// scanCapsuleSummary scans a single row into a CapsuleSummary struct.
+// Expects columns: id, workspace_raw, workspace_norm, name_raw, name_norm,
+// title, capsule_chars, tokens_estimate, tags_json, source, created_at, updated_at, deleted_at
+func scanCapsuleSummary(scanner interface{ Scan(...any) error }) (*capsule.CapsuleSummary, error) {
+	var (
+		s         capsule.CapsuleSummary
+		nameRaw   sql.NullString
+		nameNorm  sql.NullString
+		title     sql.NullString
+		tagsJSON  sql.NullString
+		source    sql.NullString
+		deletedAt sql.NullInt64
+	)
+
+	err := scanner.Scan(
+		&s.ID, &s.Workspace, &s.WorkspaceNorm, &nameRaw, &nameNorm,
+		&title, &s.CapsuleChars, &s.TokensEstimate,
+		&tagsJSON, &source, &s.CreatedAt, &s.UpdatedAt, &deletedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert nullable fields
+	s.Name = fromNullString(nameRaw)
+	s.NameNorm = fromNullString(nameNorm)
+	s.Title = fromNullString(title)
+	s.Source = fromNullString(source)
+
+	// Convert deleted_at
+	if deletedAt.Valid {
+		s.DeletedAt = &deletedAt.Int64
+	}
+
+	// Parse tags JSON
+	if tagsJSON.Valid && tagsJSON.String != "" {
+		if err := json.Unmarshal([]byte(tagsJSON.String), &s.Tags); err != nil {
+			return nil, err
+		}
+	}
+
+	return &s, nil
+}
+
+// ListByWorkspace retrieves capsule summaries for a workspace with pagination.
+// Returns summaries (no capsule_text) + total count.
+// Ordered by updated_at DESC, id DESC (stable pagination).
+func ListByWorkspace(db *sql.DB, workspaceNorm string, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
+	// Build count query
+	countQuery := `SELECT COUNT(*) FROM capsules WHERE workspace_norm = ?`
+	if !includeDeleted {
+		countQuery += " AND deleted_at IS NULL"
+	}
+
+	var total int
+	if err := db.QueryRow(countQuery, workspaceNorm).Scan(&total); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	// Build list query
+	listQuery := `
+		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
+			title, capsule_chars, tokens_estimate, tags_json, source,
+			created_at, updated_at, deleted_at
+		FROM capsules
+		WHERE workspace_norm = ?
+	`
+	if !includeDeleted {
+		listQuery += " AND deleted_at IS NULL"
+	}
+	listQuery += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+
+	rows, err := db.Query(listQuery, workspaceNorm, limit, offset)
+	if err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+	defer rows.Close()
+
+	var summaries []capsule.CapsuleSummary
+	for rows.Next() {
+		s, err := scanCapsuleSummary(rows)
+		if err != nil {
+			return nil, 0, errors.NewInternal(err)
+		}
+		summaries = append(summaries, *s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	return summaries, total, nil
+}
+
+// InventoryFilters contains optional filters for the ListAll operation.
+type InventoryFilters struct {
+	Workspace  *string // filter by workspace_norm
+	Tag        *string // filter by tag using JSON1
+	NamePrefix *string // filter by name_norm LIKE 'prefix%'
+}
+
+// ListAll retrieves capsule summaries across all workspaces with optional filters.
+// Returns summaries (no capsule_text) + total count.
+// Ordered by updated_at DESC, id DESC (stable pagination).
+func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
+	// Build WHERE clauses
+	var conditions []string
+	var args []any
+
+	if !includeDeleted {
+		conditions = append(conditions, "deleted_at IS NULL")
+	}
+	if filters.Workspace != nil {
+		conditions = append(conditions, "workspace_norm = ?")
+		args = append(args, *filters.Workspace)
+	}
+	if filters.Tag != nil {
+		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(tags_json) WHERE value = ?)")
+		args = append(args, *filters.Tag)
+	}
+	if filters.NamePrefix != nil {
+		conditions = append(conditions, "name_norm LIKE ?")
+		args = append(args, *filters.NamePrefix+"%")
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Build count query
+	countQuery := "SELECT COUNT(*) FROM capsules" + whereClause
+	var total int
+	if err := db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	// Build list query
+	listQuery := `
+		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
+			title, capsule_chars, tokens_estimate, tags_json, source,
+			created_at, updated_at, deleted_at
+		FROM capsules` + whereClause + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+
+	listArgs := append(args, limit, offset)
+	rows, err := db.Query(listQuery, listArgs...)
+	if err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+	defer rows.Close()
+
+	var summaries []capsule.CapsuleSummary
+	for rows.Next() {
+		s, err := scanCapsuleSummary(rows)
+		if err != nil {
+			return nil, 0, errors.NewInternal(err)
+		}
+		summaries = append(summaries, *s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	return summaries, total, nil
+}
+
+// GetLatestSummary retrieves the most recent capsule summary in a workspace.
+// Returns summary (no capsule_text).
+// Returns nil, nil if workspace is empty (not an error).
+func GetLatestSummary(db *sql.DB, workspaceNorm string, includeDeleted bool) (*capsule.CapsuleSummary, error) {
+	query := `
+		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
+			title, capsule_chars, tokens_estimate, tags_json, source,
+			created_at, updated_at, deleted_at
+		FROM capsules
+		WHERE workspace_norm = ?
+	`
+	if !includeDeleted {
+		query += " AND deleted_at IS NULL"
+	}
+	query += " ORDER BY updated_at DESC, id DESC LIMIT 1"
+
+	row := db.QueryRow(query, workspaceNorm)
+	s, err := scanCapsuleSummary(row)
+	if err == sql.ErrNoRows {
+		return nil, nil // Empty workspace is not an error
+	}
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
+
+	return s, nil
+}
+
+// GetLatestFull retrieves the most recent full capsule (including text) in a workspace.
+// Returns nil, nil if workspace is empty (not an error).
+func GetLatestFull(db *sql.DB, workspaceNorm string, includeDeleted bool) (*capsule.Capsule, error) {
+	query := `
+		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
+			title, capsule_text, capsule_chars, tokens_estimate,
+			tags_json, source, created_at, updated_at, deleted_at
+		FROM capsules
+		WHERE workspace_norm = ?
+	`
+	if !includeDeleted {
+		query += " AND deleted_at IS NULL"
+	}
+	query += " ORDER BY updated_at DESC, id DESC LIMIT 1"
+
+	row := db.QueryRow(query, workspaceNorm)
+	c, err := scanCapsule(row)
+	if err == sql.ErrNoRows {
+		return nil, nil // Empty workspace is not an error
+	}
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
+
+	return c, nil
+}
