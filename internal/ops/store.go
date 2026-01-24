@@ -3,6 +3,7 @@ package ops
 import (
 	"crypto/rand"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -47,7 +48,7 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 	}
 
 	// Apply defaults
-	if input.Workspace == "" {
+	if strings.TrimSpace(input.Workspace) == "" {
 		input.Workspace = "default"
 	}
 	if input.Mode == "" {
@@ -59,12 +60,18 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 
 	// Normalize workspace
 	workspaceNorm := capsule.Normalize(input.Workspace)
+	if workspaceNorm == "" {
+		return nil, errors.NewInvalidRequest("workspace must not be empty")
+	}
 
 	// Normalize name if provided
 	var nameRaw, nameNorm *string
-	if input.Name != nil && *input.Name != "" {
-		nameRaw = input.Name
+	if input.Name != nil {
 		normalized := capsule.Normalize(*input.Name)
+		if normalized == "" {
+			return nil, errors.NewInvalidRequest("name must not be empty (omit it for unnamed capsules)")
+		}
+		nameRaw = input.Name
 		nameNorm = &normalized
 	}
 
@@ -154,10 +161,6 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 	}
 
 	if err := db.Insert(database, c); err != nil {
-		// Handle race condition: another concurrent insert won the race
-		if err == db.ErrUniqueConstraint && nameRaw != nil {
-			return nil, errors.NewNameAlreadyExists(input.Workspace, *nameRaw)
-		}
 		return nil, err
 	}
 

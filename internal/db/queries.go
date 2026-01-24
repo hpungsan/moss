@@ -10,13 +10,6 @@ import (
 	"github.com/hpungsan/moss/internal/errors"
 )
 
-// ErrUniqueConstraint is returned when an insert violates a UNIQUE constraint.
-var ErrUniqueConstraint = &errors.MossError{
-	Code:    "UNIQUE_CONSTRAINT",
-	Status:  409,
-	Message: "unique constraint violation",
-}
-
 // Insert stores a new capsule in the database.
 func Insert(db *sql.DB, c *capsule.Capsule) error {
 	// Convert tags to JSON
@@ -49,8 +42,8 @@ func Insert(db *sql.DB, c *capsule.Capsule) error {
 		tagsJSON, source, c.CreatedAt, c.UpdatedAt,
 	)
 	if err != nil {
-		if isUniqueConstraintError(err) {
-			return ErrUniqueConstraint
+		if isNameUniquenessViolation(err) && c.NameRaw != nil {
+			return errors.NewNameAlreadyExists(c.WorkspaceRaw, *c.NameRaw)
 		}
 		return errors.NewInternal(err)
 	}
@@ -58,13 +51,16 @@ func Insert(db *sql.DB, c *capsule.Capsule) error {
 	return nil
 }
 
-// isUniqueConstraintError checks if the error is a SQLite UNIQUE constraint violation.
-func isUniqueConstraintError(err error) bool {
+func isNameUniquenessViolation(err error) bool {
 	if err == nil {
 		return false
 	}
-	// SQLite returns "UNIQUE constraint failed: ..." for unique violations
-	return strings.Contains(err.Error(), "UNIQUE constraint failed")
+	msg := err.Error()
+	// SQLite typically formats this as:
+	// "constraint failed: UNIQUE constraint failed: capsules.workspace_norm, capsules.name_norm (2067)"
+	return strings.Contains(msg, "UNIQUE constraint failed") &&
+		strings.Contains(msg, "capsules.workspace_norm") &&
+		strings.Contains(msg, "capsules.name_norm")
 }
 
 // GetByID retrieves a capsule by its ULID.

@@ -416,9 +416,9 @@ func TestInsert_UniqueConstraint(t *testing.T) {
 	c2.NameNorm = stringPtr("unique-name")
 	err = Insert(db, c2)
 
-	// Should return ErrUniqueConstraint
-	if err != ErrUniqueConstraint {
-		t.Errorf("Insert should return ErrUniqueConstraint, got: %v", err)
+	// Should return NAME_ALREADY_EXISTS (409) for named capsules
+	if !errors.Is(err, errors.ErrNameAlreadyExists) {
+		t.Errorf("Insert should return ErrNameAlreadyExists, got: %v", err)
 	}
 }
 

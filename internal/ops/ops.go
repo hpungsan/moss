@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"strings"
+
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/errors"
 )
@@ -20,6 +22,10 @@ type Address struct {
 // - If both id AND name provided → ErrAmbiguousAddressing
 // - If neither id nor name provided → ErrInvalidRequest
 func ValidateAddress(id, workspace, name string) (*Address, error) {
+	id = strings.TrimSpace(id)
+	name = strings.TrimSpace(name)
+	workspace = strings.TrimSpace(workspace)
+
 	hasID := id != ""
 	hasName := name != ""
 
@@ -39,14 +45,19 @@ func ValidateAddress(id, workspace, name string) (*Address, error) {
 	}
 
 	// ByName mode
-	if workspace == "" {
-		workspace = "default"
+	workspaceNorm := capsule.Normalize(workspace)
+	if workspaceNorm == "" {
+		workspaceNorm = "default"
+	}
+	nameNorm := capsule.Normalize(name)
+	if nameNorm == "" {
+		return nil, errors.NewInvalidRequest("name must not be empty")
 	}
 
 	return &Address{
 		ByID:      false,
-		Workspace: capsule.Normalize(workspace),
-		Name:      capsule.Normalize(name),
+		Workspace: workspaceNorm,
+		Name:      nameNorm,
 	}, nil
 }
 

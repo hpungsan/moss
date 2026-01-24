@@ -63,6 +63,24 @@ func TestValidateAddress_ByName_DefaultWorkspace(t *testing.T) {
 	}
 }
 
+func TestValidateAddress_ByName_WhitespaceWorkspaceDefaults(t *testing.T) {
+	addr, err := ValidateAddress("", "   \t\n  ", "my-capsule")
+	if err != nil {
+		t.Fatalf("ValidateAddress failed: %v", err)
+	}
+
+	if addr.Workspace != "default" {
+		t.Errorf("Workspace = %q, want %q (default)", addr.Workspace, "default")
+	}
+}
+
+func TestValidateAddress_ByName_WhitespaceNameInvalid(t *testing.T) {
+	_, err := ValidateAddress("", "default", "   \t\n  ")
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("ValidateAddress should return ErrInvalidRequest, got: %v", err)
+	}
+}
+
 func TestValidateAddress_Ambiguous(t *testing.T) {
 	_, err := ValidateAddress("01ABC123", "", "my-capsule")
 	if !errors.Is(err, errors.ErrAmbiguousAddressing) {
