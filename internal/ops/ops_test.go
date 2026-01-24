@@ -20,18 +20,19 @@ func TestValidateAddress_ByID(t *testing.T) {
 	}
 }
 
-func TestValidateAddress_ByID_IgnoresWorkspaceAndName(t *testing.T) {
-	// When ID is provided, workspace and name should be ignored
-	addr, err := ValidateAddress("01ABC123", "myworkspace", "")
-	if err != nil {
-		t.Fatalf("ValidateAddress failed: %v", err)
+func TestValidateAddress_Ambiguous_IDWithWorkspace(t *testing.T) {
+	// Strict: id + workspace is ambiguous (must specify exactly one addressing mode)
+	_, err := ValidateAddress("01ABC123", "myworkspace", "")
+	if !errors.Is(err, errors.ErrAmbiguousAddressing) {
+		t.Errorf("ValidateAddress should return ErrAmbiguousAddressing, got: %v", err)
 	}
+}
 
-	if !addr.ByID {
-		t.Error("ByID = false, want true")
-	}
-	if addr.Workspace != "" {
-		t.Errorf("Workspace = %q, want empty (ignored in ID mode)", addr.Workspace)
+func TestValidateAddress_Ambiguous_IDWithBoth(t *testing.T) {
+	// Strict: id + workspace + name is ambiguous
+	_, err := ValidateAddress("01ABC123", "myworkspace", "myname")
+	if !errors.Is(err, errors.ErrAmbiguousAddressing) {
+		t.Errorf("ValidateAddress should return ErrAmbiguousAddressing, got: %v", err)
 	}
 }
 

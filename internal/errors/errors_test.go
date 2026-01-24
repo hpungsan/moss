@@ -128,16 +128,25 @@ func TestNewInternal(t *testing.T) {
 		if err.Status != 500 {
 			t.Errorf("Status = %d, want 500", err.Status)
 		}
-		if err.Message != "database connection failed" {
-			t.Errorf("Message = %q, want %q", err.Message, "database connection failed")
+		// Message should be generic (not leak internal details)
+		if err.Message != "an internal error occurred" {
+			t.Errorf("Message = %q, want %q", err.Message, "an internal error occurred")
+		}
+		// Original error should be stored in Details for logging
+		if err.Details["internal_error"] != "database connection failed" {
+			t.Errorf("Details[internal_error] = %q, want %q", err.Details["internal_error"], "database connection failed")
 		}
 	})
 
 	t.Run("with nil", func(t *testing.T) {
 		err := NewInternal(nil)
 
-		if err.Message != "internal error" {
-			t.Errorf("Message = %q, want %q", err.Message, "internal error")
+		if err.Message != "an internal error occurred" {
+			t.Errorf("Message = %q, want %q", err.Message, "an internal error occurred")
+		}
+		// Details should be empty but not nil
+		if err.Details == nil {
+			t.Error("Details should not be nil")
 		}
 	})
 }

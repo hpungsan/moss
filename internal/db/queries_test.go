@@ -496,3 +496,640 @@ func TestGetByName_IncludeDeleted_PrefersActive(t *testing.T) {
 		t.Errorf("DeletedAt = %v, want nil (active capsule)", *retrieved.DeletedAt)
 	}
 }
+
+// =============================================================================
+// ListByWorkspace Tests
+// =============================================================================
+
+func TestListByWorkspace_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert 3 capsules in "default" workspace
+	for i, id := range []string{"01AAA001", "01AAA002", "01AAA003"} {
+		c := newTestCapsule(id, "default", "Content "+id)
+		c.NameRaw = stringPtr("cap-" + id)
+		c.NameNorm = stringPtr("cap-" + id)
+		c.UpdatedAt = int64(1000 + i) // Ensure ordering
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	// Insert 1 capsule in different workspace
+	other := newTestCapsule("01BBB001", "other", "Other content")
+	if err := Insert(db, other); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// List default workspace
+	summaries, total, err := ListByWorkspace(db, "default", 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListByWorkspace failed: %v", err)
+	}
+
+	if total != 3 {
+		t.Errorf("total = %d, want 3", total)
+	}
+	if len(summaries) != 3 {
+		t.Errorf("len(summaries) = %d, want 3", len(summaries))
+	}
+
+	// Verify ordering (most recent first)
+	if summaries[0].ID != "01AAA003" {
+		t.Errorf("first summary ID = %q, want 01AAA003", summaries[0].ID)
+	}
+}
+
+func TestListByWorkspace_Pagination(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert 5 capsules
+	for i := 0; i < 5; i++ {
+		id := "01CCC00" + string(rune('1'+i))
+		c := newTestCapsule(id, "default", "Content")
+		c.UpdatedAt = int64(1000 + i)
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	// Get first page (limit 2)
+	page1, total, err := ListByWorkspace(db, "default", 2, 0, false)
+	if err != nil {
+		t.Fatalf("ListByWorkspace page 1 failed: %v", err)
+	}
+	if total != 5 {
+		t.Errorf("total = %d, want 5", total)
+	}
+	if len(page1) != 2 {
+		t.Errorf("page1 len = %d, want 2", len(page1))
+	}
+
+	// Get second page (offset 2)
+	page2, _, err := ListByWorkspace(db, "default", 2, 2, false)
+	if err != nil {
+		t.Fatalf("ListByWorkspace page 2 failed: %v", err)
+	}
+	if len(page2) != 2 {
+		t.Errorf("page2 len = %d, want 2", len(page2))
+	}
+
+	// Verify no overlap
+	if page1[0].ID == page2[0].ID {
+		t.Error("pages should not overlap")
+	}
+}
+
+func TestListByWorkspace_StableOrdering(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert capsules with same updated_at but different IDs
+	sameTime := int64(1000)
+	ids := []string{"01DDD003", "01DDD001", "01DDD002"} // Not in order
+	for _, id := range ids {
+		c := newTestCapsule(id, "default", "Content")
+		c.UpdatedAt = sameTime
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	summaries, _, err := ListByWorkspace(db, "default", 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListByWorkspace failed: %v", err)
+	}
+
+	// Should be ordered by ID DESC when updated_at is same
+	if summaries[0].ID != "01DDD003" {
+		t.Errorf("first ID = %q, want 01DDD003", summaries[0].ID)
+	}
+	if summaries[1].ID != "01DDD002" {
+		t.Errorf("second ID = %q, want 01DDD002", summaries[1].ID)
+	}
+	if summaries[2].ID != "01DDD001" {
+		t.Errorf("third ID = %q, want 01DDD001", summaries[2].ID)
+	}
+}
+
+func TestListByWorkspace_IncludeDeleted(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert and delete one capsule
+	c := newTestCapsule("01EEE001", "default", "Content")
+	if err := Insert(db, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	if err := SoftDelete(db, c.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// Insert active capsule
+	active := newTestCapsule("01EEE002", "default", "Active")
+	if err := Insert(db, active); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Without includeDeleted
+	_, total, err := ListByWorkspace(db, "default", 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListByWorkspace failed: %v", err)
+	}
+	if total != 1 {
+		t.Errorf("total = %d, want 1", total)
+	}
+
+	// With includeDeleted
+	summaries, total, err := ListByWorkspace(db, "default", 10, 0, true)
+	if err != nil {
+		t.Fatalf("ListByWorkspace failed: %v", err)
+	}
+	if total != 2 {
+		t.Errorf("total = %d, want 2", total)
+	}
+	if len(summaries) != 2 {
+		t.Errorf("len(summaries) = %d, want 2", len(summaries))
+	}
+}
+
+func TestListByWorkspace_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	summaries, total, err := ListByWorkspace(db, "nonexistent", 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListByWorkspace failed: %v", err)
+	}
+	if total != 0 {
+		t.Errorf("total = %d, want 0", total)
+	}
+	if len(summaries) != 0 {
+		t.Errorf("len(summaries) = %d, want 0", len(summaries))
+	}
+}
+
+// =============================================================================
+// ListAll Tests
+// =============================================================================
+
+func TestListAll_NoFilters(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert capsules in different workspaces
+	for i, ws := range []string{"ws1", "ws2", "ws3"} {
+		c := newTestCapsule("01FFF00"+string(rune('1'+i)), ws, "Content")
+		c.UpdatedAt = int64(1000 + i)
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	summaries, total, err := ListAll(db, InventoryFilters{}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 3 {
+		t.Errorf("total = %d, want 3", total)
+	}
+	if len(summaries) != 3 {
+		t.Errorf("len(summaries) = %d, want 3", len(summaries))
+	}
+}
+
+func TestListAll_WorkspaceFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert capsules
+	c1 := newTestCapsule("01GGG001", "alpha", "Content")
+	c2 := newTestCapsule("01GGG002", "beta", "Content")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	workspace := "alpha"
+	summaries, total, err := ListAll(db, InventoryFilters{Workspace: &workspace}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("total = %d, want 1", total)
+	}
+	if summaries[0].WorkspaceNorm != "alpha" {
+		t.Errorf("workspace = %q, want alpha", summaries[0].WorkspaceNorm)
+	}
+}
+
+func TestListAll_TagFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Capsule with matching tag
+	c1 := newTestCapsule("01HHH001", "default", "Content")
+	c1.Tags = []string{"important", "urgent"}
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule without matching tag
+	c2 := newTestCapsule("01HHH002", "default", "Content")
+	c2.Tags = []string{"other"}
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule with no tags
+	c3 := newTestCapsule("01HHH003", "default", "Content")
+	if err := Insert(db, c3); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	tag := "important"
+	summaries, total, err := ListAll(db, InventoryFilters{Tag: &tag}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("total = %d, want 1", total)
+	}
+	if summaries[0].ID != "01HHH001" {
+		t.Errorf("ID = %q, want 01HHH001", summaries[0].ID)
+	}
+}
+
+func TestListAll_NamePrefixFilter_EscapesWildcards(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Capsule with literal % in name
+	c1 := newTestCapsule("01WILD01", "default", "Content")
+	c1.NameRaw = stringPtr("test%percent")
+	c1.NameNorm = stringPtr("test%percent")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule with literal _ in name
+	c2 := newTestCapsule("01WILD02", "default", "Content")
+	c2.NameRaw = stringPtr("test_underscore")
+	c2.NameNorm = stringPtr("test_underscore")
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule that would match unescaped % wildcard
+	c3 := newTestCapsule("01WILD03", "default", "Content")
+	c3.NameRaw = stringPtr("testANYTHING")
+	c3.NameNorm = stringPtr("testanything")
+	if err := Insert(db, c3); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Search for literal "test%" - should only match c1, not c3
+	prefix := "test%"
+	summaries, total, err := ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (only literal %% match)", total)
+	}
+	if len(summaries) != 1 {
+		t.Errorf("len(summaries) = %d, want 1", len(summaries))
+	}
+	if len(summaries) > 0 && summaries[0].ID != "01WILD01" {
+		t.Errorf("ID = %q, want 01WILD01", summaries[0].ID)
+	}
+
+	// Search for literal "test_" - should only match c2, not c3
+	prefix = "test_"
+	summaries, total, err = ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (only literal _ match)", total)
+	}
+	if len(summaries) > 0 && summaries[0].ID != "01WILD02" {
+		t.Errorf("ID = %q, want 01WILD02", summaries[0].ID)
+	}
+}
+
+func TestListAll_NamePrefixFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Capsule matching prefix
+	c1 := newTestCapsule("01III001", "default", "Content")
+	c1.NameRaw = stringPtr("auth-login")
+	c1.NameNorm = stringPtr("auth-login")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	c2 := newTestCapsule("01III002", "default", "Content")
+	c2.NameRaw = stringPtr("auth-logout")
+	c2.NameNorm = stringPtr("auth-logout")
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule not matching prefix
+	c3 := newTestCapsule("01III003", "default", "Content")
+	c3.NameRaw = stringPtr("other")
+	c3.NameNorm = stringPtr("other")
+	if err := Insert(db, c3); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	prefix := "auth"
+	summaries, total, err := ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 2 {
+		t.Errorf("total = %d, want 2", total)
+	}
+	if len(summaries) != 2 {
+		t.Errorf("len(summaries) = %d, want 2", len(summaries))
+	}
+}
+
+func TestListAll_Pagination(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert 5 capsules
+	for i := 0; i < 5; i++ {
+		c := newTestCapsule("01JJJ00"+string(rune('1'+i)), "default", "Content")
+		c.UpdatedAt = int64(1000 + i)
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	// First page
+	page1, total, err := ListAll(db, InventoryFilters{}, 2, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll page 1 failed: %v", err)
+	}
+	if total != 5 {
+		t.Errorf("total = %d, want 5", total)
+	}
+	if len(page1) != 2 {
+		t.Errorf("page1 len = %d, want 2", len(page1))
+	}
+
+	// Third page (partial)
+	page3, _, err := ListAll(db, InventoryFilters{}, 2, 4, false)
+	if err != nil {
+		t.Fatalf("ListAll page 3 failed: %v", err)
+	}
+	if len(page3) != 1 {
+		t.Errorf("page3 len = %d, want 1", len(page3))
+	}
+}
+
+// =============================================================================
+// GetLatestSummary Tests
+// =============================================================================
+
+func TestGetLatestSummary_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert 3 capsules with different updated_at
+	c1 := newTestCapsule("01KKK001", "default", "First")
+	c1.UpdatedAt = 1000
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	c2 := newTestCapsule("01KKK002", "default", "Second")
+	c2.UpdatedAt = 2000
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	c3 := newTestCapsule("01KKK003", "default", "Third")
+	c3.UpdatedAt = 1500
+	if err := Insert(db, c3); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	summary, err := GetLatestSummary(db, "default", false)
+	if err != nil {
+		t.Fatalf("GetLatestSummary failed: %v", err)
+	}
+
+	if summary == nil {
+		t.Fatal("summary should not be nil")
+	}
+	if summary.ID != "01KKK002" {
+		t.Errorf("ID = %q, want 01KKK002 (most recent)", summary.ID)
+	}
+}
+
+func TestGetLatestSummary_EmptyWorkspace(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	summary, err := GetLatestSummary(db, "empty", false)
+	if err != nil {
+		t.Fatalf("GetLatestSummary failed: %v", err)
+	}
+
+	if summary != nil {
+		t.Errorf("summary = %v, want nil for empty workspace", summary)
+	}
+}
+
+func TestGetLatestSummary_StableOrdering(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert capsules with same updated_at
+	sameTime := int64(1000)
+	c1 := newTestCapsule("01LLL001", "default", "First")
+	c1.UpdatedAt = sameTime
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	c2 := newTestCapsule("01LLL003", "default", "Second")
+	c2.UpdatedAt = sameTime
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	summary, err := GetLatestSummary(db, "default", false)
+	if err != nil {
+		t.Fatalf("GetLatestSummary failed: %v", err)
+	}
+
+	// Should return higher ID when updated_at is same
+	if summary.ID != "01LLL003" {
+		t.Errorf("ID = %q, want 01LLL003 (higher ID as tiebreaker)", summary.ID)
+	}
+}
+
+func TestGetLatestSummary_IncludeDeleted(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert and delete a recent capsule
+	c1 := newTestCapsule("01MMM001", "default", "Deleted")
+	c1.UpdatedAt = 2000
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	if err := SoftDelete(db, c1.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// Insert older active capsule
+	c2 := newTestCapsule("01MMM002", "default", "Active")
+	c2.UpdatedAt = 1000
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Without includeDeleted
+	summary, err := GetLatestSummary(db, "default", false)
+	if err != nil {
+		t.Fatalf("GetLatestSummary failed: %v", err)
+	}
+	if summary.ID != "01MMM002" {
+		t.Errorf("ID = %q, want 01MMM002 (active)", summary.ID)
+	}
+
+	// With includeDeleted - should return deleted one since it's more recent
+	summary, err = GetLatestSummary(db, "default", true)
+	if err != nil {
+		t.Fatalf("GetLatestSummary failed: %v", err)
+	}
+	if summary.ID != "01MMM001" {
+		t.Errorf("ID = %q, want 01MMM001 (deleted but more recent)", summary.ID)
+	}
+}
+
+// =============================================================================
+// GetLatestFull Tests
+// =============================================================================
+
+func TestGetLatestFull_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	c := newTestCapsule("01NNN001", "default", "Full capsule content")
+	if err := Insert(db, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	capsule, err := GetLatestFull(db, "default", false)
+	if err != nil {
+		t.Fatalf("GetLatestFull failed: %v", err)
+	}
+
+	if capsule == nil {
+		t.Fatal("capsule should not be nil")
+	}
+	if capsule.CapsuleText != "Full capsule content" {
+		t.Errorf("CapsuleText = %q, want 'Full capsule content'", capsule.CapsuleText)
+	}
+}
+
+func TestGetLatestFull_EmptyWorkspace(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	capsule, err := GetLatestFull(db, "empty", false)
+	if err != nil {
+		t.Fatalf("GetLatestFull failed: %v", err)
+	}
+
+	if capsule != nil {
+		t.Errorf("capsule = %v, want nil for empty workspace", capsule)
+	}
+}
