@@ -47,4 +47,3 @@ func TestLoad_InvalidJSON(t *testing.T) {
 		t.Fatalf("Load() expected error, got nil")
 	}
 }
-
