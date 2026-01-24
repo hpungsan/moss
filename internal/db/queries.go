@@ -100,7 +100,7 @@ func GetByName(db *sql.DB, workspaceNorm, nameNorm string, includeDeleted bool) 
 		WHERE workspace_norm = ? AND name_norm = ?
 	`
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += " AND deleted_at IS NULL LIMIT 1"
 	} else {
 		// If both active and soft-deleted capsules exist for the same name, prefer the active one.
 		// If no active capsule exists, return the most recently updated deleted capsule.

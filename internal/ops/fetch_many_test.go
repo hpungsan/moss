@@ -387,6 +387,34 @@ func TestFetchMany_EmptyInput(t *testing.T) {
 	}
 }
 
+func TestFetchMany_NilInput(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// FetchMany with nil items (not explicitly set)
+	output, err := FetchMany(database, FetchManyInput{})
+	if err != nil {
+		t.Fatalf("FetchMany failed: %v", err)
+	}
+
+	if len(output.Items) != 0 {
+		t.Errorf("len(Items) = %d, want 0", len(output.Items))
+	}
+	if len(output.Errors) != 0 {
+		t.Errorf("len(Errors) = %d, want 0", len(output.Errors))
+	}
+	if output.Items == nil {
+		t.Error("Items should be empty array, not nil")
+	}
+	if output.Errors == nil {
+		t.Error("Errors should be empty array, not nil")
+	}
+}
+
 func TestFetchMany_TaskLink(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
