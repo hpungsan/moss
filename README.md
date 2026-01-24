@@ -1,33 +1,35 @@
 # Moss
 
-Local context capsule store for portable AI session handoffs.
+Local context capsule store for portable AI handoffs, multi-agent orchestration, and cross-tool context sharing.
 
-## What is Moss?
+## The Problem
 
-Moss stores **capsules**—distilled, size-bounded context snapshots—for:
-- **Session handoffs:** seamlessly continue work across AI tools (Claude Code, Codex, etc.)
-- **Multi-agent orchestration:** share context between parallel agents
+AI coding sessions lose context when you switch tools or start fresh. Copy-pasting full chat history is bloated and noisy. Moss solves this with **capsules**—distilled context snapshots that preserve what matters.
 
-**Key features:**
-- Store/fetch/update/delete capsules with human-friendly names
-- Batch fetch (`fetch_many`) for multi-agent workflows
-- Export/import (JSONL) for backup and portability
-- Quality guardrails: lint rules enforce useful capsules, size limits prevent bloat
-- Soft delete with purge for safety
-- Local-first: SQLite storage at `~/.moss/moss.db`
-- MCP-first interface with CLI for debugging
+## What Moss Does
+
+- **Hand off sessions:** Session A → Moss → Session B, across tools (Claude Code, Codex, etc.)
+- **Orchestrate agents:** give parallel agents a shared context layer
+- **Stay portable:** export/import for backup and cross-machine transfer
 
 ## Capsule Structure
 
-Every capsule must include:
-1. Objective
-2. Current status
-3. Decisions/constraints
-4. Next actions
-5. Key locations
-6. Open questions/risks
+A capsule is not a chat log. It's a structured summary:
+
+| Section | Purpose |
+|---------|---------|
+| Objective | What you're trying to accomplish |
+| Current status | Where things stand now |
+| Decisions/constraints | Choices made and why |
+| Next actions | What to do next |
+| Key locations | Files, URLs, commands |
+| Open questions | Unresolved issues |
+
+Capsules are size-bounded and linted to stay useful.
 
 ## Quick Start
+
+### MCP Tools
 
 ```bash
 # Store a capsule
@@ -46,11 +48,22 @@ moss.inventory {}
 ### CLI (debug)
 
 ```bash
-moss list --workspace=myproject
+moss store --name=auth < capsule.md
 moss fetch --workspace=myproject --name=auth
-moss inventory
+moss list --workspace=myproject
 moss export --workspace=myproject > backup.jsonl
 ```
+
+## Design Principles
+
+- **Local-first:** SQLite at `~/.moss/moss.db`, no external services
+- **MCP-first:** Native tool for AI agents, CLI for debugging
+- **Explicit only:** No auto-save, no auto-load
+- **Low-bloat:** Size limits + lint rules enforce quality
+
+## Examples
+
+- [Pairing Moss with Claude Code Tasks](docs/agents/TASKS.md)
 
 ## License
 

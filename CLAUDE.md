@@ -20,7 +20,23 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go)
 - Low-bloat (size limits + lint)
 
 ## Commands
-go build | go run . | go test ./...
+```
+go build ./...          # Build all
+go test ./...           # Run tests
+go test ./... -v        # Verbose tests
+go fmt ./...            # Format code
+go mod tidy             # Clean dependencies
+```
+
+## Package Structure
+```
+internal/
+├── capsule/     # Capsule type, normalize, lint (6 required sections)
+├── config/      # Config loader (~/.moss/config.json)
+├── db/          # SQLite init, migrations, queries (CRUD)
+├── errors/      # MossError with codes (400/404/409/413/422/500)
+└── ops/         # Business logic: Store, Fetch, Update, Delete
+```
 
 ## Paths
 - DB: `~/.moss/moss.db`
