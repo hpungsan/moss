@@ -273,6 +273,14 @@ func fromNullString(ns sql.NullString) *string {
 	return &ns.String
 }
 
+// escapeLikePattern escapes SQL LIKE wildcards (%, _) and the escape char (\).
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
+}
+
 // scanCapsuleSummary scans a single row into a CapsuleSummary struct.
 // Expects columns: id, workspace_raw, workspace_norm, name_raw, name_norm,
 // title, capsule_chars, tokens_estimate, tags_json, source, created_at, updated_at, deleted_at
@@ -393,8 +401,8 @@ func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDel
 		args = append(args, *filters.Tag)
 	}
 	if filters.NamePrefix != nil {
-		conditions = append(conditions, "name_norm LIKE ?")
-		args = append(args, *filters.NamePrefix+"%")
+		conditions = append(conditions, "name_norm LIKE ? ESCAPE '\\'")
+		args = append(args, escapeLikePattern(*filters.NamePrefix)+"%")
 	}
 
 	whereClause := ""

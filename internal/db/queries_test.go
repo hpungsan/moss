@@ -799,6 +799,70 @@ func TestListAll_TagFilter(t *testing.T) {
 	}
 }
 
+func TestListAll_NamePrefixFilter_EscapesWildcards(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Capsule with literal % in name
+	c1 := newTestCapsule("01WILD01", "default", "Content")
+	c1.NameRaw = stringPtr("test%percent")
+	c1.NameNorm = stringPtr("test%percent")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule with literal _ in name
+	c2 := newTestCapsule("01WILD02", "default", "Content")
+	c2.NameRaw = stringPtr("test_underscore")
+	c2.NameNorm = stringPtr("test_underscore")
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Capsule that would match unescaped % wildcard
+	c3 := newTestCapsule("01WILD03", "default", "Content")
+	c3.NameRaw = stringPtr("testANYTHING")
+	c3.NameNorm = stringPtr("testanything")
+	if err := Insert(db, c3); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Search for literal "test%" - should only match c1, not c3
+	prefix := "test%"
+	summaries, total, err := ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (only literal %% match)", total)
+	}
+	if len(summaries) != 1 {
+		t.Errorf("len(summaries) = %d, want 1", len(summaries))
+	}
+	if len(summaries) > 0 && summaries[0].ID != "01WILD01" {
+		t.Errorf("ID = %q, want 01WILD01", summaries[0].ID)
+	}
+
+	// Search for literal "test_" - should only match c2, not c3
+	prefix = "test_"
+	summaries, total, err = ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	if err != nil {
+		t.Fatalf("ListAll failed: %v", err)
+	}
+
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (only literal _ match)", total)
+	}
+	if len(summaries) > 0 && summaries[0].ID != "01WILD02" {
+		t.Errorf("ID = %q, want 01WILD02", summaries[0].ID)
+	}
+}
+
 func TestListAll_NamePrefixFilter(t *testing.T) {
 	tmpDir := t.TempDir()
 	db, err := Init(tmpDir)
