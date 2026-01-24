@@ -26,6 +26,7 @@ go test ./...           # Run tests
 go test ./... -v        # Verbose tests
 go fmt ./...            # Format code
 go mod tidy             # Clean dependencies
+golangci-lint run       # Lint
 ```
 
 ## Package Structure

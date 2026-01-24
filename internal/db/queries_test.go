@@ -1133,3 +1133,487 @@ func TestGetLatestFull_EmptyWorkspace(t *testing.T) {
 		t.Errorf("capsule = %v, want nil for empty workspace", capsule)
 	}
 }
+
+// =============================================================================
+// StreamForExport Tests
+// =============================================================================
+
+func TestStreamForExport_All(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert capsules in different workspaces
+	c1 := newTestCapsule("01EXP001", "ws1", "Content 1")
+	c1.CreatedAt = 1000
+	c2 := newTestCapsule("01EXP002", "ws2", "Content 2")
+	c2.CreatedAt = 2000
+	c3 := newTestCapsule("01EXP003", "ws1", "Content 3")
+	c3.CreatedAt = 3000
+
+	for _, c := range []*capsule.Capsule{c1, c2, c3} {
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	rows, err := StreamForExport(db, nil, false)
+	if err != nil {
+		t.Fatalf("StreamForExport failed: %v", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		c, err := ScanCapsuleFromRows(rows)
+		if err != nil {
+			t.Fatalf("ScanCapsuleFromRows failed: %v", err)
+		}
+		ids = append(ids, c.ID)
+	}
+
+	if len(ids) != 3 {
+		t.Errorf("got %d capsules, want 3", len(ids))
+	}
+	// Should be ordered by created_at ASC
+	if ids[0] != "01EXP001" || ids[1] != "01EXP002" || ids[2] != "01EXP003" {
+		t.Errorf("wrong order: %v, want [01EXP001 01EXP002 01EXP003]", ids)
+	}
+}
+
+func TestStreamForExport_WorkspaceFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	c1 := newTestCapsule("01EXP101", "target", "Content 1")
+	c2 := newTestCapsule("01EXP102", "other", "Content 2")
+	c3 := newTestCapsule("01EXP103", "target", "Content 3")
+
+	for _, c := range []*capsule.Capsule{c1, c2, c3} {
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	ws := "target"
+	rows, err := StreamForExport(db, &ws, false)
+	if err != nil {
+		t.Fatalf("StreamForExport failed: %v", err)
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		c, err := ScanCapsuleFromRows(rows)
+		if err != nil {
+			t.Fatalf("ScanCapsuleFromRows failed: %v", err)
+		}
+		if c.WorkspaceNorm != "target" {
+			t.Errorf("unexpected workspace: %s", c.WorkspaceNorm)
+		}
+		count++
+	}
+
+	if count != 2 {
+		t.Errorf("got %d capsules, want 2", count)
+	}
+}
+
+func TestStreamForExport_IncludeDeleted(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	c1 := newTestCapsule("01EXP201", "default", "Active")
+	c2 := newTestCapsule("01EXP202", "default", "Deleted")
+
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	if err := SoftDelete(db, c2.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// Without includeDeleted
+	rows, err := StreamForExport(db, nil, false)
+	if err != nil {
+		t.Fatalf("StreamForExport failed: %v", err)
+	}
+	count := 0
+	for rows.Next() {
+		count++
+	}
+	rows.Close()
+	if count != 1 {
+		t.Errorf("without includeDeleted: got %d, want 1", count)
+	}
+
+	// With includeDeleted
+	rows, err = StreamForExport(db, nil, true)
+	if err != nil {
+		t.Fatalf("StreamForExport failed: %v", err)
+	}
+	count = 0
+	for rows.Next() {
+		count++
+	}
+	rows.Close()
+	if count != 2 {
+		t.Errorf("with includeDeleted: got %d, want 2", count)
+	}
+}
+
+// =============================================================================
+// UpdateFull Tests
+// =============================================================================
+
+func TestUpdateFull_AllFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert original
+	c := newTestCapsule("01UPD001", "original-ws", "Original content")
+	c.NameRaw = stringPtr("original-name")
+	c.NameNorm = stringPtr("original-name")
+	c.Title = stringPtr("Original Title")
+	c.Tags = []string{"old"}
+	c.Source = stringPtr("original")
+	c.CreatedAt = 1000
+	c.UpdatedAt = 1000
+
+	if err := Insert(db, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Update all fields
+	c.WorkspaceRaw = "new-ws"
+	c.WorkspaceNorm = "new-ws"
+	c.NameRaw = stringPtr("new-name")
+	c.NameNorm = stringPtr("new-name")
+	c.Title = stringPtr("New Title")
+	c.CapsuleText = "New content"
+	c.CapsuleChars = 11
+	c.TokensEstimate = 3
+	c.Tags = []string{"new1", "new2"}
+	c.Source = stringPtr("updated")
+	c.CreatedAt = 500  // Can change
+	c.UpdatedAt = 2000 // Can change
+	deletedAt := int64(3000)
+	c.DeletedAt = &deletedAt
+
+	if err := UpdateFull(db, c); err != nil {
+		t.Fatalf("UpdateFull failed: %v", err)
+	}
+
+	// Retrieve and verify all fields
+	retrieved, err := GetByID(db, c.ID, true)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if retrieved.WorkspaceRaw != "new-ws" {
+		t.Errorf("WorkspaceRaw = %q, want new-ws", retrieved.WorkspaceRaw)
+	}
+	if *retrieved.NameRaw != "new-name" {
+		t.Errorf("NameRaw = %q, want new-name", *retrieved.NameRaw)
+	}
+	if *retrieved.Title != "New Title" {
+		t.Errorf("Title = %q, want New Title", *retrieved.Title)
+	}
+	if retrieved.CapsuleText != "New content" {
+		t.Errorf("CapsuleText = %q, want New content", retrieved.CapsuleText)
+	}
+	if retrieved.CreatedAt != 500 {
+		t.Errorf("CreatedAt = %d, want 500", retrieved.CreatedAt)
+	}
+	if retrieved.UpdatedAt != 2000 {
+		t.Errorf("UpdatedAt = %d, want 2000", retrieved.UpdatedAt)
+	}
+	if retrieved.DeletedAt == nil || *retrieved.DeletedAt != 3000 {
+		t.Errorf("DeletedAt = %v, want 3000", retrieved.DeletedAt)
+	}
+}
+
+func TestUpdateFull_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	c := newTestCapsule("nonexistent", "default", "Content")
+	err = UpdateFull(db, c)
+	if !errors.Is(err, errors.ErrNotFound) {
+		t.Errorf("UpdateFull should return ErrNotFound, got: %v", err)
+	}
+}
+
+// =============================================================================
+// FindUniqueName Tests
+// =============================================================================
+
+func TestFindUniqueName_NoCollision(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	name, err := FindUniqueName(db, "default", "auth")
+	if err != nil {
+		t.Fatalf("FindUniqueName failed: %v", err)
+	}
+	if name != "auth" {
+		t.Errorf("name = %q, want auth (no collision)", name)
+	}
+}
+
+func TestFindUniqueName_FindsNextSuffix(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Create auth and auth-1
+	c1 := newTestCapsule("01FUN001", "default", "Content")
+	c1.NameRaw = stringPtr("auth")
+	c1.NameNorm = stringPtr("auth")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	c2 := newTestCapsule("01FUN002", "default", "Content")
+	c2.NameRaw = stringPtr("auth-1")
+	c2.NameNorm = stringPtr("auth-1")
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	name, err := FindUniqueName(db, "default", "auth")
+	if err != nil {
+		t.Fatalf("FindUniqueName failed: %v", err)
+	}
+	if name != "auth-2" {
+		t.Errorf("name = %q, want auth-2", name)
+	}
+}
+
+func TestFindUniqueName_SkipsGaps(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Create auth and auth-2 (skipping auth-1)
+	c1 := newTestCapsule("01FUN101", "default", "Content")
+	c1.NameRaw = stringPtr("auth")
+	c1.NameNorm = stringPtr("auth")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	c2 := newTestCapsule("01FUN102", "default", "Content")
+	c2.NameRaw = stringPtr("auth-2")
+	c2.NameNorm = stringPtr("auth-2")
+	if err := Insert(db, c2); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	name, err := FindUniqueName(db, "default", "auth")
+	if err != nil {
+		t.Fatalf("FindUniqueName failed: %v", err)
+	}
+	// Should find auth-1 (first gap)
+	if name != "auth-1" {
+		t.Errorf("name = %q, want auth-1 (first gap)", name)
+	}
+}
+
+// =============================================================================
+// PurgeDeleted Tests
+// =============================================================================
+
+func TestPurgeDeleted_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert and soft-delete some capsules
+	c1 := newTestCapsule("01PUR001", "default", "Active")
+	c2 := newTestCapsule("01PUR002", "default", "Deleted 1")
+	c3 := newTestCapsule("01PUR003", "default", "Deleted 2")
+
+	for _, c := range []*capsule.Capsule{c1, c2, c3} {
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	if err := SoftDelete(db, c2.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+	if err := SoftDelete(db, c3.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// Purge all deleted
+	count, err := PurgeDeleted(db, nil, nil)
+	if err != nil {
+		t.Fatalf("PurgeDeleted failed: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("purged = %d, want 2", count)
+	}
+
+	// Verify active capsule still exists
+	_, err = GetByID(db, c1.ID, false)
+	if err != nil {
+		t.Errorf("Active capsule should still exist: %v", err)
+	}
+
+	// Verify deleted capsules are gone
+	_, err = GetByID(db, c2.ID, true)
+	if !errors.Is(err, errors.ErrNotFound) {
+		t.Errorf("Deleted capsule should be purged: %v", err)
+	}
+}
+
+func TestPurgeDeleted_WorkspaceFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Delete capsules in different workspaces
+	c1 := newTestCapsule("01PUR101", "ws1", "Deleted in ws1")
+	c2 := newTestCapsule("01PUR102", "ws2", "Deleted in ws2")
+
+	for _, c := range []*capsule.Capsule{c1, c2} {
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+		if err := SoftDelete(db, c.ID); err != nil {
+			t.Fatalf("SoftDelete failed: %v", err)
+		}
+	}
+
+	// Purge only ws1
+	ws := "ws1"
+	count, err := PurgeDeleted(db, &ws, nil)
+	if err != nil {
+		t.Fatalf("PurgeDeleted failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("purged = %d, want 1", count)
+	}
+
+	// ws2 capsule should still exist (as deleted)
+	_, err = GetByID(db, c2.ID, true)
+	if err != nil {
+		t.Errorf("ws2 capsule should still exist: %v", err)
+	}
+}
+
+func TestPurgeDeleted_OlderThanDays(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Create capsules
+	c1 := newTestCapsule("01PUR201", "default", "Recent")
+	c2 := newTestCapsule("01PUR202", "default", "Old")
+
+	for _, c := range []*capsule.Capsule{c1, c2} {
+		if err := Insert(db, c); err != nil {
+			t.Fatalf("Insert failed: %v", err)
+		}
+	}
+
+	// Soft-delete both, but manipulate deleted_at for c2 to be old
+	if err := SoftDelete(db, c1.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// For c2, manually set deleted_at to 10 days ago
+	tenDaysAgo := time.Now().Unix() - (10 * 24 * 60 * 60)
+	_, err = db.Exec("UPDATE capsules SET deleted_at = ? WHERE id = ?", tenDaysAgo, c2.ID)
+	if err != nil {
+		t.Fatalf("Failed to set old deleted_at: %v", err)
+	}
+
+	// Purge capsules deleted more than 7 days ago
+	days := 7
+	count, err := PurgeDeleted(db, nil, &days)
+	if err != nil {
+		t.Fatalf("PurgeDeleted failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("purged = %d, want 1 (only old one)", count)
+	}
+
+	// Recent deleted capsule should still exist
+	_, err = GetByID(db, c1.ID, true)
+	if err != nil {
+		t.Errorf("Recent deleted capsule should still exist: %v", err)
+	}
+
+	// Old deleted capsule should be gone
+	_, err = GetByID(db, c2.ID, true)
+	if !errors.Is(err, errors.ErrNotFound) {
+		t.Errorf("Old deleted capsule should be purged: %v", err)
+	}
+}
+
+func TestPurgeDeleted_NoDeleted(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert only active capsules
+	c := newTestCapsule("01PUR301", "default", "Active")
+	if err := Insert(db, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	count, err := PurgeDeleted(db, nil, nil)
+	if err != nil {
+		t.Fatalf("PurgeDeleted failed: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("purged = %d, want 0", count)
+	}
+}
