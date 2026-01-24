@@ -246,7 +246,8 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 		// Check for name collision (if named)
 		var existingByName *capsule.Capsule
 		if c.NameNorm != nil {
-			existingByName, err = db.GetByName(database, c.WorkspaceNorm, *c.NameNorm, true)
+			// Name collisions should only consider active capsules (deleted_at IS NULL).
+			existingByName, err = db.GetByName(database, c.WorkspaceNorm, *c.NameNorm, false)
 			if err != nil && !errors.Is(err, errors.ErrNotFound) {
 				return nil, err
 			}

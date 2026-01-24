@@ -420,6 +420,81 @@ func TestImport_ModeReplace_UpdatesOnNameCollision(t *testing.T) {
 	}
 }
 
+func TestImport_ModeReplace_IgnoresDeletedNameCollision(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Pre-insert a named capsule, then soft-delete it.
+	deleted := newTestCapsuleForImport("01IMP0D1", "default", "Old deleted content")
+	deleted.NameRaw = stringPtr("myname")
+	deleted.NameNorm = stringPtr("myname")
+	if err := db.Insert(database, deleted); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	if err := db.SoftDelete(database, deleted.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// Import an active capsule with the same name but different ID.
+	records := []capsule.ExportRecord{
+		{
+			ID:           "01IMP0D2", // Different ID
+			WorkspaceRaw: "default",
+			NameRaw:      stringPtr("myname"), // Same name as deleted capsule
+			CapsuleText:  "New content",
+			CreatedAt:    1000,
+			UpdatedAt:    2000,
+			DeletedAt:    nil, // Active
+		},
+	}
+
+	exportPath := filepath.Join(tmpDir, "export.jsonl")
+	writeExportFile(t, exportPath, records)
+
+	output, err := Import(database, ImportInput{
+		Path: exportPath,
+		Mode: ImportModeReplace,
+	})
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	if output.Imported != 1 {
+		t.Errorf("Imported = %d, want 1", output.Imported)
+	}
+	if output.Skipped != 0 {
+		t.Errorf("Skipped = %d, want 0", output.Skipped)
+	}
+
+	// Deleted capsule should remain deleted.
+	cDel, err := db.GetByID(database, "01IMP0D1", true)
+	if err != nil {
+		t.Fatalf("GetByID(deleted) failed: %v", err)
+	}
+	if cDel.DeletedAt == nil {
+		t.Error("Deleted capsule should remain soft-deleted")
+	}
+	if cDel.CapsuleText != "Old deleted content" {
+		t.Errorf("Deleted capsule text = %q, want %q", cDel.CapsuleText, "Old deleted content")
+	}
+
+	// New capsule ID should exist and be active.
+	cNew, err := db.GetByID(database, "01IMP0D2", false)
+	if err != nil {
+		t.Fatalf("New ID should exist: %v", err)
+	}
+	if cNew.DeletedAt != nil {
+		t.Error("New capsule should be active")
+	}
+	if cNew.CapsuleText != "New content" {
+		t.Errorf("New capsule text = %q, want %q", cNew.CapsuleText, "New content")
+	}
+}
+
 func TestImport_ModeReplace_ErrorsOnAmbiguousCollision(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
