@@ -343,7 +343,8 @@ Batch fetch multiple capsules in one call.
     { "workspace": "phinn", "name": "pr-123-design" },
     { "id": "01J...ULID" }
   ],
-  "include_text": true
+  "include_text": true,
+  "include_deleted": false
 }
 ```
 
@@ -352,6 +353,8 @@ Behavior:
 * Each item can be addressed by `id` OR by `(workspace, name)`
 * Partial success allowed — missing items returned in `errors` array
 * If `include_text: false`, returns summaries only
+* If `include_deleted: true`, soft-deleted capsules are eligible to be returned
+* Each returned item includes `task_link` for client integrations
 
 Output:
 
@@ -451,7 +454,7 @@ Output:
 Soft-delete notes:
 
 * Soft-deleted capsules are excluded from name uniqueness, so the same `(workspace,name)` can be stored again after delete.
-* By default, read/browse actions exclude soft-deleted capsules; `include_deleted:true` is supported by: `fetch`, `latest`, `list`, `inventory`, `export`.
+* By default, read/browse actions exclude soft-deleted capsules; `include_deleted:true` is supported by: `fetch`, `fetch_many`, `latest`, `list`, `inventory`, `export`.
 * `update` and `delete` by name operate on **active** capsules only (no `include_deleted` support).
 * Recovery is via `fetch/include_deleted`, or `export include_deleted:true` + `import` (see “Export/import file format” under `export` / `import` below).
 
@@ -479,6 +482,19 @@ Include soft-deleted:
 
 **Ordering with `include_deleted`:** When `include_deleted: true`, returns the single most recently updated capsule among **all** capsules (active + deleted) in the workspace. No preference for active over deleted — purely by `updated_at`.
 
+### Capsule summary shape (browse/query ops)
+
+Browse/query operations return capsule metadata without `capsule_text` using a shared summary shape:
+
+* `id`
+* `workspace`, `workspace_norm`
+* `name` (optional), `name_norm` (optional)
+* `title` (optional)
+* `capsule_chars`, `tokens_estimate`
+* `tags` (array, optional), `source` (optional)
+* `created_at`, `updated_at`
+* `deleted_at` (optional, only for soft-deleted capsules)
+
 Default output (summary):
 
 ```json
@@ -486,13 +502,17 @@ Default output (summary):
   "item": {
     "id": "01J...ULID",
     "workspace": "startupA",
+    "workspace_norm": "startupa",
     "name": "auth",
+    "name_norm": "auth",
     "title": "Auth + sessions",
+    "created_at": 1737260000,
     "updated_at": 1737260500,
     "tags": ["auth","sessions"],
     "source": "claude-code",
     "capsule_chars": 1823,
-    "tokens_estimate": 456
+    "tokens_estimate": 456,
+    "task_link": { "moss_capsule": "auth", "moss_workspace": "startupA" }
   }
 }
 ```
@@ -522,8 +542,12 @@ Output (summaries only):
   "items": [
     {
       "id":"01J...",
+      "workspace":"startupA",
+      "workspace_norm":"startupa",
       "name":"auth",
+      "name_norm":"auth",
       "title":"Auth + sessions",
+      "created_at":1737260000,
       "updated_at":1737260500,
       "tags":["auth"],
       "source":"claude-code",
@@ -557,8 +581,8 @@ Output:
 ```json
 {
   "items": [
-    { "id":"01J...","workspace":"startupA","name":"auth","title":"Auth + sessions","updated_at":1737260500,"tags":["auth"],"source":"claude-code","capsule_chars":1823,"tokens_estimate":456 },
-    { "id":"01J...","workspace":"startupB","name":null,"title":"Brainstorm notes","updated_at":1737200000,"tags":[],"source":"codex","capsule_chars":921,"tokens_estimate":230 }
+    { "id":"01J...","workspace":"startupA","workspace_norm":"startupa","name":"auth","name_norm":"auth","title":"Auth + sessions","created_at":1737260000,"updated_at":1737260500,"tags":["auth"],"source":"claude-code","capsule_chars":1823,"tokens_estimate":456 },
+    { "id":"01J...","workspace":"startupB","workspace_norm":"startupb","title":"Brainstorm notes","created_at":1737200000,"updated_at":1737200000,"source":"codex","capsule_chars":921,"tokens_estimate":230 }
   ],
   "pagination": { "limit": 200, "offset": 0, "has_more": false, "total": 2 },
   "sort": "updated_at_desc"

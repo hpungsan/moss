@@ -531,3 +531,67 @@ func TestFetchMany_ErrorPreservesRef(t *testing.T) {
 		t.Errorf("Error[1].Ref.Workspace = %q, want 'ws'", output.Errors[1].Ref.Workspace)
 	}
 }
+
+func TestFetchMany_IncludeDeleted(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Store and delete a capsule
+	stored, err := Store(database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("deleted-cap"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+	if err := db.SoftDelete(database, stored.ID); err != nil {
+		t.Fatalf("SoftDelete failed: %v", err)
+	}
+
+	// Without IncludeDeleted - should NOT find deleted capsule
+	output, err := FetchMany(database, FetchManyInput{
+		Items: []FetchManyRef{
+			{ID: stored.ID},
+		},
+		IncludeDeleted: false,
+	})
+	if err != nil {
+		t.Fatalf("FetchMany failed: %v", err)
+	}
+	if len(output.Items) != 0 {
+		t.Errorf("len(Items) = %d, want 0 (deleted should be excluded)", len(output.Items))
+	}
+	if len(output.Errors) != 1 {
+		t.Errorf("len(Errors) = %d, want 1", len(output.Errors))
+	}
+	if output.Errors[0].Code != "NOT_FOUND" {
+		t.Errorf("Error code = %q, want NOT_FOUND", output.Errors[0].Code)
+	}
+
+	// With IncludeDeleted - should find deleted capsule
+	output, err = FetchMany(database, FetchManyInput{
+		Items: []FetchManyRef{
+			{ID: stored.ID},
+		},
+		IncludeDeleted: true,
+	})
+	if err != nil {
+		t.Fatalf("FetchMany failed: %v", err)
+	}
+	if len(output.Items) != 1 {
+		t.Errorf("len(Items) = %d, want 1 (deleted should be included)", len(output.Items))
+	}
+	if len(output.Errors) != 0 {
+		t.Errorf("len(Errors) = %d, want 0", len(output.Errors))
+	}
+	if output.Items[0].DeletedAt == nil {
+		t.Error("DeletedAt should not be nil for soft-deleted capsule")
+	}
+}

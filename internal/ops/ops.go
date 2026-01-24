@@ -33,9 +33,8 @@ type Address struct {
 
 // ValidateAddress validates addressing parameters and returns a normalized Address.
 // Rules:
-// - If id provided → ByID mode, ignore workspace/name
-// - Else if name provided → ByName mode, default workspace to "default" if empty
-// - If both id AND name provided → ErrAmbiguousAddressing
+// - Must specify exactly one addressing mode: id OR (workspace + name)
+// - If id provided with name or workspace → ErrAmbiguousAddressing
 // - If neither id nor name provided → ErrInvalidRequest
 func ValidateAddress(id, workspace, name string) (*Address, error) {
 	id = strings.TrimSpace(id)
@@ -44,8 +43,10 @@ func ValidateAddress(id, workspace, name string) (*Address, error) {
 
 	hasID := id != ""
 	hasName := name != ""
+	hasWorkspace := workspace != ""
 
-	if hasID && hasName {
+	// Strict: id must be alone, no other addressing fields
+	if hasID && (hasName || hasWorkspace) {
 		return nil, errors.NewAmbiguousAddressing()
 	}
 

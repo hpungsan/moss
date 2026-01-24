@@ -10,8 +10,9 @@ import (
 
 // FetchManyInput contains parameters for the FetchMany operation.
 type FetchManyInput struct {
-	Items       []FetchManyRef
-	IncludeText *bool // default: true
+	Items          []FetchManyRef
+	IncludeText    *bool // default: true
+	IncludeDeleted bool  // default: false
 }
 
 // FetchManyRef identifies a capsule by ID or by workspace+name.
@@ -76,9 +77,9 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(database, addr.ID, false)
+			c, err = db.GetByID(database, addr.ID, input.IncludeDeleted)
 		} else {
-			c, err = db.GetByName(database, addr.Workspace, addr.Name, false)
+			c, err = db.GetByName(database, addr.Workspace, addr.Name, input.IncludeDeleted)
 		}
 		if err != nil {
 			errs = append(errs, refToError(ref, err))
