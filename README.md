@@ -63,6 +63,7 @@ moss export --workspace=myproject > backup.jsonl
 
 ## Examples
 
+- [Overview & Use Cases](docs/moss/OVERVIEW.md)
 - [Pairing Moss with Claude Code Tasks](docs/agents/TASKS.md)
 
 ## License

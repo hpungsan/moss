@@ -26,14 +26,42 @@ Capsules are size-bounded and linted to ensure they stay useful.
 Session A (Claude Code) → store capsule → Session B (Codex) fetches → continues work
 ```
 
-### Multi-Agent Orchestration
+### Multi-Agent Orchestration & Swarms
+
+Sub-agents spawned via Task tool are **isolated**—each gets its own 200k context window. Tasks share status (`pending` → `done`), but not decisions, findings, or reasoning.
+
+**Without Moss vs With Moss:**
+
+| Pattern | Without Moss | With Moss |
+|---------|--------------|-----------|
+| **Fan-out** | Sub-agents start cold, duplicate discovery | `fetch` base capsule → shared starting point |
+| **Fan-in** | Orchestrator only knows "done" | `fetch_many` results → synthesize findings |
+| **Pipeline** | Each stage re-discovers prior work | Chain capsules: research → impl → test |
+| **Re-review** | Start fresh, may miss what was addressed | `fetch` prior review → verify fixes |
+
+**Swarm Architecture:**
+
 ```
-Parent agent stores base context
-    ↓
-Worker agents fetch, process, store results
-    ↓
-Parent fetches all results via fetch_many
+┌─────────────────────────────────────────────────────────────┐
+│                     ORCHESTRATOR                            │
+│  - Creates task graph with dependencies                     │
+│  - moss.store base context capsule                          │
+│  - Spawns sub-agents for unblocked tasks                    │
+│  - moss.fetch_many to gather results                        │
+└─────────────────────────────────────────────────────────────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌───────────────┐  ┌───────────────┐  ┌───────────────┐
+│  SUB-AGENT 1  │  │  SUB-AGENT 2  │  │  SUB-AGENT 3  │
+│  (200k ctx)   │  │  (200k ctx)   │  │  (200k ctx)   │
+│               │  │               │  │               │
+│ moss.fetch    │  │ moss.fetch    │  │ moss.fetch    │
+│ do work       │  │ do work       │  │ do work       │
+│ moss.store    │  │ moss.store    │  │ moss.store    │
+└───────────────┘  └───────────────┘  └───────────────┘
 ```
+
+Moss bridges the isolation gap—sub-agents share structured context without polluting each other's windows.
 
 ### Integration with Claude Code Tasks
 
