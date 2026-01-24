@@ -154,6 +154,10 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 	}
 
 	if err := db.Insert(database, c); err != nil {
+		// Handle race condition: another concurrent insert won the race
+		if err == db.ErrUniqueConstraint && nameRaw != nil {
+			return nil, errors.NewNameAlreadyExists(input.Workspace, *nameRaw)
+		}
 		return nil, err
 	}
 

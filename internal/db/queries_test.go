@@ -394,6 +394,34 @@ func TestInsert_EmptyTags(t *testing.T) {
 	}
 }
 
+func TestInsert_UniqueConstraint(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer db.Close()
+
+	// Insert first capsule with name
+	c1 := newTestCapsule("01FIRST1", "default", "First content")
+	c1.NameRaw = stringPtr("unique-name")
+	c1.NameNorm = stringPtr("unique-name")
+	if err := Insert(db, c1); err != nil {
+		t.Fatalf("First Insert failed: %v", err)
+	}
+
+	// Try to insert second capsule with same name (different ID)
+	c2 := newTestCapsule("01SECOND", "default", "Second content")
+	c2.NameRaw = stringPtr("unique-name")
+	c2.NameNorm = stringPtr("unique-name")
+	err = Insert(db, c2)
+
+	// Should return ErrUniqueConstraint
+	if err != ErrUniqueConstraint {
+		t.Errorf("Insert should return ErrUniqueConstraint, got: %v", err)
+	}
+}
+
 func TestGetByName_IncludeDeleted(t *testing.T) {
 	tmpDir := t.TempDir()
 	db, err := Init(tmpDir)

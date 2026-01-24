@@ -3,11 +3,19 @@ package db
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/errors"
 )
+
+// ErrUniqueConstraint is returned when an insert violates a UNIQUE constraint.
+var ErrUniqueConstraint = &errors.MossError{
+	Code:    "UNIQUE_CONSTRAINT",
+	Status:  409,
+	Message: "unique constraint violation",
+}
 
 // Insert stores a new capsule in the database.
 func Insert(db *sql.DB, c *capsule.Capsule) error {
@@ -41,10 +49,22 @@ func Insert(db *sql.DB, c *capsule.Capsule) error {
 		tagsJSON, source, c.CreatedAt, c.UpdatedAt,
 	)
 	if err != nil {
+		if isUniqueConstraintError(err) {
+			return ErrUniqueConstraint
+		}
 		return errors.NewInternal(err)
 	}
 
 	return nil
+}
+
+// isUniqueConstraintError checks if the error is a SQLite UNIQUE constraint violation.
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// SQLite returns "UNIQUE constraint failed: ..." for unique violations
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
 // GetByID retrieves a capsule by its ULID.
