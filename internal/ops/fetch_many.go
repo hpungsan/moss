@@ -2,6 +2,7 @@ package ops
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/db"
@@ -57,6 +58,12 @@ type FetchManyError struct {
 // FetchMany retrieves multiple capsules by ID or name.
 // Returns partial success with items and errors arrays.
 func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error) {
+	// Validate input size
+	if len(input.Items) > MaxFetchManyItems {
+		return nil, errors.NewInvalidRequest(
+			fmt.Sprintf("too many items: %d (max %d)", len(input.Items), MaxFetchManyItems))
+	}
+
 	// Determine include_text (default: true)
 	includeText := true
 	if input.IncludeText != nil {

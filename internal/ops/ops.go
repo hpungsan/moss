@@ -13,6 +13,7 @@ const (
 	MaxListLimit          = 100
 	DefaultInventoryLimit = 100
 	MaxInventoryLimit     = 500
+	MaxFetchManyItems     = 50
 )
 
 // Pagination contains pagination metadata for list operations.

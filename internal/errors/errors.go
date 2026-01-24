@@ -97,15 +97,17 @@ func NewCapsuleTooThin(missing []string) *MossError {
 }
 
 // NewInternal creates a 500 error for unexpected internal errors.
+// The underlying error is stored in Details for logging but not exposed in Message.
 func NewInternal(err error) *MossError {
-	msg := "internal error"
+	details := map[string]any{}
 	if err != nil {
-		msg = err.Error()
+		details["internal_error"] = err.Error()
 	}
 	return &MossError{
 		Code:    ErrInternal,
 		Status:  500,
-		Message: msg,
+		Message: "an internal error occurred",
+		Details: details,
 	}
 }
 

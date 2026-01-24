@@ -5,6 +5,7 @@ import (
 
 	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/db"
+	"github.com/hpungsan/moss/internal/errors"
 )
 
 func TestFetchMany_AllFound_ByID(t *testing.T) {
@@ -494,6 +495,29 @@ func TestFetchMany_DefaultWorkspace(t *testing.T) {
 
 	if len(output.Items) != 1 {
 		t.Errorf("len(Items) = %d, want 1", len(output.Items))
+	}
+}
+
+func TestFetchMany_TooManyItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Create more refs than allowed
+	refs := make([]FetchManyRef, MaxFetchManyItems+1)
+	for i := range refs {
+		refs[i] = FetchManyRef{ID: "some-id"}
+	}
+
+	_, err = FetchMany(database, FetchManyInput{Items: refs})
+	if err == nil {
+		t.Fatal("FetchMany should return error for too many items")
+	}
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("error = %v, want ErrInvalidRequest", err)
 	}
 }
 
