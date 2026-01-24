@@ -36,8 +36,8 @@ coverage/
 *.db
 *.db-journal
 
-# devDocs
-devDocs/build/
+# Local dev notes
+dev/
 
 # Claude Code
 .claude/

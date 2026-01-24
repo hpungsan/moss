@@ -11,41 +11,26 @@ moss/
 │   ├── capsule/
 │   │   ├── capsule.go             # Capsule struct
 │   │   ├── normalize.go           # Normalize, CountChars, EstimateTokens
-│   │   ├── normalize_test.go
-│   │   ├── lint.go                # Section detection, size validation
-│   │   └── lint_test.go
+│   │   └── lint.go                # Section detection, size validation
 │   ├── config/
-│   │   ├── config.go              # Config loader
-│   │   └── config_test.go
+│   │   └── config.go              # Config loader (~/.moss/config.json)
 │   ├── db/
 │   │   ├── db.go                  # Init, schema, WAL setup
-│   │   ├── db_test.go
-│   │   ├── queries.go             # Insert, GetByID, GetByName, UpdateByID, SoftDelete
-│   │   └── queries_test.go
+│   │   └── queries.go             # Insert, GetByID, GetByName, UpdateByID, SoftDelete
 │   ├── errors/
-│   │   ├── errors.go              # MossError, error codes, constructors
-│   │   └── errors_test.go
+│   │   └── errors.go              # MossError, error codes (400/404/409/413/422/500)
 │   └── ops/
 │       ├── ops.go                 # Address validation, TaskLink
-│       ├── ops_test.go
 │       ├── store.go               # Store operation (create/replace)
-│       ├── store_test.go
 │       ├── fetch.go               # Fetch operation
-│       ├── fetch_test.go
 │       ├── update.go              # Update operation
-│       ├── update_test.go
-│       ├── delete.go              # Delete operation (soft delete)
-│       └── delete_test.go
-├── devDocs/
+│       └── delete.go              # Delete operation (soft delete)
+├── docs/
 │   ├── moss/
 │   │   ├── OVERVIEW.md            # Concepts, use cases
 │   │   └── v1.0/
 │   │       ├── DESIGN.md          # API spec + implementation details
 │   │       └── BACKLOG.md         # Post-v1.0 features
-│   └── build/
-│       └── v1.0/
-│           └── BUILD.md           # Build phases
-├── docs/
 │   └── agents/
 │       ├── CODEMAP.md             # This file
 │       └── TASKS.md               # Claude Code Tasks integration
@@ -69,7 +54,7 @@ moss/
 | `internal/config/` | Config loading from ~/.moss/config.json |
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/500) |
 | `internal/ops/` | Business logic: Store, Fetch, Update, Delete |
-| `devDocs/moss/v1.0/DESIGN.md` | Full v1.0 spec |
+| `docs/moss/v1.0/DESIGN.md` | Full v1.0 spec |
 
 ## Notes
 

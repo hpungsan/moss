@@ -45,8 +45,8 @@ internal/
 ## Docs
 | Doc | Purpose |
 |-----|---------|
-| `devDocs/moss/OVERVIEW.md` | Concepts, use cases |
-| `devDocs/moss/v1.0/DESIGN.md` | API spec + implementation details (v1.0) |
-| `devDocs/moss/v1.0/BACKLOG.md` | Post-v1.0 features |
+| `docs/moss/OVERVIEW.md` | Concepts, use cases |
+| `docs/moss/v1.0/DESIGN.md` | API spec + implementation details (v1.0) |
+| `docs/moss/v1.0/BACKLOG.md` | Post-v1.0 features |
+| `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/TASKS.md` | CC Tasks integration |
-| `docs/agents/CODEMAP.md` | Directory structure |
