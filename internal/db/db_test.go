@@ -76,17 +76,17 @@ func TestUserVersion(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Initial version should be 0
+	// After Init, version should be CurrentSchemaVersion (migration ran)
 	version, err := GetUserVersion(db)
 	if err != nil {
 		t.Fatalf("GetUserVersion() error = %v", err)
 	}
-	if version != 0 {
-		t.Errorf("initial user_version = %d, want 0", version)
+	if version != CurrentSchemaVersion {
+		t.Errorf("user_version after Init = %d, want %d", version, CurrentSchemaVersion)
 	}
 
-	// Set version
-	if err := SetUserVersion(db, 1); err != nil {
+	// Test setting a higher version
+	if err := SetUserVersion(db, 99); err != nil {
 		t.Fatalf("SetUserVersion() error = %v", err)
 	}
 
@@ -95,8 +95,35 @@ func TestUserVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUserVersion() error = %v", err)
 	}
-	if version != 1 {
-		t.Errorf("user_version = %d, want 1", version)
+	if version != 99 {
+		t.Errorf("user_version = %d, want 99", version)
+	}
+}
+
+func TestInit_MigrationIdempotent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// First Init
+	db1, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("first Init() error = %v", err)
+	}
+	db1.Close()
+
+	// Second Init on same DB should succeed (migrations skip if already applied)
+	db2, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("second Init() error = %v", err)
+	}
+	defer db2.Close()
+
+	// Version should still be CurrentSchemaVersion
+	version, err := GetUserVersion(db2)
+	if err != nil {
+		t.Fatalf("GetUserVersion() error = %v", err)
+	}
+	if version != CurrentSchemaVersion {
+		t.Errorf("user_version after second Init = %d, want %d", version, CurrentSchemaVersion)
 	}
 }
 
