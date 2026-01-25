@@ -684,14 +684,27 @@ Import capsules from JSONL file.
 **Collision modes:**
 
 * `mode: "error"` (default) — fail on any `id` or `(workspace_norm, name_norm)` collision (atomic, no partial writes)
-* `mode: "replace"` — overwrite on collision, preserve existing ID; fails if ambiguous (ID matches one row, name matches different row)
-* `mode: "rename"` — auto-suffix name on collision (e.g., `auth` → `auth-1`), generate new ID on ID collision
+* `mode: "replace"` — overwrite on collision, preserve existing ID; fails if ambiguous (ID matches one row, name matches different row). Atomic.
+* `mode: "rename"` — auto-suffix name on collision (e.g., `auth` → `auth-1`), generate new ID on ID collision. Atomic.
 
 ### Import normalization (important)
 
 On import, **always recompute** `workspace_norm` and `name_norm` from `workspace_raw` and `name_raw`. Do not trust incoming `*_norm` fields — they may be stale, hand-edited, or from a different normalization version.
 
 The `*_norm` fields in JSONL exports are informational only.
+
+### Required fields per record
+
+Each import record must contain:
+* `id` — capsule identifier
+* `workspace_raw` — workspace name (used to recompute `workspace_norm`)
+
+Records missing `id` or `workspace_raw` are skipped with an `INVALID_RECORD` error.
+
+Other fields are accepted if present:
+* `capsule_text` is stored as-is (empty is allowed).
+* `capsule_chars` and `tokens_estimate` are informational only (ignored on import; recomputed from `capsule_text`).
+* `created_at`, `updated_at`, `deleted_at` are restored as provided.
 
 ### Import collision semantics (implementation guidance)
 

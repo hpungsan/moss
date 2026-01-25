@@ -735,6 +735,51 @@ func TestImport_MalformedJSON_ModeError(t *testing.T) {
 	}
 }
 
+func TestImport_MissingWorkspaceRaw_ModeError(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Create file with record missing workspace_raw
+	exportPath := filepath.Join(tmpDir, "export.jsonl")
+	file, err := os.Create(exportPath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	if _, err := file.WriteString(`{"_moss_export":true,"schema_version":"1.0","exported_at":1000}` + "\n"); err != nil {
+		t.Fatalf("Failed to write: %v", err)
+	}
+	// Record has id but no workspace_raw
+	if _, err := file.WriteString(`{"id":"01NOWS","capsule_text":"test content","capsule_chars":12,"tokens_estimate":3,"created_at":1000,"updated_at":1000}` + "\n"); err != nil {
+		t.Fatalf("Failed to write: %v", err)
+	}
+	file.Close()
+
+	output, err := Import(database, ImportInput{
+		Path: exportPath,
+		Mode: ImportModeError,
+	})
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	if output.Imported != 0 {
+		t.Errorf("Imported = %d, want 0", output.Imported)
+	}
+	if len(output.Errors) != 1 {
+		t.Errorf("Expected 1 error, got: %v", output.Errors)
+	}
+	if output.Errors[0].Code != "INVALID_RECORD" {
+		t.Errorf("Expected INVALID_RECORD, got: %s", output.Errors[0].Code)
+	}
+	if output.Errors[0].ID != "01NOWS" {
+		t.Errorf("Expected ID in error, got: %s", output.Errors[0].ID)
+	}
+}
+
 func TestImport_RoundTrip(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

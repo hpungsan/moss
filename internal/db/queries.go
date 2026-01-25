@@ -10,8 +10,16 @@ import (
 	"github.com/hpungsan/moss/internal/errors"
 )
 
+// Querier is an interface satisfied by both *sql.DB and *sql.Tx.
+// This allows functions to work with either a database connection or a transaction.
+type Querier interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
 // Insert stores a new capsule in the database.
-func Insert(db *sql.DB, c *capsule.Capsule) error {
+func Insert(q Querier, c *capsule.Capsule) error {
 	// Convert tags to JSON
 	var tagsJSON sql.NullString
 	if len(c.Tags) > 0 {
@@ -36,7 +44,7 @@ func Insert(db *sql.DB, c *capsule.Capsule) error {
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
 	`
 
-	_, err := db.Exec(query,
+	_, err := q.Exec(query,
 		c.ID, c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
 		tagsJSON, source, c.CreatedAt, c.UpdatedAt,
@@ -65,7 +73,7 @@ func isNameUniquenessViolation(err error) bool {
 
 // GetByID retrieves a capsule by its ULID.
 // If includeDeleted is false, soft-deleted capsules are excluded.
-func GetByID(db *sql.DB, id string, includeDeleted bool) (*capsule.Capsule, error) {
+func GetByID(q Querier, id string, includeDeleted bool) (*capsule.Capsule, error) {
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
@@ -77,7 +85,7 @@ func GetByID(db *sql.DB, id string, includeDeleted bool) (*capsule.Capsule, erro
 		query += " AND deleted_at IS NULL"
 	}
 
-	row := db.QueryRow(query, id)
+	row := q.QueryRow(query, id)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
 		return nil, errors.NewNotFound(id)
@@ -91,7 +99,7 @@ func GetByID(db *sql.DB, id string, includeDeleted bool) (*capsule.Capsule, erro
 
 // GetByName retrieves a capsule by normalized workspace and name.
 // If includeDeleted is false, soft-deleted capsules are excluded.
-func GetByName(db *sql.DB, workspaceNorm, nameNorm string, includeDeleted bool) (*capsule.Capsule, error) {
+func GetByName(q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (*capsule.Capsule, error) {
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
@@ -107,7 +115,7 @@ func GetByName(db *sql.DB, workspaceNorm, nameNorm string, includeDeleted bool) 
 		query += " ORDER BY (deleted_at IS NULL) DESC, updated_at DESC LIMIT 1"
 	}
 
-	row := db.QueryRow(query, workspaceNorm, nameNorm)
+	row := q.QueryRow(query, workspaceNorm, nameNorm)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
 		return nil, errors.NewNotFound(nameNorm)
@@ -120,7 +128,7 @@ func GetByName(db *sql.DB, workspaceNorm, nameNorm string, includeDeleted bool) 
 }
 
 // CheckNameExists checks if an active capsule with the given name exists.
-func CheckNameExists(db *sql.DB, workspaceNorm, nameNorm string) (bool, error) {
+func CheckNameExists(q Querier, workspaceNorm, nameNorm string) (bool, error) {
 	query := `
 		SELECT 1 FROM capsules
 		WHERE workspace_norm = ? AND name_norm = ? AND deleted_at IS NULL
@@ -128,7 +136,7 @@ func CheckNameExists(db *sql.DB, workspaceNorm, nameNorm string) (bool, error) {
 	`
 
 	var exists int
-	err := db.QueryRow(query, workspaceNorm, nameNorm).Scan(&exists)
+	err := q.QueryRow(query, workspaceNorm, nameNorm).Scan(&exists)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -585,7 +593,7 @@ func ScanCapsuleFromRows(rows *sql.Rows) (*capsule.Capsule, error) {
 // UpdateFull updates all fields of an existing capsule by ID.
 // Unlike UpdateByID, this can update workspace and name, and respects provided timestamps.
 // Used during import to restore exact capsule state.
-func UpdateFull(db *sql.DB, c *capsule.Capsule) error {
+func UpdateFull(q Querier, c *capsule.Capsule) error {
 	// Convert tags to JSON
 	var tagsJSON sql.NullString
 	if len(c.Tags) > 0 {
@@ -614,7 +622,7 @@ func UpdateFull(db *sql.DB, c *capsule.Capsule) error {
 		WHERE id = ?
 	`
 
-	result, err := db.Exec(query,
+	result, err := q.Exec(query,
 		c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
 		tagsJSON, source, c.CreatedAt, c.UpdatedAt, deletedAt,
@@ -641,9 +649,9 @@ func UpdateFull(db *sql.DB, c *capsule.Capsule) error {
 // FindUniqueName finds the next available unique name by appending -N suffix.
 // Used during import with mode:rename to avoid name collisions.
 // Returns the original baseName if it doesn't exist, otherwise tries baseName-1, baseName-2, etc.
-func FindUniqueName(db *sql.DB, workspaceNorm, baseName string) (string, error) {
+func FindUniqueName(q Querier, workspaceNorm, baseName string) (string, error) {
 	// First check if baseName itself is available
-	exists, err := CheckNameExists(db, workspaceNorm, baseName)
+	exists, err := CheckNameExists(q, workspaceNorm, baseName)
 	if err != nil {
 		return "", err
 	}
@@ -654,7 +662,7 @@ func FindUniqueName(db *sql.DB, workspaceNorm, baseName string) (string, error) 
 	// Try suffixed versions
 	for i := 1; i <= 1000; i++ {
 		candidate := baseName + "-" + itoa(i)
-		exists, err := CheckNameExists(db, workspaceNorm, candidate)
+		exists, err := CheckNameExists(q, workspaceNorm, candidate)
 		if err != nil {
 			return "", err
 		}
@@ -720,6 +728,6 @@ func PurgeDeleted(db *sql.DB, workspace *string, olderThanDays *int) (int, error
 
 // GetByIDIncludeDeleted retrieves a capsule by ID, optionally including deleted ones.
 // This is an alias for GetByID for clarity in import logic.
-func GetByIDIncludeDeleted(db *sql.DB, id string) (*capsule.Capsule, error) {
-	return GetByID(db, id, true)
+func GetByIDIncludeDeleted(q Querier, id string) (*capsule.Capsule, error) {
+	return GetByID(q, id, true)
 }
