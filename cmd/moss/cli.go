@@ -269,16 +269,9 @@ func inventoryCmd(db *sql.DB) *cli.Command {
 				Limit:          c.Int("limit"),
 				Offset:         c.Int("offset"),
 				IncludeDeleted: c.Bool("include-deleted"),
-			}
-
-			if workspace := c.String("workspace"); workspace != "" {
-				input.Workspace = &workspace
-			}
-			if tag := c.String("tag"); tag != "" {
-				input.Tag = &tag
-			}
-			if prefix := c.String("name-prefix"); prefix != "" {
-				input.NamePrefix = &prefix
+				Workspace:      optionalString(c, "workspace"),
+				Tag:            optionalString(c, "tag"),
+				NamePrefix:     optionalString(c, "name-prefix"),
 			}
 
 			output, err := ops.Inventory(db, input)
@@ -336,10 +329,7 @@ func exportCmd(db *sql.DB) *cli.Command {
 			input := ops.ExportInput{
 				Path:           c.String("path"),
 				IncludeDeleted: c.Bool("include-deleted"),
-			}
-
-			if workspace := c.String("workspace"); workspace != "" {
-				input.Workspace = &workspace
+				Workspace:      optionalString(c, "workspace"),
 			}
 
 			output, err := ops.Export(db, input)
@@ -387,11 +377,10 @@ func purgeCmd(db *sql.DB) *cli.Command {
 			&cli.StringFlag{Name: "older-than", Usage: "Only purge if deleted more than N days ago (e.g., 7d)"},
 		},
 		Action: func(c *cli.Context) error {
-			input := ops.PurgeInput{}
-
-			if workspace := c.String("workspace"); workspace != "" {
-				input.Workspace = &workspace
+			input := ops.PurgeInput{
+				Workspace: optionalString(c, "workspace"),
 			}
+
 			if olderThan := c.String("older-than"); olderThan != "" {
 				days, err := parseDuration(olderThan)
 				if err != nil {
@@ -475,6 +464,14 @@ func validatePagination(c *cli.Context) error {
 	}
 	if c.Int("offset") < 0 {
 		return errors.NewInvalidRequest("offset must be non-negative")
+	}
+	return nil
+}
+
+// optionalString returns a pointer to the flag value if set and non-empty, nil otherwise.
+func optionalString(c *cli.Context, flag string) *string {
+	if v := c.String(flag); v != "" {
+		return &v
 	}
 	return nil
 }
