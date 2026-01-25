@@ -18,7 +18,7 @@ var cliCommands = map[string]bool{
 	"store": true, "fetch": true, "update": true, "delete": true,
 	"list": true, "inventory": true, "latest": true,
 	"export": true, "import": true, "purge": true,
-	"help": true, "version": true,
+	"help": true,
 }
 
 // isCLIMode determines if we should run CLI vs MCP server.
@@ -38,7 +38,26 @@ func isCLIMode() bool {
 	return false // Default → MCP server
 }
 
+// isHelpOrVersion returns true if the user is requesting help or version info.
+func isHelpOrVersion() bool {
+	if len(os.Args) < 2 {
+		return false
+	}
+	arg := os.Args[1]
+	return arg == "--help" || arg == "-h" || arg == "--version" || arg == "-v" || arg == "help"
+}
+
 func main() {
+	// Handle --help/--version before DB init (no DB needed)
+	if isHelpOrVersion() {
+		app := newCLIApp(nil, nil)
+		if err := app.Run(os.Args); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: could not determine home directory: %v\n", err)
@@ -60,7 +79,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// CLI mode: known subcommand or --help/--version
+	// CLI mode: known subcommand
 	if isCLIMode() {
 		app := newCLIApp(database, cfg)
 		if err := app.Run(os.Args); err != nil {

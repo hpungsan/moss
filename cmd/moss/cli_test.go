@@ -797,3 +797,62 @@ func TestIsCLIMode(t *testing.T) {
 		})
 	}
 }
+
+// TestIsHelpOrVersion tests the isHelpOrVersion function.
+func TestIsHelpOrVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		expected bool
+	}{
+		{
+			name:     "no args",
+			args:     []string{"moss"},
+			expected: false,
+		},
+		{
+			name:     "help flag",
+			args:     []string{"moss", "--help"},
+			expected: true,
+		},
+		{
+			name:     "short help flag",
+			args:     []string{"moss", "-h"},
+			expected: true,
+		},
+		{
+			name:     "version flag",
+			args:     []string{"moss", "--version"},
+			expected: true,
+		},
+		{
+			name:     "short version flag",
+			args:     []string{"moss", "-v"},
+			expected: true,
+		},
+		{
+			name:     "help subcommand",
+			args:     []string{"moss", "help"},
+			expected: true,
+		},
+		{
+			name:     "store command is not help",
+			args:     []string{"moss", "store"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldArgs := os.Args
+			defer func() { os.Args = oldArgs }()
+
+			os.Args = tt.args
+			result := isHelpOrVersion()
+
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
