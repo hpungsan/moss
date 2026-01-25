@@ -59,9 +59,9 @@ func storeCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 				return outputError(errors.NewInvalidRequest("capsule_text must be piped via stdin"))
 			}
 
-			capsuleText, err := readStdin()
+			capsuleText, err := readStdin(cfg.CapsuleMaxChars)
 			if err != nil {
-				return outputError(errors.NewInternal(err))
+				return outputError(errors.NewInvalidRequest(err.Error()))
 			}
 			if capsuleText == "" {
 				return outputError(errors.NewInvalidRequest("capsule_text is required"))
@@ -162,9 +162,9 @@ func updateCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 
 			// Read capsule_text from stdin if piped
 			if stdinHasData() {
-				text, err := readStdin()
+				text, err := readStdin(cfg.CapsuleMaxChars)
 				if err != nil {
-					return outputError(errors.NewInternal(err))
+					return outputError(errors.NewInvalidRequest(err.Error()))
 				}
 				if text != "" {
 					input.CapsuleText = &text
@@ -434,11 +434,17 @@ func stdinHasData() bool {
 	return (stat.Mode() & os.ModeCharDevice) == 0
 }
 
-// readStdin reads all content from stdin.
-func readStdin() (string, error) {
-	data, err := io.ReadAll(os.Stdin)
+// readStdin reads content from stdin with a size limit.
+// Returns error if stdin exceeds maxBytes.
+func readStdin(maxBytes int) (string, error) {
+	// Read up to maxBytes + 1 to detect overflow
+	limited := io.LimitReader(os.Stdin, int64(maxBytes+1))
+	data, err := io.ReadAll(limited)
 	if err != nil {
 		return "", err
+	}
+	if len(data) > maxBytes {
+		return "", fmt.Errorf("input exceeds maximum size of %d bytes", maxBytes)
 	}
 	return strings.TrimSpace(string(data)), nil
 }

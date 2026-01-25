@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -58,6 +59,11 @@ func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
 	}
 	if input.Mode != ImportModeError && input.Mode != ImportModeReplace && input.Mode != ImportModeRename {
 		return nil, errors.NewInvalidRequest("mode must be one of: error, replace, rename")
+	}
+
+	// Validate path (reject traversal attempts, require .jsonl extension)
+	if err := validateImportPath(input.Path); err != nil {
+		return nil, err
 	}
 
 	// Check file exists
@@ -423,4 +429,22 @@ func generateNewULID() (string, error) {
 		return "", err
 	}
 	return id.String(), nil
+}
+
+// validateImportPath validates a user-provided import path.
+// Rejects paths containing traversal sequences and requires .jsonl extension.
+func validateImportPath(path string) error {
+	// Reject paths containing ".." (traversal attempt)
+	// Uses containsTraversal from export.go (same package)
+	if containsTraversal(path) {
+		return errors.NewInvalidRequest("import path must not contain directory traversal (..)")
+	}
+
+	// Require .jsonl extension
+	cleaned := filepath.Clean(path)
+	if filepath.Ext(cleaned) != ".jsonl" {
+		return errors.NewInvalidRequest("import path must have .jsonl extension")
+	}
+
+	return nil
 }

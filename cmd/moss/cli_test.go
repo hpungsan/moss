@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -855,4 +856,59 @@ func TestIsHelpOrVersion(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestReadStdinWithLimit tests the readStdin function respects size limits.
+func TestReadStdinWithLimit(t *testing.T) {
+	t.Run("within limit", func(t *testing.T) {
+		// Create a pipe with content under limit
+		content := "small content"
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("Failed to create pipe: %v", err)
+		}
+
+		// Write and close in goroutine
+		go func() {
+			_, _ = w.WriteString(content)
+			w.Close()
+		}()
+
+		// Temporarily replace stdin
+		oldStdin := os.Stdin
+		os.Stdin = r
+		defer func() { os.Stdin = oldStdin }()
+
+		result, err := readStdin(1000)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if result != content {
+			t.Errorf("expected %q, got %q", content, result)
+		}
+	})
+
+	t.Run("exceeds limit", func(t *testing.T) {
+		// Create content that exceeds the limit
+		content := strings.Repeat("x", 100)
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("Failed to create pipe: %v", err)
+		}
+
+		go func() {
+			_, _ = w.WriteString(content)
+			w.Close()
+		}()
+
+		oldStdin := os.Stdin
+		os.Stdin = r
+		defer func() { os.Stdin = oldStdin }()
+
+		// Limit is 50 bytes, content is 100
+		_, err = readStdin(50)
+		if err == nil {
+			t.Error("expected error for content exceeding limit, got nil")
+		}
+	})
 }

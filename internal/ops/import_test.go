@@ -956,3 +956,57 @@ func TestImport_PathRequired(t *testing.T) {
 		t.Errorf("Import should return ErrInvalidRequest, got: %v", err)
 	}
 }
+
+func TestImport_PathTraversalRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"parent traversal", "../backup.jsonl"},
+		{"deep traversal", "../../etc/backup.jsonl"},
+		{"mid-path traversal", "/tmp/../etc/backup.jsonl"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Import(database, ImportInput{Path: tt.path})
+			if !errors.Is(err, errors.ErrInvalidRequest) {
+				t.Errorf("Import(%q) should return ErrInvalidRequest for traversal, got: %v", tt.path, err)
+			}
+		})
+	}
+}
+
+func TestImport_RequiresJSONLExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"no extension", "/tmp/backup"},
+		{"wrong extension", "/tmp/backup.json"},
+		{"txt extension", "/tmp/backup.txt"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Import(database, ImportInput{Path: tt.path})
+			if !errors.Is(err, errors.ErrInvalidRequest) {
+				t.Errorf("Import(%q) should return ErrInvalidRequest for non-.jsonl, got: %v", tt.path, err)
+			}
+		})
+	}
+}
