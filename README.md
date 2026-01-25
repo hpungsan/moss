@@ -51,7 +51,7 @@ A capsule is not a chat log. It's a structured summary:
 | Key locations | Files, URLs, commands |
 | Open questions | Unresolved issues |
 
-Capsules are size-bounded and linted to stay useful.
+Capsules are size-bounded and linted to stay useful. See [examples/capsule.md](examples/capsule.md) for a complete example.
 
 ## Quick Start
 
