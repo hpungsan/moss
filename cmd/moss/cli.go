@@ -226,6 +226,10 @@ func listCmd(db *sql.DB) *cli.Command {
 			&cli.BoolFlag{Name: "include-deleted", Usage: "Include soft-deleted capsules"},
 		},
 		Action: func(c *cli.Context) error {
+			if err := validatePagination(c); err != nil {
+				return outputError(err)
+			}
+
 			input := ops.ListInput{
 				Workspace:      c.String("workspace"),
 				Limit:          c.Int("limit"),
@@ -257,6 +261,10 @@ func inventoryCmd(db *sql.DB) *cli.Command {
 			&cli.BoolFlag{Name: "include-deleted", Usage: "Include soft-deleted capsules"},
 		},
 		Action: func(c *cli.Context) error {
+			if err := validatePagination(c); err != nil {
+				return outputError(err)
+			}
+
 			input := ops.InventoryInput{
 				Limit:          c.Int("limit"),
 				Offset:         c.Int("offset"),
@@ -458,6 +466,17 @@ func stdinHasData() bool {
 		return false
 	}
 	return (stat.Mode() & os.ModeCharDevice) == 0
+}
+
+// validatePagination checks that limit and offset are non-negative.
+func validatePagination(c *cli.Context) error {
+	if c.Int("limit") < 0 {
+		return errors.NewInvalidRequest("limit must be non-negative")
+	}
+	if c.Int("offset") < 0 {
+		return errors.NewInvalidRequest("offset must be non-negative")
+	}
+	return nil
 }
 
 // readStdin reads content from stdin with a size limit.

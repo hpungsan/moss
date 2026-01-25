@@ -35,6 +35,16 @@ func testConfig() *config.Config {
 	}
 }
 
+// createPipe creates a pipe and fails the test if there's an error.
+func createPipe(t *testing.T) (*os.File, *os.File) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	return r, w
+}
+
 // validCapsuleText returns a valid capsule with all required sections.
 func validCapsuleText() string {
 	return `## Objective
@@ -181,12 +191,12 @@ func TestCLIStore(t *testing.T) {
 
 	// Capture stdout
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w := createPipe(t)
 	os.Stdout = w
 
 	// Create a pipe for stdin
 	oldStdin := os.Stdin
-	stdinR, stdinW, _ := os.Pipe()
+	stdinR, stdinW := createPipe(t)
 	os.Stdin = stdinR
 
 	// Write capsule text to stdin
@@ -246,7 +256,7 @@ func TestCLIFetch(t *testing.T) {
 
 	t.Run("fetch by name", func(t *testing.T) {
 		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
+		r, w := createPipe(t)
 		os.Stdout = w
 
 		err := app.Run([]string{"moss", "fetch", "--name=fetch-test"})
@@ -272,7 +282,7 @@ func TestCLIFetch(t *testing.T) {
 
 	t.Run("fetch by id", func(t *testing.T) {
 		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
+		r, w := createPipe(t)
 		os.Stdout = w
 
 		err := app.Run([]string{"moss", "fetch", storeOutput.ID})
@@ -319,7 +329,7 @@ func TestCLIList(t *testing.T) {
 	app := newCLIApp(database, cfg)
 
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w := createPipe(t)
 	os.Stdout = w
 
 	err := app.Run([]string{"moss", "list"})
@@ -366,7 +376,7 @@ func TestCLIDelete(t *testing.T) {
 	app := newCLIApp(database, cfg)
 
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w := createPipe(t)
 	os.Stdout = w
 
 	err = app.Run([]string{"moss", "delete", "--name=delete-test"})
@@ -413,7 +423,7 @@ func TestCLILatest(t *testing.T) {
 	app := newCLIApp(database, cfg)
 
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w := createPipe(t)
 	os.Stdout = w
 
 	err = app.Run([]string{"moss", "latest"})
@@ -465,7 +475,7 @@ func TestCLIExportImport(t *testing.T) {
 	// Test export
 	t.Run("export", func(t *testing.T) {
 		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
+		r, w := createPipe(t)
 		os.Stdout = w
 
 		err := app.Run([]string{"moss", "export", "--path=" + exportPath})
@@ -500,7 +510,7 @@ func TestCLIExportImport(t *testing.T) {
 	// Test import
 	t.Run("import", func(t *testing.T) {
 		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
+		r, w := createPipe(t)
 		os.Stdout = w
 
 		err := app2.Run([]string{"moss", "import", "--path=" + exportPath})
@@ -550,7 +560,7 @@ func TestCLIPurge(t *testing.T) {
 	app := newCLIApp(database, cfg)
 
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w := createPipe(t)
 	os.Stdout = w
 
 	// Purge without --older-than to purge all deleted capsules
@@ -599,7 +609,7 @@ func TestCLIInventory(t *testing.T) {
 
 	t.Run("all workspaces", func(t *testing.T) {
 		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
+		r, w := createPipe(t)
 		os.Stdout = w
 
 		err := app.Run([]string{"moss", "inventory"})
@@ -625,7 +635,7 @@ func TestCLIInventory(t *testing.T) {
 
 	t.Run("filter by workspace", func(t *testing.T) {
 		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
+		r, w := createPipe(t)
 		os.Stdout = w
 
 		err := app.Run([]string{"moss", "inventory", "--workspace=ws1"})
@@ -670,7 +680,7 @@ func TestCLIUpdate(t *testing.T) {
 	app := newCLIApp(database, cfg)
 
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w := createPipe(t)
 	os.Stdout = w
 
 	err = app.Run([]string{"moss", "update", "--name=update-test", "--title=New Title"})
@@ -744,7 +754,7 @@ None remaining`
 
 	// Set up stdin with new content
 	oldStdin := os.Stdin
-	stdinR, stdinW, _ := os.Pipe()
+	stdinR, stdinW := createPipe(t)
 	os.Stdin = stdinR
 
 	go func() {
@@ -754,7 +764,7 @@ None remaining`
 
 	// Capture stdout
 	oldStdout := os.Stdout
-	stdoutR, stdoutW, _ := os.Pipe()
+	stdoutR, stdoutW := createPipe(t)
 	os.Stdout = stdoutW
 
 	err = app.Run([]string{"moss", "update", "--name=stdin-update-test"})
@@ -845,6 +855,27 @@ func TestCLIErrorHandling(t *testing.T) {
 		err := app.Run([]string{"moss", "purge", "--older-than=invalid"})
 		if err == nil {
 			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("negative limit returns error for list", func(t *testing.T) {
+		err := app.Run([]string{"moss", "list", "--limit=-1"})
+		if err == nil {
+			t.Error("expected error for negative limit, got nil")
+		}
+	})
+
+	t.Run("negative limit returns error for inventory", func(t *testing.T) {
+		err := app.Run([]string{"moss", "inventory", "--limit=-1"})
+		if err == nil {
+			t.Error("expected error for negative limit, got nil")
+		}
+	})
+
+	t.Run("negative offset returns error for list", func(t *testing.T) {
+		err := app.Run([]string{"moss", "list", "--offset=-1"})
+		if err == nil {
+			t.Error("expected error for negative offset, got nil")
 		}
 	})
 }
