@@ -66,7 +66,15 @@ func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
 	if err != nil {
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export file: %w", err))
 	}
-	defer file.Close()
+
+	// Clean up partial file on failure
+	success := false
+	defer func() {
+		file.Close()
+		if !success {
+			os.Remove(exportPath)
+		}
+	}()
 
 	// Write header line
 	header := ExportHeader{
@@ -124,6 +132,7 @@ func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
 		return nil, errors.NewInternal(err)
 	}
 
+	success = true
 	return &ExportOutput{
 		Path:       exportPath,
 		Count:      count,

@@ -349,7 +349,11 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 
 		// If ID collision, generate new ULID
 		if existingByID != nil {
-			c.ID = generateNewULID()
+			newID, err := generateNewULID()
+			if err != nil {
+				return nil, errors.NewInternal(fmt.Errorf("failed to generate ULID: %w", err))
+			}
+			c.ID = newID
 		}
 
 		// Check for name collision (if named)
@@ -412,7 +416,11 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 }
 
 // generateNewULID generates a new ULID.
-func generateNewULID() string {
+func generateNewULID() (string, error) {
 	entropy := ulid.Monotonic(rand.Reader, 0)
-	return ulid.MustNew(ulid.Timestamp(time.Now()), entropy).String()
+	id, err := ulid.New(ulid.Timestamp(time.Now()), entropy)
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }

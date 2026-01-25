@@ -6,10 +6,11 @@
 moss/
 ├── cmd/
 │   └── moss/
-│       └── main.go                # CLI entrypoint
+│       └── main.go                # Entrypoint (MCP server, CLI placeholder)
 ├── internal/
 │   ├── capsule/
-│   │   ├── capsule.go             # Capsule struct, CapsuleSummary
+│   │   ├── capsule.go             # Capsule struct
+│   │   ├── summary.go             # CapsuleSummary struct (browse operations)
 │   │   ├── normalize.go           # Normalize, CountChars, EstimateTokens
 │   │   ├── lint.go                # Section detection, size validation
 │   │   └── export.go              # ExportRecord, ToCapsule, CapsuleToExportRecord
@@ -23,6 +24,11 @@ moss/
 │   │                              # UpdateFull, FindUniqueName, PurgeDeleted
 │   ├── errors/
 │   │   └── errors.go              # MossError, error codes (400/404/409/413/422/500)
+│   ├── mcp/
+│   │   ├── decode.go              # Generic decode[T] helper for MCP requests
+│   │   ├── handlers.go            # Tool handlers calling ops functions
+│   │   ├── server.go              # NewServer, Run (stdio transport)
+│   │   └── tools.go               # 11 tool definitions with JSON schemas
 │   └── ops/
 │       ├── ops.go                 # Address validation, TaskLink
 │       ├── store.go               # Store operation (create/replace)
@@ -40,6 +46,7 @@ moss/
 │   │   ├── OVERVIEW.md            # Concepts, use cases
 │   │   └── v1.0/
 │   │       ├── DESIGN.md          # API spec + implementation details
+│   │       ├── RUNBOOK.md         # Build, configure, run, troubleshoot
 │   │       └── BACKLOG.md         # Post-v1.0 features
 │   └── agents/
 │       ├── CODEMAP.md             # This file
@@ -63,6 +70,7 @@ moss/
 | `internal/db/` | SQLite init, schema, CRUD + browse queries, Querier interface for transactions |
 | `internal/config/` | Config loading from ~/.moss/config.json |
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/500) |
+| `internal/mcp/` | MCP server exposing 11 tools via stdio transport |
 | `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge |
 | `docs/moss/v1.0/DESIGN.md` | Full v1.0 spec |
 

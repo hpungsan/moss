@@ -7,6 +7,10 @@ COVERAGE_DIR := coverage
 BINARY := $(BIN_DIR)/moss
 PKG := ./cmd/moss
 
+# Version (override with: make build-release VERSION=1.0.0)
+VERSION ?= dev
+LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
+
 # Default target
 .PHONY: all
 all: build
@@ -14,12 +18,23 @@ all: build
 # -------------------------------------------------------------------
 # Build
 # -------------------------------------------------------------------
-.PHONY: build
+.PHONY: build build-release install
 build:
 	@echo "Building Moss -> $(BINARY)"
 	@mkdir -p $(BIN_DIR)
 	go build -o $(BINARY) $(PKG)
 	@echo "✔ Build complete: $(BINARY)"
+
+build-release:
+	@echo "Building Moss $(VERSION) -> $(BINARY)"
+	@mkdir -p $(BIN_DIR)
+	go build $(LDFLAGS) -o $(BINARY) $(PKG)
+	@echo "✔ Release build complete: $(BINARY) (version: $(VERSION))"
+
+install:
+	@echo "Installing Moss $(VERSION) to GOPATH/bin..."
+	go install $(LDFLAGS) $(PKG)
+	@echo "✔ Installed: $$(which moss || echo 'moss (check GOPATH/bin is in PATH)')"
 
 # -------------------------------------------------------------------
 # Test
@@ -113,7 +128,9 @@ help:
 	@echo "Available targets:"
 	@echo ""
 	@echo "  # Build"
-	@echo "  make build       - Build moss binary"
+	@echo "  make build         - Build moss binary (dev)"
+	@echo "  make build-release - Build with version (VERSION=1.0.0)"
+	@echo "  make install       - Install to GOPATH/bin"
 	@echo ""
 	@echo "  # Test"
 	@echo "  make test        - Run all tests"
