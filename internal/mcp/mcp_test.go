@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/db"
+	"github.com/hpungsan/moss/internal/errors"
 )
 
 // testSetup creates a temporary database and config for testing.
@@ -527,7 +529,7 @@ func TestHandleDelete(t *testing.T) {
 	}
 }
 
-// TestHandleLatest tests the latest handler.
+// TestHandleLatest tests the latest handler with contract assertions.
 func TestHandleLatest(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
@@ -535,29 +537,20 @@ func TestHandleLatest(t *testing.T) {
 	h := NewHandlers(database, cfg)
 	ctx := context.Background()
 
-	// Test empty workspace
-	t.Run("empty workspace", func(t *testing.T) {
-		req := makeRequest(map[string]any{
-			"workspace": "empty",
-		})
+	// Test empty workspace returns null item
+	t.Run("empty workspace returns null", func(t *testing.T) {
+		req := makeRequest(map[string]any{"workspace": "empty"})
 		result, err := h.HandleLatest(ctx, req)
 		if err != nil {
 			t.Fatalf("handler returned error: %v", err)
 		}
-		if result.IsError {
-			t.Errorf("expected success, got error")
-		}
-		// Should return item: null
-		var output map[string]any
-		if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &output); err != nil {
-			t.Fatalf("failed to unmarshal response: %v", err)
-		}
+		output := parseOutput(t, result)
 		if output["item"] != nil {
 			t.Errorf("expected null item for empty workspace")
 		}
 	})
 
-	// Store a capsule
+	// Store a capsule, then delete it
 	storeReq := makeRequest(map[string]any{
 		"capsule_text": validCapsuleText(),
 		"workspace":    "test",
@@ -567,20 +560,25 @@ func TestHandleLatest(t *testing.T) {
 		t.Fatalf("setup store failed: %v", err)
 	}
 
-	t.Run("get latest", func(t *testing.T) {
+	// Test include_text:false (default) omits capsule_text
+	t.Run("include_text:false omits capsule_text", func(t *testing.T) {
 		req := makeRequest(map[string]any{
-			"workspace": "test",
+			"workspace":    "test",
+			"include_text": false,
 		})
 		result, err := h.HandleLatest(ctx, req)
 		if err != nil {
 			t.Fatalf("handler returned error: %v", err)
 		}
-		if result.IsError {
-			t.Errorf("expected success, got error: %v", extractErrorMessage(result))
+		output := parseOutput(t, result)
+		item := output["item"].(map[string]any)
+		if item["capsule_text"] != nil && item["capsule_text"] != "" {
+			t.Error("include_text:false should omit capsule_text")
 		}
 	})
 
-	t.Run("get latest with text", func(t *testing.T) {
+	// Test include_text:true includes capsule_text
+	t.Run("include_text:true includes capsule_text", func(t *testing.T) {
 		req := makeRequest(map[string]any{
 			"workspace":    "test",
 			"include_text": true,
@@ -589,13 +587,53 @@ func TestHandleLatest(t *testing.T) {
 		if err != nil {
 			t.Fatalf("handler returned error: %v", err)
 		}
-		if result.IsError {
-			t.Errorf("expected success, got error: %v", extractErrorMessage(result))
+		output := parseOutput(t, result)
+		item := output["item"].(map[string]any)
+		if item["capsule_text"] == nil || item["capsule_text"] == "" {
+			t.Error("include_text:true should include capsule_text")
+		}
+	})
+
+	// Delete the capsule for include_deleted test
+	deleteReq := makeRequest(map[string]any{"workspace": "test", "name": "latest-test"})
+	if _, err := h.HandleDelete(ctx, deleteReq); err != nil {
+		t.Fatalf("setup delete failed: %v", err)
+	}
+
+	// Test include_deleted:false returns null (deleted capsule hidden)
+	t.Run("include_deleted:false hides deleted", func(t *testing.T) {
+		req := makeRequest(map[string]any{
+			"workspace":       "test",
+			"include_deleted": false,
+		})
+		result, err := h.HandleLatest(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		if output["item"] != nil {
+			t.Error("include_deleted:false should return null for deleted-only workspace")
+		}
+	})
+
+	// Test include_deleted:true returns deleted capsule
+	t.Run("include_deleted:true shows deleted", func(t *testing.T) {
+		req := makeRequest(map[string]any{
+			"workspace":       "test",
+			"include_deleted": true,
+		})
+		result, err := h.HandleLatest(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		if output["item"] == nil {
+			t.Error("include_deleted:true should return deleted capsule")
 		}
 	})
 }
 
-// TestHandleList tests the list handler.
+// TestHandleList tests the list handler with contract assertions.
 func TestHandleList(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
@@ -603,7 +641,7 @@ func TestHandleList(t *testing.T) {
 	h := NewHandlers(database, cfg)
 	ctx := context.Background()
 
-	// Store some capsules
+	// Store 3 capsules, delete 1
 	for _, name := range []string{"list-1", "list-2", "list-3"} {
 		req := makeRequest(map[string]any{
 			"capsule_text": validCapsuleText(),
@@ -614,62 +652,92 @@ func TestHandleList(t *testing.T) {
 			t.Fatalf("setup store failed: %v", err)
 		}
 	}
-
-	tests := []struct {
-		name      string
-		args      map[string]any
-		wantCount int
-	}{
-		{
-			name: "list all in workspace",
-			args: map[string]any{
-				"workspace": "test",
-			},
-			wantCount: 3,
-		},
-		{
-			name: "list with limit",
-			args: map[string]any{
-				"workspace": "test",
-				"limit":     2,
-			},
-			wantCount: 2,
-		},
-		{
-			name: "list empty workspace",
-			args: map[string]any{
-				"workspace": "empty",
-			},
-			wantCount: 0,
-		},
+	deleteReq := makeRequest(map[string]any{"workspace": "test", "name": "list-3"})
+	if _, err := h.HandleDelete(ctx, deleteReq); err != nil {
+		t.Fatalf("setup delete failed: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := makeRequest(tt.args)
-			result, err := h.HandleList(ctx, req)
-
-			if err != nil {
-				t.Fatalf("handler returned error: %v", err)
-			}
-			if result.IsError {
-				t.Errorf("expected success, got error: %v", extractErrorMessage(result))
-				return
-			}
-
-			var output map[string]any
-			if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &output); err != nil {
-				t.Fatalf("failed to unmarshal response: %v", err)
-			}
-			items, _ := output["items"].([]any)
-			if len(items) != tt.wantCount {
-				t.Errorf("got %d items, want %d", len(items), tt.wantCount)
-			}
+	// Test pagination metadata
+	t.Run("pagination metadata correct", func(t *testing.T) {
+		req := makeRequest(map[string]any{
+			"workspace": "test",
+			"limit":     1,
+			"offset":    0,
 		})
-	}
+		result, err := h.HandleList(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		pagination := output["pagination"].(map[string]any)
+
+		if int(pagination["limit"].(float64)) != 1 {
+			t.Errorf("pagination.limit = %v, want 1", pagination["limit"])
+		}
+		if int(pagination["offset"].(float64)) != 0 {
+			t.Errorf("pagination.offset = %v, want 0", pagination["offset"])
+		}
+		if pagination["has_more"] != true {
+			t.Errorf("pagination.has_more = %v, want true", pagination["has_more"])
+		}
+		if int(pagination["total"].(float64)) != 2 {
+			t.Errorf("pagination.total = %v, want 2 (active only)", pagination["total"])
+		}
+	})
+
+	// Test include_deleted:false (default) excludes deleted
+	t.Run("include_deleted:false excludes deleted", func(t *testing.T) {
+		req := makeRequest(map[string]any{
+			"workspace":       "test",
+			"include_deleted": false,
+		})
+		result, err := h.HandleList(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		if len(items) != 2 {
+			t.Errorf("got %d items, want 2 (deleted excluded)", len(items))
+		}
+	})
+
+	// Test include_deleted:true includes deleted
+	t.Run("include_deleted:true includes deleted", func(t *testing.T) {
+		req := makeRequest(map[string]any{
+			"workspace":       "test",
+			"include_deleted": true,
+		})
+		result, err := h.HandleList(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		if len(items) != 3 {
+			t.Errorf("got %d items, want 3 (deleted included)", len(items))
+		}
+	})
+
+	// Test list never returns capsule_text (bloat rule)
+	t.Run("list never returns capsule_text", func(t *testing.T) {
+		req := makeRequest(map[string]any{"workspace": "test"})
+		result, err := h.HandleList(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		for i, item := range items {
+			m := item.(map[string]any)
+			if m["capsule_text"] != nil {
+				t.Errorf("item[%d] has capsule_text, list should never include it", i)
+			}
+		}
+	})
 }
 
-// TestHandleInventory tests the inventory handler.
+// TestHandleInventory tests the inventory handler with contract assertions.
 func TestHandleInventory(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
@@ -677,7 +745,7 @@ func TestHandleInventory(t *testing.T) {
 	h := NewHandlers(database, cfg)
 	ctx := context.Background()
 
-	// Store capsules in different workspaces
+	// Store 4 capsules across 2 workspaces, delete 1
 	for _, ws := range []string{"ws1", "ws2"} {
 		for _, name := range []string{"a", "b"} {
 			req := makeRequest(map[string]any{
@@ -690,56 +758,93 @@ func TestHandleInventory(t *testing.T) {
 			}
 		}
 	}
-
-	tests := []struct {
-		name      string
-		args      map[string]any
-		wantCount int
-	}{
-		{
-			name:      "inventory all",
-			args:      map[string]any{},
-			wantCount: 4,
-		},
-		{
-			name: "inventory filter workspace",
-			args: map[string]any{
-				"workspace": "ws1",
-			},
-			wantCount: 2,
-		},
-		{
-			name: "inventory with limit",
-			args: map[string]any{
-				"limit": 2,
-			},
-			wantCount: 2,
-		},
+	deleteReq := makeRequest(map[string]any{"workspace": "ws1", "name": "b"})
+	if _, err := h.HandleDelete(ctx, deleteReq); err != nil {
+		t.Fatalf("setup delete failed: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := makeRequest(tt.args)
-			result, err := h.HandleInventory(ctx, req)
-
-			if err != nil {
-				t.Fatalf("handler returned error: %v", err)
-			}
-			if result.IsError {
-				t.Errorf("expected success, got error: %v", extractErrorMessage(result))
-				return
-			}
-
-			var output map[string]any
-			if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &output); err != nil {
-				t.Fatalf("failed to unmarshal response: %v", err)
-			}
-			items, _ := output["items"].([]any)
-			if len(items) != tt.wantCount {
-				t.Errorf("got %d items, want %d", len(items), tt.wantCount)
-			}
+	// Test pagination metadata
+	t.Run("pagination metadata correct", func(t *testing.T) {
+		req := makeRequest(map[string]any{
+			"limit":  2,
+			"offset": 1,
 		})
-	}
+		result, err := h.HandleInventory(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		pagination := output["pagination"].(map[string]any)
+
+		if int(pagination["limit"].(float64)) != 2 {
+			t.Errorf("pagination.limit = %v, want 2", pagination["limit"])
+		}
+		if int(pagination["offset"].(float64)) != 1 {
+			t.Errorf("pagination.offset = %v, want 1", pagination["offset"])
+		}
+		if int(pagination["total"].(float64)) != 3 {
+			t.Errorf("pagination.total = %v, want 3 (active only)", pagination["total"])
+		}
+	})
+
+	// Test include_deleted:false (default) excludes deleted
+	t.Run("include_deleted:false excludes deleted", func(t *testing.T) {
+		req := makeRequest(map[string]any{"include_deleted": false})
+		result, err := h.HandleInventory(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		if len(items) != 3 {
+			t.Errorf("got %d items, want 3 (deleted excluded)", len(items))
+		}
+	})
+
+	// Test include_deleted:true includes deleted
+	t.Run("include_deleted:true includes deleted", func(t *testing.T) {
+		req := makeRequest(map[string]any{"include_deleted": true})
+		result, err := h.HandleInventory(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		if len(items) != 4 {
+			t.Errorf("got %d items, want 4 (deleted included)", len(items))
+		}
+	})
+
+	// Test inventory never returns capsule_text (bloat rule)
+	t.Run("inventory never returns capsule_text", func(t *testing.T) {
+		req := makeRequest(map[string]any{})
+		result, err := h.HandleInventory(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		for i, item := range items {
+			m := item.(map[string]any)
+			if m["capsule_text"] != nil {
+				t.Errorf("item[%d] has capsule_text, inventory should never include it", i)
+			}
+		}
+	})
+
+	// Test workspace filter
+	t.Run("workspace filter", func(t *testing.T) {
+		req := makeRequest(map[string]any{"workspace": "ws2"})
+		result, err := h.HandleInventory(ctx, req)
+		if err != nil {
+			t.Fatalf("handler returned error: %v", err)
+		}
+		output := parseOutput(t, result)
+		items := output["items"].([]any)
+		if len(items) != 2 {
+			t.Errorf("got %d items, want 2 (ws2 only)", len(items))
+		}
+	})
 }
 
 // TestHandleExportImport tests the export and import handlers.
@@ -855,22 +960,95 @@ func TestHandlePurge(t *testing.T) {
 	}
 }
 
-// TestServerRegistration tests that all tools are registered.
 func TestServerRegistration(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
 
-	s := NewServer(database, cfg)
-	if s == nil {
-		t.Fatal("NewServer returned nil")
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+	if tools == nil {
+		t.Fatal("expected tools to be registered, got nil")
 	}
 
-	// The server should be created successfully
-	// Tool registration happens internally; we verify by checking
-	// that the handlers work (covered by other tests)
+	expectedTools := []string{
+		"moss.store",
+		"moss.fetch",
+		"moss.fetch_many",
+		"moss.update",
+		"moss.delete",
+		"moss.latest",
+		"moss.list",
+		"moss.inventory",
+		"moss.export",
+		"moss.import",
+		"moss.purge",
+	}
+
+	if len(tools) != len(expectedTools) {
+		t.Errorf("registered tool count = %d, want %d", len(tools), len(expectedTools))
+	}
+
+	for _, name := range expectedTools {
+		if _, ok := tools[name]; !ok {
+			t.Errorf("missing registered tool: %s", name)
+		}
+	}
+}
+
+func TestErrorResult_InternalDoesNotExposeDetails(t *testing.T) {
+	r := errorResult(errors.NewInternal(fmt.Errorf("sql error: open /tmp/secret.db: permission denied")))
+	if !r.IsError {
+		t.Fatal("expected IsError=true")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(r.Content[0].(mcp.TextContent).Text), &payload); err != nil {
+		t.Fatalf("failed to unmarshal error payload: %v", err)
+	}
+	errObj := payload["error"].(map[string]any)
+
+	if errObj["code"] != string(errors.ErrInternal) {
+		t.Fatalf("code=%v, want %v", errObj["code"], errors.ErrInternal)
+	}
+	if _, ok := errObj["details"]; ok {
+		t.Fatal("expected INTERNAL errors to omit details")
+	}
+}
+
+func TestErrorResult_NonInternalIncludesDetails(t *testing.T) {
+	r := errorResult(errors.NewNotFound("abc"))
+	if !r.IsError {
+		t.Fatal("expected IsError=true")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(r.Content[0].(mcp.TextContent).Text), &payload); err != nil {
+		t.Fatalf("failed to unmarshal error payload: %v", err)
+	}
+	errObj := payload["error"].(map[string]any)
+
+	if errObj["code"] != string(errors.ErrNotFound) {
+		t.Fatalf("code=%v, want %v", errObj["code"], errors.ErrNotFound)
+	}
+	if _, ok := errObj["details"]; !ok {
+		t.Fatal("expected non-INTERNAL errors to include details when present")
+	}
 }
 
 // Helper functions
+
+// parseOutput extracts and unmarshals the JSON output from an MCP result.
+func parseOutput(t *testing.T, result *mcp.CallToolResult) map[string]any {
+	t.Helper()
+	if result.IsError {
+		t.Fatalf("expected success, got error: %v", extractErrorMessage(result))
+	}
+	var output map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &output); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	return output
+}
 
 func assertErrorCode(t *testing.T, result *mcp.CallToolResult, expectedCode string) {
 	t.Helper()

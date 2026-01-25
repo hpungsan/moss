@@ -9,7 +9,7 @@ PKG := ./cmd/moss
 
 # Version (override with: make build-release VERSION=1.0.0)
 VERSION ?= dev
-LDFLAGS := -ldflags "-X main.Version=$(VERSION) -X github.com/hpungsan/moss/internal/mcp.Version=$(VERSION)"
+LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
 # Default target
 .PHONY: all

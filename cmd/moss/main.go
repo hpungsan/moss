@@ -44,11 +44,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Sync version to MCP package
-	mcp.Version = Version
-
 	// MCP server mode (default)
-	if err := mcp.Run(database, cfg); err != nil {
+	if err := mcp.Run(database, cfg, Version); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}

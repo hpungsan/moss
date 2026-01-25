@@ -8,14 +8,11 @@ import (
 	"github.com/hpungsan/moss/internal/config"
 )
 
-// Version is set via -ldflags at build time.
-var Version = "dev"
-
 // NewServer creates a new MCP server with all Moss tools registered.
-func NewServer(db *sql.DB, cfg *config.Config) *server.MCPServer {
+func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer {
 	s := server.NewMCPServer(
 		"moss",
-		Version,
+		version,
 		server.WithToolCapabilities(true),
 	)
 
@@ -38,7 +35,7 @@ func NewServer(db *sql.DB, cfg *config.Config) *server.MCPServer {
 }
 
 // Run starts the MCP server using stdio transport.
-func Run(db *sql.DB, cfg *config.Config) error {
-	s := NewServer(db, cfg)
+func Run(db *sql.DB, cfg *config.Config, version string) error {
+	s := NewServer(db, cfg, version)
 	return server.ServeStdio(s)
 }

@@ -217,6 +217,16 @@ Optional snippets/transcript refs with "expand" semantics:
 
 ## Minor Improvements
 
+### Context Propagation to Ops Layer
+
+Pass `context.Context` through MCP handlers to ops functions. Currently handlers accept context but don't pass it to the ops layer, preventing cancellation of long-running operations (e.g., large imports).
+
+**Scope:** Modify all 11 ops functions to accept `context.Context` as first parameter, propagate to db layer.
+
+### MCP Server Graceful Shutdown
+
+Add graceful shutdown handling to the MCP server. Currently `server.ServeStdio()` has no shutdown hook. For stdio transport this is low priority since process exit handles cleanup, but would be needed for HTTP transport (REST API).
+
 ### Import: Reuse ULID Entropy Source
 
 `internal/ops/import.go` creates a new `ulid.Monotonic()` per call to `generateNewULID()`. Could be reused for minor efficiency gain.

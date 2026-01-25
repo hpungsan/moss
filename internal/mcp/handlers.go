@@ -377,18 +377,22 @@ func (h *Handlers) HandlePurge(ctx context.Context, req mcp.CallToolRequest) (*m
 
 // errorResult creates an MCP error result from any error.
 // Uses IsError: true so MCP clients recognize failures properly.
+// Note: Internal error details are not exposed to prevent leaking sensitive info.
 func errorResult(err error) *mcp.CallToolResult {
 	var payload map[string]any
 
 	if mossErr, ok := err.(*errors.MossError); ok {
-		payload = map[string]any{
-			"error": map[string]any{
-				"code":    mossErr.Code,
-				"message": mossErr.Message,
-				"status":  mossErr.Status,
-				"details": mossErr.Details,
-			},
+		errorObj := map[string]any{
+			"code":    mossErr.Code,
+			"message": mossErr.Message,
+			"status":  mossErr.Status,
 		}
+		// Only include details for non-internal errors to avoid leaking
+		// sensitive info like file paths or SQL errors
+		if mossErr.Code != errors.ErrInternal && mossErr.Details != nil {
+			errorObj["details"] = mossErr.Details
+		}
+		payload = map[string]any{"error": errorObj}
 	} else {
 		payload = map[string]any{
 			"error": map[string]any{

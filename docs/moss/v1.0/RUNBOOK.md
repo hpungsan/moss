@@ -13,7 +13,7 @@ cd moss
 go build ./cmd/moss
 
 # Build with version tag
-go build -ldflags "-X main.Version=1.0.0 -X github.com/hpungsan/moss/internal/mcp.Version=1.0.0" ./cmd/moss
+go build -ldflags "-X main.Version=1.0.0" ./cmd/moss
 
 # Install to $GOPATH/bin
 go install ./cmd/moss
@@ -23,7 +23,7 @@ go install ./cmd/moss
 
 ```bash
 # Check binary exists
-./moss --help  # Will show "CLI commands not yet implemented" (expected in v1.0)
+./moss  # Starts the MCP server over stdio (CLI flags/commands not implemented yet)
 
 # Test MCP protocol
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ./moss
