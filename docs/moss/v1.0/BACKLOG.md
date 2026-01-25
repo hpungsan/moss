@@ -151,16 +151,14 @@ Resource: `/capsules`
 - `GET /capsules?workspace=...&limit=...&offset=...` → list (summaries only)
 - `GET /capsules/inventory?...` → inventory (summaries only)
 
-### CLI Completeness
+### CLI Enhancements
 
-Add missing commands:
+v1.0 CLI outputs JSON only. Future enhancements:
 
-```bash
-moss update --name=auth < updated.md
-moss latest [--workspace=X] [--include-text]
-```
-
-Currently: use MCP or delete+store for update; no CLI for latest.
+- **Table formatting** for `list` and `inventory` commands (human-readable output)
+- **Color output** for better terminal readability
+- **Shell completion** (bash, zsh, fish)
+- **Interactive mode** for guided capsule operations
 
 ### Real Tokenizer
 

@@ -51,7 +51,7 @@ A capsule is not a chat log. It's a structured summary:
 | Key locations | Files, URLs, commands |
 | Open questions | Unresolved issues |
 
-Capsules are size-bounded and linted to stay useful.
+Capsules are size-bounded and linted to stay useful. See [examples/capsule.md](examples/capsule.md) for a complete example.
 
 ## Quick Start
 
@@ -104,6 +104,27 @@ moss.export { "path": "/tmp/backup.jsonl" }
 | `moss.export` | JSONL backup |
 | `moss.import` | JSONL restore |
 | `moss.purge` | Permanent delete |
+
+## CLI
+
+The CLI mirrors MCP operations for debugging and scripting:
+
+```bash
+# Store (reads capsule from stdin)
+echo "## Objective
+..." | moss store --name=auth
+
+# Fetch
+moss fetch --name=auth
+
+# List all
+moss inventory
+
+# Export
+moss export --path=/tmp/backup.jsonl
+```
+
+Run `moss --help` for all commands.
 
 ## Design Principles
 

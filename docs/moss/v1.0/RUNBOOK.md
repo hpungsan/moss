@@ -7,25 +7,35 @@ Operational guide for building, configuring, and running Moss.
 ### From Source
 
 ```bash
-# Clone and build
 git clone https://github.com/hpungsan/moss.git
 cd moss
-go build ./cmd/moss
-
-# Build with version tag
-go build -ldflags "-X main.Version=1.0.0" ./cmd/moss
-
-# Install to $GOPATH/bin
-go install ./cmd/moss
 ```
+
+Then choose one:
+
+| Goal | Command |
+|------|---------|
+| Build locally | `go build -o bin/moss ./cmd/moss` |
+| Install to PATH | `go install ./cmd/moss` |
+
+**Alternative: Using Makefile**
+
+| Goal | Command |
+|------|---------|
+| Build locally | `make build` → `bin/moss` |
+| Install to PATH | `make install` → `$GOPATH/bin/moss` |
+| Build with version | `make build-release VERSION=1.0.0` |
 
 ### Verify Build
 
 ```bash
-# Check binary exists
-./moss  # Starts the MCP server over stdio (CLI flags/commands not implemented yet)
+# Check version
+./moss --version
 
-# Test MCP protocol
+# Show help
+./moss --help
+
+# Test MCP protocol (no args = MCP server mode)
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ./moss
 # Expected: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05",...}}
 ```
@@ -75,6 +85,70 @@ Replace `/path/to/moss` with the actual path to your built binary:
 | `moss.export` | Export capsules to JSONL file |
 | `moss.import` | Import capsules from JSONL file |
 | `moss.purge` | Permanently delete soft-deleted capsules |
+
+---
+
+## CLI Usage
+
+The CLI provides direct command-line access to all Moss operations. Output is JSON.
+
+### Commands
+
+```bash
+# Store a capsule (reads from stdin)
+echo "## Objective
+..." | moss store --name=auth --workspace=myproject
+
+# Fetch by name
+moss fetch --name=auth --workspace=myproject
+
+# Fetch by ID
+moss fetch 01KFPRNV1JEK4F870H1K84XS6S
+
+# Update (metadata only)
+moss update --name=auth --title="New Title"
+
+# Update with new content (from stdin)
+echo "## Objective
+..." | moss update --name=auth
+
+# Delete (soft delete)
+moss delete --name=auth
+
+# List capsules in workspace
+moss list --workspace=myproject
+
+# List all capsules
+moss inventory
+
+# Get latest in workspace
+moss latest --workspace=myproject --include-text
+
+# Export to file
+moss export --path=/tmp/backup.jsonl
+
+# Import from file
+moss import --path=/tmp/backup.jsonl --mode=replace
+
+# Purge deleted capsules
+moss purge --older-than=7d
+```
+
+### Common Flags
+
+| Flag | Description |
+|------|-------------|
+| `--workspace, -w` | Workspace name (default: "default") |
+| `--name, -n` | Capsule name |
+| `--include-deleted` | Include soft-deleted capsules |
+| `--limit, -l` | Max items to return |
+| `--offset, -o` | Items to skip |
+
+### Mode vs MCP
+
+- **No arguments**: Starts MCP server (stdio transport)
+- **Subcommand**: Runs CLI command (e.g., `moss store`, `moss fetch`)
+- **--help / --version**: Shows help or version
 
 ---
 
@@ -239,6 +313,16 @@ Capsule exceeds `capsule_max_chars` (default: 12000). Options:
 - `mode: "error"` (default): Fails on any collision. Use when importing to empty store.
 - `mode: "replace"`: Overwrites existing. Use for merging/syncing.
 - `mode: "rename"`: Auto-suffixes names on collision. Use for preserving both versions.
+
+### Reset Database
+
+To start fresh, delete the database file:
+
+```bash
+rm ~/.moss/moss.db
+```
+
+A new empty database is created automatically on the next command.
 
 ---
 

@@ -4,7 +4,7 @@
 Local context capsule store for AI session handoffs.
 
 ## Tech Stack
-Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go)
+Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.com/urfave/cli/v2)
 
 ## Key Concepts
 - **Capsule**: Distilled context snapshot (Objective, Status, Decisions, Next actions, Key locations, Open questions)
@@ -27,17 +27,29 @@ go test -v ./...        # Verbose tests
 go fmt ./...            # Format code
 golangci-lint run       # Lint
 ```
+
+## CLI
+```
+moss store --name=X < capsule.md   # Store capsule
+moss fetch --name=X                # Fetch by name
+moss fetch <id>                    # Fetch by ID
+moss list                          # List in workspace
+moss inventory                     # List all
+moss --help                        # All commands
+```
+
 Also: `Makefile` (human convenience), `docs/moss/v1.0/RUNBOOK.md` (operational guide).
 
 ## Package Structure
 ```
+cmd/moss/        # main.go (entrypoint), cli.go (CLI commands)
 internal/
 ├── capsule/     # Capsule type, normalize, lint (6 required sections)
 ├── config/      # Config loader (~/.moss/config.json)
 ├── db/          # SQLite init, migrations, queries (CRUD)
 ├── errors/      # MossError with codes (400/404/409/413/422/500)
 ├── mcp/         # MCP server, tool definitions, handlers
-└── ops/         # Business logic: Store, Fetch, Update, Delete
+└── ops/         # Business logic (11 operations)
 ```
 
 ## Paths

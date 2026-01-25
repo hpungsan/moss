@@ -237,8 +237,6 @@ Each tool has a focused schema — no `action` dispatch needed.
 * `mode` — `"error"` (default) or `"replace"`. If `"replace"` and an **active** capsule exists for `(workspace_norm,name_norm)`, overwrites it; otherwise creates a new capsule.
 * `allow_thin` — `false` (default). If `true`, bypasses section presence check (escape hatch for edge cases).
 
-**Note:** CLI requires `--name` for usability; MCP allows unnamed capsules.
-
 Behavior:
 
 * If `mode:"error"` (default) and an **active** capsule with `(workspace_norm,name_norm)` exists (`deleted_at IS NULL`) → **409 NAME_ALREADY_EXISTS**
@@ -822,19 +820,26 @@ CLI is a debug/human interface that shares the same SQLite DB as MCP and mirrors
 moss store --name=auth < capsule.md
 moss store --name=auth --workspace=myproject --title="Auth context" < capsule.md
 
-# Delete (soft delete) a capsule
-moss delete --name=auth
-moss delete --name=auth --workspace=myproject
-
-# List capsules
-moss list [--workspace=X] [--include-deleted]
-
 # Fetch a capsule
 moss fetch <id>
 moss fetch --workspace=X --name=Y
 
+# Update a capsule
+moss update <id> --title="New title"
+moss update --workspace=X --name=Y < updated.md
+
+# Delete (soft delete) a capsule
+moss delete <id>
+moss delete --workspace=X --name=Y
+
+# List capsules
+moss list [--workspace=X] [--limit=N] [--offset=N] [--include-deleted]
+
 # Show inventory
-moss inventory [--workspace=X]
+moss inventory [--workspace=X] [--tag=X] [--name-prefix=X]
+
+# Get latest capsule
+moss latest [--workspace=X] [--include-text] [--include-deleted]
 
 # Export to JSONL file
 moss export [--path=backup.jsonl] [--workspace=X] [--include-deleted]
@@ -846,61 +851,54 @@ moss import --path=backup.jsonl [--mode=error|replace|rename]
 moss purge [--workspace=X] [--older-than=7d]
 ```
 
+**Addressing:** Commands that operate on a single capsule (fetch, update, delete) accept either:
+- Positional `<id>` argument, OR
+- `--workspace` + `--name` flags
+
 **store flags:**
 | Flag | Required | Default |
 |------|----------|---------|
-| `--name` | yes | - |
+| `--name` | no | (unnamed capsule) |
 | `--workspace` | no | `"default"` |
 | `--title` | no | same as name |
+| `--tags` | no | (none) |
+| `--mode` | no | `"error"` |
 | `--allow-thin` | no | false |
-
-**delete flags:**
-| Flag | Required | Default |
-|------|----------|---------|
-| `--name` | yes | - |
-| `--workspace` | no | `"default"` |
 
 ### stdin reading
 
-`moss store` reads capsule content from stdin:
+`moss store` and `moss update` read capsule content from stdin:
 ```bash
 moss store --name=auth < capsule.md
 cat capsule.md | moss store --name=auth
+echo "## Objective..." | moss update --name=auth
 ```
 
-### Output formats
+### Output format
 
-**store success:**
-```json
-{
-  "id": "01J...ULID",
-  "task_link": {
-    "moss_capsule": "auth",
-    "moss_workspace": "default"
-  }
-}
-```
+All CLI output is JSON for scriptability. Table formatting may be added in a future version.
 
-**delete success:**
-```
-Deleted capsule: auth (workspace: default)
-```
+**Example outputs:**
 
-**list output:**
-```
-WORKSPACE    NAME       TITLE              UPDATED         CHARS
-default      auth       Auth + sessions    2025-01-23      1823
-default      db         Database schema    2025-01-22      2104
-```
+```bash
+# store
+{"id": "01J...", "task_link": {"moss_capsule": "auth", "moss_workspace": "default"}}
 
-**fetch output:**
-Prints `capsule_text` to stdout (for piping).
+# delete
+{"deleted": true, "id": "01J..."}
+
+# list
+{"items": [...], "pagination": {...}, "sort": "updated_at_desc"}
+
+# fetch
+{"id": "01J...", "workspace": "default", "name": "auth", "capsule_text": "...", ...}
+```
 
 ### Error output
 
 Errors print to stderr with exit code 1:
 ```
-Error: CAPSULE_TOO_THIN - Missing sections: Decisions, Key locations
+[CAPSULE_TOO_THIN] capsule missing required sections: [Decisions, Key locations]
 ```
 
 ---

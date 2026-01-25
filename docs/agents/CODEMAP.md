@@ -6,7 +6,8 @@
 moss/
 ├── cmd/
 │   └── moss/
-│       └── main.go                # Entrypoint (MCP server, CLI placeholder)
+│       ├── main.go                # Entrypoint (MCP server or CLI routing)
+│       └── cli.go                 # CLI app with 10 commands (urfave/cli/v2)
 ├── internal/
 │   ├── capsule/
 │   │   ├── capsule.go             # Capsule struct
