@@ -25,6 +25,27 @@ Then choose one:
 | Build locally | `make build` → `bin/moss` |
 | Install to PATH | `make install` → `$GOPATH/bin/moss` |
 | Build with version | `make build-release VERSION=1.0.0` |
+| Cross-compile all platforms | `make build-all VERSION=1.0.0` |
+| Cross-compile + checksums | `make build-checksums VERSION=1.0.0` |
+
+### Pre-built Binaries
+
+Download from [GitHub Releases](https://github.com/hpungsan/moss/releases):
+
+| Platform | Binary |
+|----------|--------|
+| macOS (Apple Silicon) | `moss-darwin-arm64` |
+| macOS (Intel) | `moss-darwin-amd64` |
+| Linux (x64) | `moss-linux-amd64` |
+| Linux (ARM64) | `moss-linux-arm64` |
+| Windows (x64) | `moss-windows-amd64.exe` |
+
+```bash
+# Example: macOS Apple Silicon
+curl -LO https://github.com/hpungsan/moss/releases/latest/download/moss-darwin-arm64
+chmod +x moss-darwin-arm64
+sudo mv moss-darwin-arm64 /usr/local/bin/moss
+```
 
 ### Verify Build
 

@@ -37,6 +37,33 @@ install:
 	@echo "✔ Installed: $$(which moss || echo 'moss (check GOPATH/bin is in PATH)')"
 
 # -------------------------------------------------------------------
+# Cross-Compilation
+# -------------------------------------------------------------------
+PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
+
+.PHONY: build-all build-checksums
+build-all: ## Build for all platforms
+	@mkdir -p $(BIN_DIR)
+	@for platform in $(PLATFORMS); do \
+		os=$${platform%/*}; \
+		arch=$${platform#*/}; \
+		ext=""; \
+		if [ "$$os" = "windows" ]; then ext=".exe"; fi; \
+		echo "Building $$os/$$arch..."; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build $(LDFLAGS) -o $(BIN_DIR)/moss-$$os-$$arch$$ext $(PKG); \
+	done
+	@echo "✔ Built 5 binaries in $(BIN_DIR)/"
+
+build-checksums: build-all ## Generate SHA256 checksums
+	@cd $(BIN_DIR) && \
+		if command -v sha256sum >/dev/null 2>&1; then \
+			sha256sum moss-* > checksums.txt; \
+		else \
+			shasum -a 256 moss-* > checksums.txt; \
+		fi
+	@echo "✔ Checksums written to $(BIN_DIR)/checksums.txt"
+
+# -------------------------------------------------------------------
 # Test
 # -------------------------------------------------------------------
 .PHONY: test test-verbose test-fresh test-race
@@ -131,6 +158,8 @@ help:
 	@echo "  make build         - Build moss binary (dev)"
 	@echo "  make build-release - Build with version (VERSION=1.0.0)"
 	@echo "  make install       - Install to GOPATH/bin"
+	@echo "  make build-all     - Build for all platforms (darwin, linux, windows)"
+	@echo "  make build-checksums - Build all + generate checksums"
 	@echo ""
 	@echo "  # Test"
 	@echo "  make test        - Run all tests"

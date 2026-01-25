@@ -26,6 +26,8 @@ go test ./...           # Run tests
 go test -v ./...        # Verbose tests
 go fmt ./...            # Format code
 golangci-lint run       # Lint
+make build-all          # Cross-compile all platforms
+make build-checksums    # Cross-compile + SHA256 checksums
 ```
 
 ## CLI
