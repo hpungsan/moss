@@ -14,6 +14,26 @@ AI coding sessions lose context when you switch tools or start fresh. Copy-pasti
 
 ## Installation
 
+### Download Pre-built Binary
+
+Binaries available on the [Releases](https://github.com/hpungsan/moss/releases) page:
+
+| Platform | Binary |
+|----------|--------|
+| macOS (Apple Silicon) | `moss-darwin-arm64` |
+| macOS (Intel) | `moss-darwin-amd64` |
+| Linux (x64) | `moss-linux-amd64` |
+| Linux (ARM64) | `moss-linux-arm64` |
+| Windows (x64) | `moss-windows-amd64.exe` |
+
+Download and install:
+```bash
+# Example: macOS Apple Silicon
+curl -LO https://github.com/hpungsan/moss/releases/latest/download/moss-darwin-arm64
+chmod +x moss-darwin-arm64
+sudo mv moss-darwin-arm64 /usr/local/bin/moss
+```
+
 ### From Source
 
 ```bash
