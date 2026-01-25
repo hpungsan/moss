@@ -624,6 +624,8 @@ Include soft-deleted:
 * `path` (optional) — file path to write JSONL output
   * Default: `~/.moss/exports/<workspace>-<timestamp>.jsonl`
   * Example: `~/.moss/exports/default-2025-01-23T143022.jsonl`
+  * Must have `.jsonl` extension
+  * Must not contain directory traversal (`..`)
 * `workspace` (optional) — filter to single workspace (default: all)
 * `include_deleted` (optional) — include soft-deleted capsules
 

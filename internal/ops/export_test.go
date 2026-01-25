@@ -11,6 +11,7 @@ import (
 
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/db"
+	"github.com/hpungsan/moss/internal/errors"
 )
 
 func newTestCapsuleForExport(id, workspaceRaw, text string) *capsule.Capsule {
@@ -452,5 +453,52 @@ func TestExport_PreservesOrder(t *testing.T) {
 	// Should be ordered by created_at ASC
 	if len(ids) != 3 || ids[0] != "01EXP008" || ids[1] != "01EXP009" || ids[2] != "01EXP00A" {
 		t.Errorf("IDs = %v, want [01EXP008 01EXP009 01EXP00A] (created_at order)", ids)
+	}
+}
+
+func TestExport_PathTraversalRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"traversal with ..", "/tmp/../../../etc/cron.d/malicious.jsonl"},
+		{"relative traversal", "../../../etc/passwd.jsonl"},
+		{"hidden traversal", "/tmp/safe/../../etc/shadow.jsonl"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Export(database, ExportInput{Path: tc.path})
+			if err == nil {
+				t.Error("Expected error for path traversal, got nil")
+			}
+			if !errors.Is(err, errors.ErrInvalidRequest) {
+				t.Errorf("Expected ErrInvalidRequest, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestExport_RequiresJSONLExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	_, err = Export(database, ExportInput{Path: filepath.Join(tmpDir, "export.txt")})
+	if err == nil {
+		t.Error("Expected error for non-.jsonl extension, got nil")
+	}
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("Expected ErrInvalidRequest, got: %v", err)
 	}
 }

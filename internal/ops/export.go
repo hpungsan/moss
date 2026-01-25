@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -45,6 +46,11 @@ func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
 		var err error
 		exportPath, err = defaultExportPath(input.Workspace, now)
 		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Validate user-provided path
+		if err := validateExportPath(exportPath); err != nil {
 			return nil, err
 		}
 	}
@@ -141,4 +147,41 @@ func defaultExportPath(workspace *string, now time.Time) (string, error) {
 
 	filename := fmt.Sprintf("%s-%s.jsonl", name, timestamp)
 	return filepath.Join(homeDir, ".moss", "exports", filename), nil
+}
+
+// validateExportPath validates a user-provided export path.
+// Rejects paths containing traversal sequences.
+func validateExportPath(path string) error {
+	// Reject paths containing ".." (traversal attempt)
+	// Check before cleaning since Clean() resolves traversal sequences
+	if containsTraversal(path) {
+		return errors.NewInvalidRequest("export path must not contain directory traversal (..)")
+	}
+
+	// Require .jsonl extension for safety
+	cleaned := filepath.Clean(path)
+	if filepath.Ext(cleaned) != ".jsonl" {
+		return errors.NewInvalidRequest("export path must have .jsonl extension")
+	}
+
+	return nil
+}
+
+// containsTraversal checks if path contains ".." directory traversal.
+func containsTraversal(path string) bool {
+	// Check each path component
+	for _, part := range strings.Split(path, string(filepath.Separator)) {
+		if part == ".." {
+			return true
+		}
+	}
+	// Also check for forward slashes on all platforms (e.g., user input)
+	if filepath.Separator != '/' {
+		for _, part := range strings.Split(path, "/") {
+			if part == ".." {
+				return true
+			}
+		}
+	}
+	return false
 }
