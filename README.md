@@ -12,6 +12,32 @@ AI coding sessions lose context when you switch tools or start fresh. Copy-pasti
 - **Orchestrate agents:** give parallel agents a shared context layer
 - **Stay portable:** export/import for backup and cross-machine transfer
 
+## Installation
+
+### From Source
+
+```bash
+git clone https://github.com/hpungsan/moss.git
+cd moss
+go build ./cmd/moss
+```
+
+### Claude Code Integration
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "moss": {
+      "command": "/path/to/moss"
+    }
+  }
+}
+```
+
+Replace `/path/to/moss` with your actual binary path.
+
 ## Capsule Structure
 
 A capsule is not a chat log. It's a structured summary:
@@ -29,30 +55,55 @@ Capsules are size-bounded and linted to stay useful.
 
 ## Quick Start
 
-### MCP Tools
+### Store a Capsule
 
-```bash
-# Store a capsule
-moss.store { "workspace": "myproject", "name": "auth", "capsule_text": "..." }
+```
+moss.store {
+  "workspace": "myproject",
+  "name": "auth",
+  "capsule_text": "## Objective\nImplement JWT auth\n## Current status\nMiddleware done\n## Decisions\nUsing RS256\n## Next actions\nAdd refresh tokens\n## Key locations\nsrc/auth/\n## Open questions\nToken expiry policy?"
+}
+```
 
-# Fetch by name
+### Fetch by Name
+
+```
 moss.fetch { "workspace": "myproject", "name": "auth" }
+```
 
-# List capsules (summaries only)
-moss.list { "workspace": "myproject" }
+### List All Capsules
 
-# See everything
+```
 moss.inventory {}
 ```
 
-### CLI (debug)
+### Get Latest in Workspace
 
-```bash
-moss store --name=auth < capsule.md
-moss fetch --workspace=myproject --name=auth
-moss list --workspace=myproject
-moss export --workspace=myproject > backup.jsonl
 ```
+moss.latest { "workspace": "myproject", "include_text": true }
+```
+
+### Export for Backup
+
+```
+moss.export { "path": "/tmp/backup.jsonl" }
+```
+
+## MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `moss.store` | Create a new capsule |
+| `moss.fetch` | Retrieve by ID or name |
+| `moss.fetch_many` | Batch fetch multiple |
+| `moss.update` | Update existing capsule |
+| `moss.delete` | Soft-delete (recoverable) |
+| `moss.latest` | Most recent in workspace |
+| `moss.list` | List capsules in workspace |
+| `moss.inventory` | List all capsules globally |
+| `moss.export` | JSONL backup |
+| `moss.import` | JSONL restore |
+| `moss.purge` | Permanent delete |
 
 ## Design Principles
 
@@ -61,9 +112,11 @@ moss export --workspace=myproject > backup.jsonl
 - **Explicit only:** No auto-save, no auto-load
 - **Low-bloat:** Size limits + lint rules enforce quality
 
-## Examples
+## Documentation
 
 - [Overview & Use Cases](docs/moss/OVERVIEW.md)
+- [Design Spec](docs/moss/v1.0/DESIGN.md)
+- [Runbook](docs/moss/v1.0/RUNBOOK.md) — Installation, configuration, troubleshooting
 - [Pairing Moss with Claude Code Tasks](docs/agents/TASKS.md)
 
 ## License
