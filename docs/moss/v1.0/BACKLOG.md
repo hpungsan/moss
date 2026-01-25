@@ -223,21 +223,19 @@ Pass `context.Context` through MCP handlers to ops functions. Currently handlers
 
 **Scope:** Modify all 11 ops functions to accept `context.Context` as first parameter, propagate to db layer.
 
-### MCP Server Graceful Shutdown
+### MCP Server Graceful Shutdown (HTTP Transport)
 
-Add graceful shutdown handling to the MCP server. Currently `server.ServeStdio()` has no shutdown hook. For stdio transport this is low priority since process exit handles cleanup, but would be needed for HTTP transport (REST API).
+**Stdio**: Already handled. `mcp-go`'s `ServeStdio()` catches SIGTERM/SIGINT and shuts down gracefully.
+
+**HTTP**: Will need explicit shutdown handling when REST API is added (v1.1+). Use the transport server’s `Shutdown(ctx)` (e.g., `server.NewSSEServer(...).Shutdown(ctx)` / `server.NewStreamableHTTPServer(...).Shutdown(ctx)`) with a timeout context.
 
 ### Import: Reuse ULID Entropy Source
 
 `internal/ops/import.go` creates a new `ulid.Monotonic()` per call to `generateNewULID()`. Could be reused for minor efficiency gain.
 
-### Export: Clean Up Partial File on Failure
+### Import: Increase Scanner Buffer Size
 
-`internal/ops/export.go` leaves incomplete file on disk if iteration fails mid-export. Could delete partial file on error.
-
-### Import: Handle ulid.MustNew Panic
-
-`ulid.MustNew` panics if entropy source fails. Could use `ulid.New` which returns an error. Low priority since `crypto/rand.Reader` failure indicates system-level issues.
+`internal/ops/import.go` uses `bufio.NewScanner()` with default 64KB line limit. If `capsule_max_chars` is increased significantly (e.g., 50K+), large export records could be silently truncated. Consider using `scanner.Buffer()` to set explicit limit matching max capsule size + overhead.
 
 ---
 
