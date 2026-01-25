@@ -23,11 +23,11 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go)
 ```
 go build ./...          # Build all
 go test ./...           # Run tests
-go test ./... -v        # Verbose tests
+go test -v ./...        # Verbose tests
 go fmt ./...            # Format code
-go mod tidy             # Clean dependencies
 golangci-lint run       # Lint
 ```
+Also: `Makefile` (human convenience), `docs/moss/v1.0/RUNBOOK.md` (operational guide).
 
 ## Package Structure
 ```
@@ -36,6 +36,7 @@ internal/
 ├── config/      # Config loader (~/.moss/config.json)
 ├── db/          # SQLite init, migrations, queries (CRUD)
 ├── errors/      # MossError with codes (400/404/409/413/422/500)
+├── mcp/         # MCP server, tool definitions, handlers
 └── ops/         # Business logic: Store, Fetch, Update, Delete
 ```
 
@@ -50,6 +51,7 @@ internal/
 |-----|---------|
 | `docs/moss/OVERVIEW.md` | Concepts, use cases |
 | `docs/moss/v1.0/DESIGN.md` | API spec + implementation details (v1.0) |
+| `docs/moss/v1.0/RUNBOOK.md` | Build, configure, run, troubleshoot |
 | `docs/moss/v1.0/BACKLOG.md` | Post-v1.0 features |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/TASKS.md` | CC Tasks integration |
