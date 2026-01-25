@@ -105,6 +105,27 @@ moss.export { "path": "/tmp/backup.jsonl" }
 | `moss.import` | JSONL restore |
 | `moss.purge` | Permanent delete |
 
+## CLI
+
+The CLI mirrors MCP operations for debugging and scripting:
+
+```bash
+# Store (reads capsule from stdin)
+echo "## Objective
+..." | moss store --name=auth
+
+# Fetch
+moss fetch --name=auth
+
+# List all
+moss inventory
+
+# Export
+moss export --path=/tmp/backup.jsonl
+```
+
+Run `moss --help` for all commands.
+
 ## Design Principles
 
 - **Local-first:** SQLite at `~/.moss/moss.db`, no external services

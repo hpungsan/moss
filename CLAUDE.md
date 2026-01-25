@@ -27,6 +27,17 @@ go test -v ./...        # Verbose tests
 go fmt ./...            # Format code
 golangci-lint run       # Lint
 ```
+
+## CLI
+```
+moss store --name=X < capsule.md   # Store capsule
+moss fetch --name=X                # Fetch by name
+moss fetch <id>                    # Fetch by ID
+moss list                          # List in workspace
+moss inventory                     # List all
+moss --help                        # All commands
+```
+
 Also: `Makefile` (human convenience), `docs/moss/v1.0/RUNBOOK.md` (operational guide).
 
 ## Package Structure
