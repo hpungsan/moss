@@ -142,7 +142,10 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 	}
 
 	// Create new capsule
-	id := generateULID()
+	id, err := generateULID()
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
 
 	c := &capsule.Capsule{
 		ID:             id,
@@ -177,7 +180,11 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 }
 
 // generateULID generates a new ULID.
-func generateULID() string {
+func generateULID() (string, error) {
 	entropy := ulid.Monotonic(rand.Reader, 0)
-	return ulid.MustNew(ulid.Timestamp(time.Now()), entropy).String()
+	id, err := ulid.New(ulid.Timestamp(time.Now()), entropy)
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }
