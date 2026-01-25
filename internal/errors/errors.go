@@ -57,6 +57,16 @@ func NewNotFound(identifier string) *MossError {
 	}
 }
 
+// NewFileNotFound creates a 404 error for when a local file path cannot be found.
+func NewFileNotFound(path string) *MossError {
+	return &MossError{
+		Code:    ErrNotFound,
+		Status:  404,
+		Message: fmt.Sprintf("file not found: %s", path),
+		Details: map[string]any{"path": path},
+	}
+}
+
 // NewNameAlreadyExists creates a 409 error for name collisions.
 func NewNameAlreadyExists(workspace, name string) *MossError {
 	return &MossError{

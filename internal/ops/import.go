@@ -68,7 +68,7 @@ func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
 
 	// Check file exists
 	if _, err := os.Stat(input.Path); os.IsNotExist(err) {
-		return nil, errors.NewNotFound(input.Path)
+		return nil, errors.NewFileNotFound(input.Path)
 	}
 
 	// Open file
