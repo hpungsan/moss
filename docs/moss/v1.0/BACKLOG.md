@@ -215,6 +215,22 @@ Optional snippets/transcript refs with "expand" semantics:
 
 ---
 
+## Minor Improvements
+
+### Import: Reuse ULID Entropy Source
+
+`internal/ops/import.go` creates a new `ulid.Monotonic()` per call to `generateNewULID()`. Could be reused for minor efficiency gain.
+
+### Export: Clean Up Partial File on Failure
+
+`internal/ops/export.go` leaves incomplete file on disk if iteration fails mid-export. Could delete partial file on error.
+
+### Import: Handle ulid.MustNew Panic
+
+`ulid.MustNew` panics if entropy source fails. Could use `ulid.New` which returns an error. Low priority since `crypto/rand.Reader` failure indicates system-level issues.
+
+---
+
 ## Considered & Deferred
 
 ### Content Lint Checks

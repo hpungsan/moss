@@ -272,3 +272,25 @@ func TestPurge_DoesNotAffectActive(t *testing.T) {
 		}
 	}
 }
+
+func TestPurge_NegativeOlderThanDays(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	negativeDays := -1
+	_, err = Purge(database, PurgeInput{
+		OlderThanDays: &negativeDays,
+	})
+	if err == nil {
+		t.Fatal("Expected error for negative older_than_days, got nil")
+	}
+	// Error format is "INVALID_REQUEST: older_than_days cannot be negative"
+	want := "INVALID_REQUEST: older_than_days cannot be negative"
+	if err.Error() != want {
+		t.Errorf("Error = %q, want %q", err.Error(), want)
+	}
+}

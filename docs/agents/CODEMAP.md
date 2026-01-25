@@ -71,4 +71,5 @@ moss/
 - `internal/` packages are not importable outside this module (Go convention)
 - DB file: `~/.moss/moss.db`
 - Config file: `~/.moss/config.json`
+- Exports dir: `~/.moss/exports/` (created by Export, default output location)
 - All operations use soft delete (deleted_at timestamp)

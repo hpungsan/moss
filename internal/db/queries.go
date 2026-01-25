@@ -706,7 +706,10 @@ func PurgeDeleted(db *sql.DB, workspace *string, olderThanDays *int) (int, error
 	}
 
 	if olderThanDays != nil {
-		cutoff := time.Now().Unix() - int64(*olderThanDays*24*60*60)
+		if *olderThanDays < 0 {
+			return 0, errors.NewInvalidRequest("older_than_days cannot be negative")
+		}
+		cutoff := time.Now().Unix() - int64(*olderThanDays)*24*60*60
 		conditions = append(conditions, "deleted_at < ?")
 		args = append(args, cutoff)
 	}
