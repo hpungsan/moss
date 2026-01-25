@@ -100,23 +100,21 @@ func fetchCmd(db *sql.DB, _ *config.Config) *cli.Command {
 		Name:      "fetch",
 		Usage:     "Fetch a capsule by ID or name",
 		ArgsUsage: "[id]",
-		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "workspace", Aliases: []string{"w"}, Value: "default", Usage: "Workspace name"},
-			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "Capsule name"},
+		Flags: append(addressingFlags(),
 			&cli.BoolFlag{Name: "include-deleted", Usage: "Include soft-deleted capsules"},
 			&cli.BoolFlag{Name: "no-text", Usage: "Exclude capsule_text from output"},
-		},
+		),
 		Action: func(c *cli.Context) error {
-			input := ops.FetchInput{
-				IncludeDeleted: c.Bool("include-deleted"),
+			addr, err := parseAddressing(c)
+			if err != nil {
+				return outputError(err)
 			}
 
-			// Check for positional ID argument
-			if c.NArg() > 0 {
-				input.ID = c.Args().First()
-			} else {
-				input.Workspace = c.String("workspace")
-				input.Name = c.String("name")
+			input := ops.FetchInput{
+				ID:             addr.ID,
+				Workspace:      addr.Workspace,
+				Name:           addr.Name,
+				IncludeDeleted: c.Bool("include-deleted"),
 			}
 
 			if c.Bool("no-text") {
@@ -140,24 +138,22 @@ func updateCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 		Name:      "update",
 		Usage:     "Update an existing capsule (optionally reads capsule_text from stdin)",
 		ArgsUsage: "[id]",
-		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "workspace", Aliases: []string{"w"}, Value: "default", Usage: "Workspace name"},
-			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "Capsule name"},
+		Flags: append(addressingFlags(),
 			&cli.StringFlag{Name: "title", Aliases: []string{"t"}, Usage: "New title"},
 			&cli.StringFlag{Name: "tags", Usage: "New comma-separated tags"},
 			&cli.BoolFlag{Name: "allow-thin", Usage: "Allow capsules without all required sections"},
-		},
+		),
 		Action: func(c *cli.Context) error {
-			input := ops.UpdateInput{
-				AllowThin: c.Bool("allow-thin"),
+			addr, err := parseAddressing(c)
+			if err != nil {
+				return outputError(err)
 			}
 
-			// Check for positional ID argument
-			if c.NArg() > 0 {
-				input.ID = c.Args().First()
-			} else {
-				input.Workspace = c.String("workspace")
-				input.Name = c.String("name")
+			input := ops.UpdateInput{
+				ID:        addr.ID,
+				Workspace: addr.Workspace,
+				Name:      addr.Name,
+				AllowThin: c.Bool("allow-thin"),
 			}
 
 			// Read capsule_text from stdin if piped
@@ -195,19 +191,17 @@ func deleteCmd(db *sql.DB) *cli.Command {
 		Name:      "delete",
 		Usage:     "Soft-delete a capsule",
 		ArgsUsage: "[id]",
-		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "workspace", Aliases: []string{"w"}, Value: "default", Usage: "Workspace name"},
-			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "Capsule name"},
-		},
+		Flags:     addressingFlags(),
 		Action: func(c *cli.Context) error {
-			input := ops.DeleteInput{}
+			addr, err := parseAddressing(c)
+			if err != nil {
+				return outputError(err)
+			}
 
-			// Check for positional ID argument
-			if c.NArg() > 0 {
-				input.ID = c.Args().First()
-			} else {
-				input.Workspace = c.String("workspace")
-				input.Name = c.String("name")
+			input := ops.DeleteInput{
+				ID:        addr.ID,
+				Workspace: addr.Workspace,
+				Name:      addr.Name,
 			}
 
 			output, err := ops.Delete(db, input)
@@ -423,6 +417,38 @@ func outputError(err error) error {
 		return cli.Exit(fmt.Sprintf("[%s] %s", mossErr.Code, mossErr.Message), 1)
 	}
 	return cli.Exit(err.Error(), 1)
+}
+
+// addressingFlags returns common flags for commands that use ID or name addressing.
+func addressingFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{Name: "workspace", Aliases: []string{"w"}, Value: "default", Usage: "Workspace name"},
+		&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "Capsule name"},
+	}
+}
+
+// addressing holds parsed addressing info (ID or workspace+name).
+type addressing struct {
+	ID        string
+	Workspace string
+	Name      string
+}
+
+// parseAddressing extracts addressing from CLI context.
+// Returns error if both positional ID and --name flag are provided (ambiguous).
+func parseAddressing(c *cli.Context) (addressing, error) {
+	if c.NArg() > 0 {
+		// If the user explicitly sets name/workspace flags while also providing an ID,
+		// treat it as ambiguous (mirrors MCP's mutual exclusivity).
+		if c.IsSet("name") || c.IsSet("workspace") {
+			return addressing{}, errors.NewAmbiguousAddressing()
+		}
+		return addressing{ID: c.Args().First()}, nil
+	}
+	return addressing{
+		Workspace: c.String("workspace"),
+		Name:      c.String("name"),
+	}, nil
 }
 
 // stdinHasData returns true if stdin has piped data (not a terminal).

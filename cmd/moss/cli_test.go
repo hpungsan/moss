@@ -703,6 +703,121 @@ func TestCLIUpdate(t *testing.T) {
 	}
 }
 
+// TestCLIUpdateWithStdin tests update command with capsule content from stdin.
+func TestCLIUpdateWithStdin(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	cfg := testConfig()
+
+	// Store a capsule first
+	name := "stdin-update-test"
+	originalText := validCapsuleText()
+	storeOutput, err := ops.Store(database, cfg, ops.StoreInput{
+		Workspace:   "default",
+		Name:        &name,
+		CapsuleText: originalText,
+	})
+	if err != nil {
+		t.Fatalf("failed to store test capsule: %v", err)
+	}
+
+	app := newCLIApp(database, cfg)
+
+	// Create new capsule content
+	newText := `## Objective
+Updated objective via stdin
+
+## Current status
+Content updated
+
+## Decisions
+New decision made
+
+## Next actions
+- Updated action item
+
+## Key locations
+- updated/path.go
+
+## Open questions
+None remaining`
+
+	// Set up stdin with new content
+	oldStdin := os.Stdin
+	stdinR, stdinW, _ := os.Pipe()
+	os.Stdin = stdinR
+
+	go func() {
+		_, _ = stdinW.WriteString(newText)
+		stdinW.Close()
+	}()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	stdoutR, stdoutW, _ := os.Pipe()
+	os.Stdout = stdoutW
+
+	err = app.Run([]string{"moss", "update", "--name=stdin-update-test"})
+
+	stdoutW.Close()
+	os.Stdin = oldStdin
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(stdoutR)
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("update command failed: %v", err)
+	}
+
+	var output ops.UpdateOutput
+	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+		t.Fatalf("failed to parse output: %v", err)
+	}
+
+	if output.ID != storeOutput.ID {
+		t.Errorf("expected ID=%s, got %s", storeOutput.ID, output.ID)
+	}
+
+	// Verify the capsule content was updated
+	fetchOutput, err := ops.Fetch(database, ops.FetchInput{ID: storeOutput.ID})
+	if err != nil {
+		t.Fatalf("failed to fetch updated capsule: %v", err)
+	}
+	if fetchOutput.CapsuleText != newText {
+		t.Errorf("capsule text not updated.\nExpected: %s\nGot: %s", newText, fetchOutput.CapsuleText)
+	}
+}
+
+// TestCLIAmbiguousAddressing tests that CLI rejects ambiguous addressing.
+func TestCLIAmbiguousAddressing(t *testing.T) {
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
+	cfg := testConfig()
+
+	app := newCLIApp(database, cfg)
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"fetch with id and name", []string{"moss", "fetch", "01JABC123", "--name=test"}},
+		{"fetch with id and workspace", []string{"moss", "fetch", "01JABC123", "--workspace=prod"}},
+		{"update with id and name", []string{"moss", "update", "01JABC123", "--name=test"}},
+		{"update with id and workspace", []string{"moss", "update", "01JABC123", "--workspace=prod"}},
+		{"delete with id and name", []string{"moss", "delete", "01JABC123", "--name=test"}},
+		{"delete with id and workspace", []string{"moss", "delete", "01JABC123", "--workspace=prod"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := app.Run(tt.args)
+			if err == nil {
+				t.Error("expected error for ambiguous addressing, got nil")
+			}
+		})
+	}
+}
+
 // TestCLIErrorHandling tests error handling in CLI commands.
 func TestCLIErrorHandling(t *testing.T) {
 	database, cleanup := setupTestDB(t)
