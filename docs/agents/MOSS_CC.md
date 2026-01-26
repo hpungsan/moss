@@ -38,7 +38,7 @@ For swarm orchestration, Claude Code uses Inbox messages for inter-agent communi
 | Quality | None | Lint + size limits |
 | Queryability | Manual file reading | `list`, `inventory`, `fetch_many` |
 | Scoping | None | `run_id`, `phase`, `role` |
-| Batch retrieval | Read N files | Single `fetch_many` |
+| Batch retrieval | Read N files | `list` → `fetch_many` |
 
 **When to use:**
 - **Inbox**: Transient coordination ("done", "shutdown approved", "found bug")
@@ -78,15 +78,23 @@ performance-reviewer:
     capsule_text: "## Objective\nReview PR for performance..."
   }
 
-// Leader gathers ALL findings in one call
+// Leader gathers ALL findings
 team-lead:
-  fetch_many { run_id: "pr-review-123" }
+  // Step 1: See what's available (no text, fast)
+  list { run_id: "pr-review-123" }
+  // Returns: [{ name: "security-findings", ... }, { name: "perf-findings", ... }]
+
+  // Step 2: Fetch the ones you need
+  fetch_many { items: [
+    { workspace: "default", name: "security-findings" },
+    { workspace: "default", name: "perf-findings" }
+  ]}
   // Gets structured, queryable results from all specialists
 ```
 
 **Benefits:**
 - Structured findings (6 sections ensure completeness)
-- Single `fetch_many` vs reading N inbox files
+- Browse first, then fetch (prevents accidental context bloat)
 - Findings persist for later reference
 - `run_id` scopes to this specific review
 
@@ -122,7 +130,12 @@ Stage 2 (Plan) - blocked by Stage 1:
   }
 
 Stage 3 (Implement) - blocked by Stage 2:
-  fetch_many { run_id: "feature-oauth" }
+  // Get all context from this workflow
+  list { run_id: "feature-oauth" }
+  fetch_many { items: [
+    { workspace: "default", name: "research" },
+    { workspace: "default", name: "plan" }
+  ]}
   // Gets BOTH research AND plan context
   // Implements with full decision history
 ```
@@ -159,8 +172,8 @@ worker-2 (reviewing payment.rb):
 
 // Leader synthesizes all findings
 team-lead:
-  inventory { run_id: "codebase-review" }
-  fetch_many { ... }
+  capsules = list { run_id: "codebase-review" }
+  fetch_many { items: capsules.map(c => { workspace: c.workspace, name: c.name }) }
 ```
 
 **Benefits:**
@@ -260,7 +273,12 @@ controller-worker (refactoring Session controller):
   }
 
 spec-worker (blocked by both):
-  fetch_many { run_id: "auth-refactor" }
+  // Gather all refactoring context
+  list { run_id: "auth-refactor" }
+  fetch_many { items: [
+    { workspace: "default", name: "user-refactor" },
+    { workspace: "default", name: "session-refactor" }
+  ]}
   // Knows:
   // - New concern location
   // - Method signature changed to authenticate!
@@ -302,6 +320,49 @@ Track work with Tasks, persist context with Capsules.
 3. store { name: "auth-context", ... } → get fetch_key
 4. TaskUpdate { taskId: "1", metadata: fetch_key }
 5. Later: pick up task, read metadata, fetch
+```
+
+### Advanced: Cross-Run Knowledge
+
+Query capsules from *prior* workflow runs to inform new ones. Unlike `run_id` scoping (within a run), this leverages accumulated knowledge across runs.
+
+```
+// New OAuth implementation starting
+// Check if anyone's done OAuth research before
+inventory { phase: "research", tag: "oauth" }
+// Returns capsules from ANY prior run tagged "oauth" in research phase:
+// [
+//   { workspace: "feature-oauth-v1", name: "research", run_id: "pr-87", ... },
+//   { workspace: "feature-oauth-v2", name: "provider-comparison", run_id: "pr-142", ... }
+// ]
+
+// Fetch relevant prior research
+fetch { workspace: "feature-oauth-v1", name: "research" }
+// Get decisions from 6 months ago:
+// "## Decisions
+//  - Auth0 rejected due to cost
+//  - Google OAuth chosen for user-facing
+//  - Service accounts use JWT..."
+
+// Now implement with institutional knowledge
+// Don't repeat the Auth0 evaluation—it's already documented
+```
+
+**Use cases:**
+- **Onboarding**: New agent/session queries prior art before starting
+- **Avoiding re-work**: Check if similar research exists
+- **Pattern mining**: `inventory { phase: "security" }` → see all security reviews
+- **Postmortems**: `inventory { tag: "incident" }` → find related incidents
+
+**Tagging for discoverability:**
+```
+store {
+  name: "oauth-research",
+  run_id: "pr-123",
+  phase: "research",
+  tags: ["oauth", "auth", "google"],  // Searchable across runs
+  capsule_text: "..."
+}
 ```
 
 ---
@@ -376,9 +437,10 @@ Moss responses include `fetch_key` for direct Task metadata linking:
 | Enforce execution order | `blockedBy` / `blocks` |
 | Persist decisions and reasoning | Capsules |
 | Context across sessions | `store` → `fetch` |
-| Gather parallel results | `fetch_many` |
+| Gather parallel results | `list` → `fetch_many` |
 | Scope to workflow run | `run_id` filter |
 | Filter by workflow stage | `phase` filter |
 | Filter by agent role | `role` filter |
 | Link task to context | `fetch_key` in metadata |
+| Query prior art across runs | `inventory` with `phase`/`tag` filters |
 | Transient agent messages | Inbox (see [`dev/swarm/SKILL.md`](../../dev/swarm/SKILL.md)) |

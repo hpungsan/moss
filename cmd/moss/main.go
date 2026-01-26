@@ -47,7 +47,35 @@ func isHelpOrVersion() bool {
 	return arg == "--help" || arg == "-h" || arg == "--version" || arg == "-v" || arg == "help"
 }
 
+// isTerminal returns true if stdin is a terminal (not piped).
+func isTerminal() bool {
+	stat, _ := os.Stdin.Stat()
+	return (stat.Mode() & os.ModeCharDevice) != 0
+}
+
+// printBanner displays a friendly banner when run interactively without args.
+func printBanner() {
+	fmt.Println(`
+   __  __  ___  ___ ___
+  |  \/  |/ _ \/ __/ __|
+  | |\/| | (_) \__ \__ \
+  |_|  |_|\___/|___/___/
+
+  Local context capsule store
+
+  Usage: moss <command> [options]
+         moss --help
+
+  MCP server mode requires piped input.`)
+}
+
 func main() {
+	// No args + interactive terminal → show banner and exit
+	if len(os.Args) < 2 && isTerminal() {
+		printBanner()
+		return
+	}
+
 	// Handle --help/--version before DB init (no DB needed)
 	if isHelpOrVersion() {
 		app := newCLIApp(nil, nil)

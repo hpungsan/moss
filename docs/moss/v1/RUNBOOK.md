@@ -56,7 +56,7 @@ sudo mv moss-darwin-arm64 /usr/local/bin/moss
 # Show help
 ./moss --help
 
-# Test MCP protocol (no args = MCP server mode)
+# Test MCP protocol (piped input = MCP server mode)
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ./moss
 # Expected: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05",...}}
 ```
@@ -194,7 +194,8 @@ moss purge --older-than=7d
 
 ### Mode vs MCP
 
-- **No arguments**: Starts MCP server (stdio transport)
+- **No arguments (terminal)**: Shows banner and usage hint
+- **No arguments (piped input)**: Starts MCP server (stdio transport)
 - **Subcommand**: Runs CLI command (e.g., `moss store`, `moss fetch`)
 - **--help / --version**: Shows help or version
 

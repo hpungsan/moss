@@ -109,38 +109,6 @@ Resource: `/capsules`
 
 v1 CLI outputs JSON only. Future enhancements:
 
-- **TTY banner** — When `moss` is run without arguments in a terminal, show a friendly ASCII banner and usage hint instead of silently waiting for MCP input:
-
-  ```go
-  // In main.go, before MCP server startup
-  func isTerminal() bool {
-      stat, _ := os.Stdin.Stat()
-      return (stat.Mode() & os.ModeCharDevice) != 0
-  }
-
-  func printBanner() {
-      fmt.Println(`
-    __  __  ___  ___ ___
-   |  \/  |/ _ \/ __/ __|
-   | |\/| | (_) \__ \__ \
-   |_|  |_|\___/|___/___/
-
-   Local context capsule store
-
-   Usage: moss <command> [options]
-          moss --help
-
-   MCP server mode requires piped input.
-  `)
-  }
-
-  // Then in main():
-  if isTerminal() {
-      printBanner()
-      return
-  }
-  // ... start MCP server
-  ```
 - **Orchestration flags** — `--run-id`, `--phase`, `--role` for store, update, list, inventory, latest commands (MCP has these; CLI deferred since orchestration is primarily for multi-agent workflows)
 - **Table formatting** for `list` and `inventory` commands (human-readable output)
 - **Color output** for better terminal readability
@@ -161,11 +129,143 @@ Recover soft-deleted capsules:
 
 Currently: use export/import.
 
+### Capsule Lineage (`based_on`)
+
+Track which capsules informed the creation of a new capsule:
+
+```json
+store {
+  "name": "implementation-plan",
+  "based_on": [
+    { "workspace": "default", "name": "research-findings" },
+    { "workspace": "default", "name": "security-review" }
+  ],
+  "capsule_text": "..."
+}
+```
+
+**Storage:** New `based_on` JSON column (nullable array of refs).
+
+**Behavior:**
+- `fetch` returns `based_on` array if present
+- `list`/`inventory` include `based_on` in summaries
+- No validation that referenced capsules exist (allows cross-workspace refs, deleted capsules)
+
+**Use case:** Pipeline traceability. "This plan was based on that research." Audit trail for "why was this decision made?"
+
+### `bulk_update` Tool
+
+Update metadata across multiple capsules matching a filter:
+
+```json
+bulk_update {
+  "filter": { "run_id": "pr-123" },
+  "set": { "phase": "archived", "tags": ["completed", "reviewed"] }
+}
+```
+
+**Parameters:**
+- `filter` — same filters as `list`/`inventory` (workspace, run_id, phase, role, tag)
+- `set` — fields to update: `phase`, `role`, `tags` (not `capsule_text` — use `update` for content)
+
+**Output:**
+```json
+{ "updated_count": 7 }
+```
+
+**Use case:** After swarm completes, mark all capsules as archived in one call. Add tags for categorization without N individual updates.
+
+### `clone` Tool
+
+Create new capsule based on existing:
+
+```json
+clone {
+  "source": { "workspace": "default", "name": "oauth-research-v1" },
+  "target": { "name": "oauth-research-v2", "run_id": "pr-200" },
+  "set": { "phase": "research" }
+}
+```
+
+**Parameters:**
+- `source` — capsule ref (id OR workspace+name)
+- `target` — new capsule ref (workspace defaults to source workspace)
+- `set` — optional overrides for metadata fields (run_id, phase, role, tags)
+
+**Behavior:**
+- Copies `capsule_text` from source
+- Sets `based_on: [source]` automatically (if lineage feature exists)
+- Applies `set` overrides
+- New capsule gets fresh id/timestamps
+
+**Use case:** New workflow run that builds on prior research. Preserves lineage, avoids manual copy-paste.
+
+### `stats` Tool
+
+Quick overview of capsule distribution without fetching content:
+
+```json
+stats { "workspace": "default" }
+```
+
+**Output:**
+```json
+{
+  "capsule_count": 47,
+  "total_chars": 142000,
+  "by_phase": { "research": 12, "plan": 8, "implement": 20, "review": 7 },
+  "by_role": { "security-reviewer": 5, "architect": 3 },
+  "oldest": "2025-01-15T10:00:00Z",
+  "newest": "2025-01-25T14:30:00Z"
+}
+```
+
+**Parameters:**
+- `workspace` — optional filter
+- `run_id` — optional filter
+
+**Use case:** Understand capsule usage patterns, detect bloat, see workflow distribution across phases/roles.
+
+### `diff` Tool
+
+Compare two capsules section-by-section:
+
+```json
+diff {
+  "a": { "workspace": "default", "name": "plan-v1" },
+  "b": { "workspace": "default", "name": "plan-v2" }
+}
+```
+
+**Output:**
+```json
+{
+  "sections": {
+    "Objective": "unchanged",
+    "Current status": "modified",
+    "Decisions": "modified",
+    "Next actions": "modified",
+    "Key locations": "unchanged",
+    "Open questions": "removed_content"
+  },
+  "summary": {
+    "unchanged_sections": 2,
+    "modified_sections": 3,
+    "a_chars": 2400,
+    "b_chars": 2850
+  }
+}
+```
+
+**Optional:** `include_diff: true` to include line-level diff for modified sections.
+
+**Use case:** See what changed between pipeline stages, plan revisions, or before/after refactoring.
+
 ---
 
 ## Future Ideas
 
-### `search` Tool
+### `search` Tool (FTS5)
 
 SQLite FTS5 for full-text search across capsules:
 
@@ -173,9 +273,41 @@ SQLite FTS5 for full-text search across capsules:
 { "query": "authentication JWT" }
 ```
 
-### Semantic Search
+### Semantic Search (Vector)
 
-Embeddings-based similarity search.
+Embeddings-based similarity search for finding capsules by meaning rather than exact name.
+
+**Use case:** "Find the capsule where I decided to use JWT" — without knowing the capsule name.
+
+```json
+search { "query": "JWT authentication decision", "limit": 5 }
+```
+
+**Implementation options:**
+- Local embeddings (e.g., `sentence-transformers` via Python sidecar, or Go-native like `go-embeddings`)
+- SQLite `sqlite-vec` extension for vector storage
+- Optional: remote embedding API (OpenAI, Voyage) with local vector cache
+
+**Considerations:**
+- Embedding on store vs lazy indexing
+- Re-index on update
+- Storage overhead (~1.5KB per capsule for 384-dim embeddings)
+- Hybrid search: combine FTS5 keyword + semantic ranking
+
+> **Implementation note: FTS5 first, vector later.**
+>
+> FTS5 gets 80% of search value with 10% of complexity:
+> - No embedding model or vector storage needed
+> - SQLite native, sub-millisecond queries, works offline
+> - Capsules are semi-structured text — keywords like "Redis", "JWT", "Auth0" appear literally
+>
+> Vector search adds value when:
+> - Users don't know exact terminology used in capsules
+> - Need "similar to this" queries
+> - Cross-run knowledge discovery with poor tagging discipline
+> - Capsule count exceeds 500+ and keyword search isn't finding things
+>
+> **Recommended path:** Filters (now) → FTS5 (next) → Vector (when users hit the wall with keyword search)
 
 ### Versioning
 
