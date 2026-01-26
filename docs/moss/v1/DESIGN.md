@@ -1,9 +1,8 @@
 # Moss v1 Design Spec
 
-## Version History
+## Summary
 
-- **v1.1**: Orchestration fields — `run_id`, `phase`, `role` for multi-agent workflow scoping
-- **v1.0**: Initial release — 11 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import
+11 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -195,7 +194,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 **Optional:** `workspace` (default: "default"), `name`, `title`, `tags`, `source`, `run_id`, `phase`, `role`, `mode` ("error"|"replace"), `allow_thin`
 
-**Orchestration fields** (v1.1): `run_id`, `phase`, `role` enable multi-agent workflow scoping (e.g., `run_id: "pr-review-abc123"`, `phase: "design"`, `role: "design-intent"`).
+**Orchestration fields**: `run_id`, `phase`, `role` enable multi-agent workflow scoping (e.g., `run_id: "pr-review-abc123"`, `phase: "design"`, `role: "design-intent"`).
 
 **Behaviors:**
 - `mode:"error"` + name collision → **409 NAME_ALREADY_EXISTS**
@@ -263,7 +262,7 @@ Returns most recent capsule in workspace.
 
 **Optional:** `include_text` (default: false), `include_deleted`, `run_id`, `phase`, `role`
 
-**Filters** (v1.1): Use `run_id`/`phase`/`role` to get "latest design capsule from this run".
+**Filters**: Use `run_id`/`phase`/`role` to get "latest design capsule from this run".
 
 ---
 
@@ -273,7 +272,7 @@ List summaries in workspace. **Never returns `capsule_text`.**
 
 **Optional:** `limit` (default: 20, max: 100), `offset`, `include_deleted`, `run_id`, `phase`, `role`
 
-**Filters** (v1.1): `run_id`/`phase`/`role` narrow results to capsules in specific workflow contexts.
+**Filters**: `run_id`/`phase`/`role` narrow results to capsules in specific workflow contexts.
 
 ---
 
@@ -378,9 +377,9 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 * `tokens_estimate INTEGER NOT NULL` — heuristic: word count × 1.3
 * `tags_json TEXT NULL`
 * `source TEXT NULL`
-* `run_id TEXT NULL` — orchestration run identifier (v1.1)
-* `phase TEXT NULL` — workflow phase (v1.1)
-* `role TEXT NULL` — agent role (v1.1)
+* `run_id TEXT NULL` — orchestration run identifier
+* `phase TEXT NULL` — workflow phase
+* `role TEXT NULL` — agent role
 * `created_at INTEGER NOT NULL`
 * `updated_at INTEGER NOT NULL`
 * `deleted_at INTEGER NULL` — soft delete timestamp (null = active)

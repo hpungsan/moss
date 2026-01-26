@@ -10,7 +10,7 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 - **Capsule**: Distilled context snapshot (Objective, Status, Decisions, Next actions, Key locations, Open questions)
 - **Workspace**: Namespace (default: "default")
 - **Name**: Unique handle within workspace
-- **Orchestration** (v1.1): `run_id`, `phase`, `role` for multi-agent workflow scoping
+- **Orchestration**: `run_id`, `phase`, `role` for multi-agent workflow scoping
 
 ## MCP Tools
 `moss.store` `moss.fetch` `moss.fetch_many` `moss.update` `moss.delete` `moss.list` `moss.inventory` `moss.latest` `moss.export` `moss.import` `moss.purge`

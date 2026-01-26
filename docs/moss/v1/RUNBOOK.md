@@ -297,7 +297,7 @@ moss.import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
 
 ---
 
-## Orchestration (v1.1)
+## Orchestration
 
 Multi-agent workflows can use `run_id`, `phase`, and `role` to scope capsules.
 

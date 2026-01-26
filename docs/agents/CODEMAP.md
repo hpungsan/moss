@@ -33,7 +33,8 @@ moss/
 │   └── ops/
 │       ├── ops.go                 # Address validation, TaskLink
 │       ├── store.go               # Store operation (create/replace)
-│       ├── fetch.go               # Fetch, FetchMany operations
+│       ├── fetch.go               # Fetch operation
+│       ├── fetch_many.go          # FetchMany operation (batch fetch)
 │       ├── update.go              # Update operation
 │       ├── delete.go              # Delete operation (soft delete)
 │       ├── list.go                # List operation (workspace-scoped)

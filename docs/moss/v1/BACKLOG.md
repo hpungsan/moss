@@ -4,7 +4,7 @@ Features and enhancements for future versions.
 
 ---
 
-## v1.1 Candidates
+## Candidates
 
 ### `moss.compose` Tool
 
@@ -111,7 +111,7 @@ Currently: use export/import.
 
 ---
 
-## v1.2+ Ideas
+## Future Ideas
 
 ### `moss.search` Tool
 
@@ -160,7 +160,7 @@ Pass `context.Context` through MCP handlers to ops functions. Currently handlers
 
 **Stdio**: Already handled. `mcp-go`'s `ServeStdio()` catches SIGTERM/SIGINT and shuts down gracefully.
 
-**HTTP**: Will need explicit shutdown handling when REST API is added (v1.1+). Use the transport server’s `Shutdown(ctx)` (e.g., `server.NewSSEServer(...).Shutdown(ctx)` / `server.NewStreamableHTTPServer(...).Shutdown(ctx)`) with a timeout context.
+**HTTP**: Will need explicit shutdown handling when REST API is added. Use the transport server's `Shutdown(ctx)` (e.g., `server.NewSSEServer(...).Shutdown(ctx)` / `server.NewStreamableHTTPServer(...).Shutdown(ctx)`) with a timeout context.
 
 ### Import: Reuse ULID Entropy Source
 
