@@ -101,6 +101,14 @@ func migrate(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS idx_capsules_workspace_run_id
 		ON capsules(workspace_norm, run_id, updated_at DESC)
 		WHERE run_id IS NOT NULL AND deleted_at IS NULL;
+
+		CREATE INDEX IF NOT EXISTS idx_capsules_phase
+		ON capsules(phase)
+		WHERE phase IS NOT NULL AND deleted_at IS NULL;
+
+		CREATE INDEX IF NOT EXISTS idx_capsules_role
+		ON capsules(role)
+		WHERE role IS NOT NULL AND deleted_at IS NULL;
 		`
 		if _, err := db.Exec(schema); err != nil {
 			return fmt.Errorf("migration 1 failed: %w", err)

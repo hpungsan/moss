@@ -231,7 +231,7 @@ var inventoryToolDef = mcp.NewTool("inventory",
 
 var exportToolDef = mcp.NewTool("export",
 	mcp.WithDescription("Export capsules to a JSONL file for backup or migration."),
-	mcp.WithReadOnlyHintAnnotation(true),
+	mcp.WithReadOnlyHintAnnotation(false), // Writes files to disk
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("path",
 		mcp.Description("Export file path. Default: ~/.moss/exports/<workspace>-<timestamp>.jsonl"),

@@ -447,3 +447,38 @@ func TestInventory_EmptyFilters(t *testing.T) {
 		t.Errorf("len(Items) = %d, want 1", len(output.Items))
 	}
 }
+
+func TestInventory_WhitespaceOnlyFilters(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Store a capsule with a real tag
+	_, err = Store(database, cfg, StoreInput{
+		Workspace:   "default",
+		CapsuleText: validCapsuleText,
+		Tags:        []string{"real-tag"},
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Whitespace-only tag filter should be treated as no filter (not as literal " ")
+	whitespaceTag := "   "
+	output, err := Inventory(database, InventoryInput{
+		Tag: &whitespaceTag,
+	})
+	if err != nil {
+		t.Fatalf("Inventory failed: %v", err)
+	}
+
+	// Should return all capsules (whitespace filter is ignored after trimming)
+	if len(output.Items) != 1 {
+		t.Errorf("len(Items) = %d, want 1 (whitespace tag filter should be ignored)", len(output.Items))
+	}
+}

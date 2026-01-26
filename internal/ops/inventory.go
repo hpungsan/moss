@@ -2,6 +2,7 @@ package ops
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/db"
@@ -38,7 +39,7 @@ func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error)
 		}
 	}
 	if input.Tag != nil {
-		tag := *input.Tag
+		tag := strings.TrimSpace(*input.Tag)
 		if tag != "" {
 			filters.Tag = &tag
 		}

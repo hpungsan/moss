@@ -136,10 +136,14 @@ func TestInit_SchemaIndexes(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Verify indexes were created
+	// Verify all indexes were created
 	indexes := []string{
 		"idx_capsules_workspace_updated",
 		"idx_capsules_workspace_name_norm",
+		"idx_capsules_run_id",
+		"idx_capsules_workspace_run_id",
+		"idx_capsules_phase",
+		"idx_capsules_role",
 	}
 
 	for _, idx := range indexes {
