@@ -168,6 +168,19 @@ func parseExportFile(file *os.File) ([]capsule.ExportRecord, []ImportError) {
 			continue
 		}
 
+		// Skip lines with empty CapsuleText (invalid - breaks API contract)
+		// When fetched with include_text=true, empty string is omitted due to omitempty,
+		// making it indistinguishable from include_text=false.
+		if record.CapsuleText == "" {
+			parseErrors = append(parseErrors, ImportError{
+				Line:    lineNum,
+				ID:      record.ID,
+				Code:    "INVALID_RECORD",
+				Message: "missing or empty capsule_text field",
+			})
+			continue
+		}
+
 		records = append(records, record)
 	}
 
@@ -259,7 +272,9 @@ func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportO
 }
 
 // importModeReplace imports records, updating existing on collision.
-// Uses a transaction for atomicity - all records succeed or none.
+// Atomic: all records succeed or none. If any errors occur (parse errors or
+// ambiguous collisions), the entire transaction is rolled back and all errors
+// are returned so the user can fix their export file and retry.
 func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
 	tx, err := database.Begin()
 	if err != nil {
@@ -268,12 +283,10 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 	defer tx.Rollback() //nolint:errcheck
 
 	imported := 0
-	skipped := 0
 	var importErrors []ImportError
 
-	// Include parse errors
+	// Include parse errors (will cause rollback at end)
 	importErrors = append(importErrors, parseErrors...)
-	skipped += len(parseErrors)
 
 	for _, record := range records {
 		c := record.ToCapsule()
@@ -295,6 +308,7 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 		}
 
 		// Handle ambiguous case: ID matches row A AND name matches different row B
+		// Record the error but continue processing to collect all errors.
 		if existingByID != nil && existingByName != nil && existingByID.ID != existingByName.ID {
 			name := ""
 			if record.NameRaw != nil {
@@ -306,7 +320,6 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 				Code:    "AMBIGUOUS_COLLISION",
 				Message: fmt.Sprintf("id %q matches existing capsule but name %q matches different capsule", record.ID, name),
 			})
-			skipped++
 			continue
 		}
 
@@ -333,19 +346,31 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 		}
 	}
 
+	// Atomic: only commit if zero errors
+	if len(importErrors) > 0 {
+		// Transaction will be rolled back by deferred Rollback()
+		return &ImportOutput{
+			Imported: 0,
+			Skipped:  0,
+			Errors:   importErrors,
+		}, nil
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, errors.NewInternal(err)
 	}
 
 	return &ImportOutput{
 		Imported: imported,
-		Skipped:  skipped,
+		Skipped:  0,
 		Errors:   importErrors,
 	}, nil
 }
 
 // importModeRename imports records, auto-renaming on collision.
-// Uses a transaction for atomicity - all records succeed or none.
+// Atomic: all records succeed or none. If any errors occur (parse errors,
+// rename failures, or insert failures), the entire transaction is rolled back
+// and all errors are returned so the user can fix their export file and retry.
 func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
 	tx, err := database.Begin()
 	if err != nil {
@@ -354,12 +379,10 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 	defer tx.Rollback() //nolint:errcheck
 
 	imported := 0
-	skipped := 0
 	var importErrors []ImportError
 
-	// Include parse errors
+	// Include parse errors (will cause rollback at end)
 	importErrors = append(importErrors, parseErrors...)
-	skipped += len(parseErrors)
 
 	for _, record := range records {
 		c := record.ToCapsule()
@@ -400,7 +423,7 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 						Code:    "RENAME_FAILED",
 						Message: fmt.Sprintf("failed to find unique name: %v", err),
 					})
-					skipped++
+					// Continue processing to collect all errors
 					continue
 				}
 				// Apply new name to both raw and norm
@@ -421,10 +444,20 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 				Code:    "INSERT_FAILED",
 				Message: fmt.Sprintf("failed to insert: %v", err),
 			})
-			skipped++
+			// Continue processing to collect all errors
 			continue
 		}
 		imported++
+	}
+
+	// Atomic: only commit if zero errors
+	if len(importErrors) > 0 {
+		// Transaction will be rolled back by deferred Rollback()
+		return &ImportOutput{
+			Imported: 0,
+			Skipped:  0,
+			Errors:   importErrors,
+		}, nil
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -433,7 +466,7 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 
 	return &ImportOutput{
 		Imported: imported,
-		Skipped:  skipped,
+		Skipped:  0,
 		Errors:   importErrors,
 	}, nil
 }

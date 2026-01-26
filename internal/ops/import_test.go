@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -541,11 +542,165 @@ func TestImport_ModeReplace_ErrorsOnAmbiguousCollision(t *testing.T) {
 		t.Fatalf("Import failed: %v", err)
 	}
 
-	if output.Skipped != 1 {
-		t.Errorf("Skipped = %d, want 1", output.Skipped)
+	// Atomic behavior: error causes entire transaction to roll back
+	if output.Imported != 0 {
+		t.Errorf("Imported = %d, want 0 (atomic rollback)", output.Imported)
+	}
+	if output.Skipped != 0 {
+		t.Errorf("Skipped = %d, want 0", output.Skipped)
 	}
 	if len(output.Errors) != 1 || output.Errors[0].Code != "AMBIGUOUS_COLLISION" {
 		t.Errorf("Expected AMBIGUOUS_COLLISION error, got: %v", output.Errors)
+	}
+}
+
+func TestImport_ModeReplace_AtomicRollbackOnPartialSuccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Pre-insert two capsules to set up ambiguous collision for second record
+	c1 := newTestCapsuleForImport("01EXISTING1", "default", "Existing 1")
+	c1.NameRaw = stringPtr("existing-name1")
+	c1.NameNorm = stringPtr("existing-name1")
+	if err := db.Insert(database, c1); err != nil {
+		t.Fatalf("Insert c1 failed: %v", err)
+	}
+
+	c2 := newTestCapsuleForImport("01EXISTING2", "default", "Existing 2")
+	c2.NameRaw = stringPtr("existing-name2")
+	c2.NameNorm = stringPtr("existing-name2")
+	if err := db.Insert(database, c2); err != nil {
+		t.Fatalf("Insert c2 failed: %v", err)
+	}
+
+	// Import two records:
+	// - First: new capsule that would succeed
+	// - Second: ambiguous collision (ID matches c1, name matches c2)
+	records := []capsule.ExportRecord{
+		{
+			ID:           "01NEWCAPSULE",
+			WorkspaceRaw: "default",
+			NameRaw:      stringPtr("brand-new"),
+			CapsuleText:  "This should be rolled back",
+			CreatedAt:    1000,
+			UpdatedAt:    1000,
+		},
+		{
+			ID:           "01EXISTING1", // Matches c1
+			WorkspaceRaw: "default",
+			NameRaw:      stringPtr("existing-name2"), // Matches c2 - AMBIGUOUS!
+			CapsuleText:  "Ambiguous",
+			CreatedAt:    1000,
+			UpdatedAt:    2000,
+		},
+	}
+
+	exportPath := filepath.Join(tmpDir, "export.jsonl")
+	writeExportFile(t, exportPath, records)
+
+	output, err := Import(database, ImportInput{
+		Path: exportPath,
+		Mode: ImportModeReplace,
+	})
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	// Verify atomic rollback in output
+	if output.Imported != 0 {
+		t.Errorf("Imported = %d, want 0", output.Imported)
+	}
+	if len(output.Errors) != 1 || output.Errors[0].Code != "AMBIGUOUS_COLLISION" {
+		t.Errorf("Expected AMBIGUOUS_COLLISION error, got: %v", output.Errors)
+	}
+
+	// CRITICAL: Verify the first record was NOT persisted (rollback worked)
+	_, err = db.GetByID(database, "01NEWCAPSULE", false)
+	if err == nil {
+		t.Error("First record should NOT exist - transaction should have rolled back")
+	}
+	if !errors.Is(err, errors.ErrNotFound) {
+		t.Errorf("Expected NOT_FOUND error, got: %v", err)
+	}
+
+	// Verify original capsules are unchanged
+	original1, err := db.GetByID(database, "01EXISTING1", false)
+	if err != nil {
+		t.Fatalf("GetByID c1 failed: %v", err)
+	}
+	if original1.CapsuleText != "Existing 1" {
+		t.Errorf("c1 was modified, CapsuleText = %q, want %q", original1.CapsuleText, "Existing 1")
+	}
+}
+
+func TestImport_ModeRename_AtomicRollbackOnPartialSuccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Pre-insert a capsule
+	existing := newTestCapsuleForImport("01EXISTING", "default", "Existing content")
+	existing.NameRaw = stringPtr("taken")
+	existing.NameNorm = stringPtr("taken")
+	if err := db.Insert(database, existing); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// Import two records:
+	// - First: new capsule that would succeed
+	// - Second: will fail on insert (we'll use a parse error to trigger failure)
+	//
+	// Actually, for rename mode, failures are rare (it auto-renames).
+	// Use a malformed record in the JSONL to trigger parse error + valid record.
+	exportPath := filepath.Join(tmpDir, "export.jsonl")
+	file, err := os.Create(exportPath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	// Header
+	if _, err := file.WriteString(`{"_moss_export":true,"schema_version":"1.0","exported_at":1000}` + "\n"); err != nil {
+		t.Fatalf("Failed to write header: %v", err)
+	}
+	// Valid record that would succeed
+	if _, err := file.WriteString(`{"id":"01NEWRECORD","workspace_raw":"default","name_raw":"new-name","capsule_text":"Should be rolled back","capsule_chars":20,"tokens_estimate":5,"created_at":1000,"updated_at":1000}` + "\n"); err != nil {
+		t.Fatalf("Failed to write record: %v", err)
+	}
+	// Malformed JSON (parse error)
+	if _, err := file.WriteString(`{"id":"01BAD","workspace_raw":"default",MALFORMED}` + "\n"); err != nil {
+		t.Fatalf("Failed to write malformed record: %v", err)
+	}
+	file.Close()
+
+	output, err := Import(database, ImportInput{
+		Path: exportPath,
+		Mode: ImportModeRename,
+	})
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	// Verify atomic rollback in output
+	if output.Imported != 0 {
+		t.Errorf("Imported = %d, want 0", output.Imported)
+	}
+	if len(output.Errors) != 1 || output.Errors[0].Code != "PARSE_ERROR" {
+		t.Errorf("Expected PARSE_ERROR, got: %v", output.Errors)
+	}
+
+	// CRITICAL: Verify the valid record was NOT persisted (rollback worked)
+	_, err = db.GetByID(database, "01NEWRECORD", false)
+	if err == nil {
+		t.Error("Valid record should NOT exist - transaction should have rolled back due to parse error")
+	}
+	if !errors.Is(err, errors.ErrNotFound) {
+		t.Errorf("Expected NOT_FOUND error, got: %v", err)
 	}
 }
 
@@ -777,6 +932,56 @@ func TestImport_MissingWorkspaceRaw_ModeError(t *testing.T) {
 	}
 	if output.Errors[0].ID != "01NOWS" {
 		t.Errorf("Expected ID in error, got: %s", output.Errors[0].ID)
+	}
+}
+
+func TestImport_EmptyCapsuleText_ModeError(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Create file with record having empty capsule_text
+	// This would break the API contract: when fetched with include_text=true,
+	// empty string is omitted due to omitempty tag, making response ambiguous.
+	exportPath := filepath.Join(tmpDir, "export.jsonl")
+	file, err := os.Create(exportPath)
+	if err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+	if _, err := file.WriteString(`{"_moss_export":true,"schema_version":"1.0","exported_at":1000}` + "\n"); err != nil {
+		t.Fatalf("Failed to write: %v", err)
+	}
+	// Record has all fields except capsule_text is empty
+	if _, err := file.WriteString(`{"id":"01EMPTY","workspace_raw":"default","workspace_norm":"default","capsule_text":"","capsule_chars":0,"tokens_estimate":0,"created_at":1000,"updated_at":1000}` + "\n"); err != nil {
+		t.Fatalf("Failed to write: %v", err)
+	}
+	file.Close()
+
+	output, err := Import(database, ImportInput{
+		Path: exportPath,
+		Mode: ImportModeError,
+	})
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	if output.Imported != 0 {
+		t.Errorf("Imported = %d, want 0", output.Imported)
+	}
+	if len(output.Errors) != 1 {
+		t.Errorf("Expected 1 error, got: %v", output.Errors)
+	}
+	if output.Errors[0].Code != "INVALID_RECORD" {
+		t.Errorf("Expected INVALID_RECORD, got: %s", output.Errors[0].Code)
+	}
+	if output.Errors[0].ID != "01EMPTY" {
+		t.Errorf("Expected ID in error, got: %s", output.Errors[0].ID)
+	}
+	if !strings.Contains(output.Errors[0].Message, "capsule_text") {
+		t.Errorf("Expected error to mention capsule_text, got: %s", output.Errors[0].Message)
 	}
 }
 
