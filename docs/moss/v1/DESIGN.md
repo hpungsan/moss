@@ -1,8 +1,8 @@
 # Moss v1 Design Spec
 
-## Version History
+## Summary
 
-- **v1.0**: Initial release — 11 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import
+11 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -159,17 +159,17 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 
 | Tool | Description |
 |------|-------------|
-| `moss.store` | Create new capsule (supports upsert via `mode`) |
-| `moss.fetch` | Read capsule by id OR by name |
-| `moss.fetch_many` | Batch fetch multiple capsules |
-| `moss.update` | Update capsule content/metadata |
-| `moss.delete` | Soft delete (recoverable) |
-| `moss.latest` | Most recent capsule in workspace |
-| `moss.list` | List capsule summaries in workspace |
-| `moss.inventory` | List capsule summaries globally |
-| `moss.export` | JSONL backup |
-| `moss.import` | JSONL restore |
-| `moss.purge` | Permanently delete soft-deleted |
+| `store` | Create new capsule (supports upsert via `mode`) |
+| `fetch` | Read capsule by id OR by name |
+| `fetch_many` | Batch fetch multiple capsules |
+| `update` | Update capsule content/metadata |
+| `delete` | Soft delete (recoverable) |
+| `latest` | Most recent capsule in workspace |
+| `list` | List capsule summaries in workspace |
+| `inventory` | List capsule summaries globally |
+| `export` | JSONL backup |
+| `import` | JSONL restore |
+| `purge` | Permanently delete soft-deleted |
 
 Each tool has a focused schema — no `action` dispatch needed.
 
@@ -188,11 +188,13 @@ Each tool has a focused schema — no `action` dispatch needed.
 
 Tool schemas are defined in code (`internal/mcp/tools.go`). This section documents key behaviors.
 
-## 6.1 `moss.store`
+## 6.1 `store`
 
 **Required:** `capsule_text`
 
-**Optional:** `workspace` (default: "default"), `name`, `title`, `tags`, `source`, `mode` ("error"|"replace"), `allow_thin`
+**Optional:** `workspace` (default: "default"), `name`, `title`, `tags`, `source`, `run_id`, `phase`, `role`, `mode` ("error"|"replace"), `allow_thin`
+
+**Orchestration fields**: `run_id`, `phase`, `role` enable multi-agent workflow scoping (e.g., `run_id: "pr-review-abc123"`, `phase: "design"`, `role: "design-intent"`).
 
 **Behaviors:**
 - `mode:"error"` + name collision → **409 NAME_ALREADY_EXISTS**
@@ -201,11 +203,11 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 - Lint fails → **422 CAPSULE_TOO_THIN**
 - Soft-deleted capsules don't participate in name uniqueness
 
-**Output:** `{ id, task_link }` — `task_link` provides ready-to-use metadata for Claude Code Tasks integration.
+**Output:** `{ id, fetch_key }` — `fetch_key` provides ready-to-use metadata for Claude Code Tasks integration.
 
 ---
 
-## 6.2 `moss.fetch`
+## 6.2 `fetch`
 
 **Addressing:** `id` OR (`workspace` + `name`) — not both
 
@@ -218,7 +220,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 ---
 
-## 6.3 `moss.fetch_many`
+## 6.3 `fetch_many`
 
 Batch fetch multiple capsules.
 
@@ -228,15 +230,15 @@ Batch fetch multiple capsules.
 
 **Behaviors:**
 - Partial success allowed — missing items in `errors` array
-- Each item includes `task_link`
+- Each item includes `fetch_key`
 
 ---
 
-## 6.4 `moss.update`
+## 6.4 `update`
 
 **Addressing:** `id` OR (`workspace` + `name`)
 
-**Editable:** `capsule_text`, `title`, `tags`, `source`
+**Editable:** `capsule_text`, `title`, `tags`, `source`, `run_id`, `phase`, `role`
 
 **Immutable:** `id`, `workspace`, `name` — to "rename", delete and re-store
 
@@ -248,37 +250,41 @@ Batch fetch multiple capsules.
 
 ---
 
-## 6.5 `moss.delete`
+## 6.5 `delete`
 
 Soft-deletes by setting `deleted_at`. Capsule recoverable via `include_deleted` or export/import.
 
 ---
 
-## 6.6 `moss.latest`
+## 6.6 `latest`
 
 Returns most recent capsule in workspace.
 
-**Optional:** `include_text` (default: false), `include_deleted`
+**Optional:** `include_text` (default: false), `include_deleted`, `run_id`, `phase`, `role`
+
+**Filters**: Use `run_id`/`phase`/`role` to get "latest design capsule from this run".
 
 ---
 
-## 6.7 `moss.list`
+## 6.7 `list`
 
 List summaries in workspace. **Never returns `capsule_text`.**
 
-**Optional:** `limit` (default: 20, max: 100), `offset`, `include_deleted`
+**Optional:** `limit` (default: 20, max: 100), `offset`, `include_deleted`, `run_id`, `phase`, `role`
+
+**Filters**: `run_id`/`phase`/`role` narrow results to capsules in specific workflow contexts.
 
 ---
 
-## 6.8 `moss.inventory`
+## 6.8 `inventory`
 
 Global list across all workspaces. **Never returns `capsule_text`.**
 
-**Optional filters:** `workspace`, `tag`, `name_prefix`, `include_deleted`, `limit` (default: 100, max: 500), `offset`
+**Optional filters:** `workspace`, `tag`, `name_prefix`, `run_id`, `phase`, `role`, `include_deleted`, `limit` (default: 100, max: 500), `offset`
 
 ---
 
-## 6.9 `moss.export`
+## 6.9 `export`
 
 Export to JSONL file.
 
@@ -286,7 +292,7 @@ Export to JSONL file.
 
 ---
 
-## 6.10 `moss.import`
+## 6.10 `import`
 
 Import from JSONL file.
 
@@ -298,7 +304,7 @@ Import from JSONL file.
 
 ---
 
-## 6.11 `moss.purge`
+## 6.11 `purge`
 
 Permanently delete soft-deleted capsules.
 
@@ -371,6 +377,9 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 * `tokens_estimate INTEGER NOT NULL` — heuristic: word count × 1.3
 * `tags_json TEXT NULL`
 * `source TEXT NULL`
+* `run_id TEXT NULL` — orchestration run identifier
+* `phase TEXT NULL` — workflow phase
+* `role TEXT NULL` — agent role
 * `created_at INTEGER NOT NULL`
 * `updated_at INTEGER NOT NULL`
 * `deleted_at INTEGER NULL` — soft delete timestamp (null = active)
@@ -379,6 +388,7 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 
 * Unique name handles: `UNIQUE(workspace_norm, name_norm)` excluding soft-deleted
 * Fast list/latest: `INDEX(workspace_norm, updated_at DESC)` excluding soft-deleted
+* Orchestration queries: `INDEX(run_id, phase, role)` excluding soft-deleted, partial (run_id IS NOT NULL)
 
 ---
 
@@ -394,6 +404,7 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 
 * Default `capsule_max_chars`: **12,000** (configurable in `~/.moss/config.json`)
 * `len(capsule_text) <= capsule_max_chars` else **413 CAPSULE_TOO_LARGE**
+* Import JSONL file size is capped (default: **25MB**) else **413 FILE_TOO_LARGE**
 
 ## Mode validation
 
@@ -419,6 +430,7 @@ See section 3.2 for lint rules, section 4.2 for normalization.
 | NOT_FOUND | 404 | Capsule doesn't exist (or is soft-deleted) |
 | NAME_ALREADY_EXISTS | 409 | Name collision on store with mode:"error" |
 | CAPSULE_TOO_LARGE | 413 | Exceeds `capsule_max_chars` |
+| FILE_TOO_LARGE | 413 | Import file exceeds max size limit |
 | CAPSULE_TOO_THIN | 422 | Missing required sections |
 | INTERNAL | 500 | Unexpected error |
 
@@ -437,7 +449,7 @@ Response format:
 }
 ```
 
-The `details` field varies by error code (e.g., `max_chars`/`actual_chars` for CAPSULE_TOO_LARGE).
+The `details` field varies by error code (e.g., `max_chars`/`actual_chars` for CAPSULE_TOO_LARGE; `max_bytes`/`actual_bytes` for FILE_TOO_LARGE).
 
 ---
 

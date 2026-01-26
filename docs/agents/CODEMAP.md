@@ -31,9 +31,10 @@ moss/
 │   │   ├── server.go              # NewServer, Run (stdio transport)
 │   │   └── tools.go               # 11 tool definitions with JSON schemas
 │   └── ops/
-│       ├── ops.go                 # Address validation, TaskLink
+│       ├── ops.go                 # Address validation, FetchKey
 │       ├── store.go               # Store operation (create/replace)
-│       ├── fetch.go               # Fetch, FetchMany operations
+│       ├── fetch.go               # Fetch operation
+│       ├── fetch_many.go          # FetchMany operation (batch fetch)
 │       ├── update.go              # Update operation
 │       ├── delete.go              # Delete operation (soft delete)
 │       ├── list.go                # List operation (workspace-scoped)
@@ -51,7 +52,7 @@ moss/
 │   │       └── BACKLOG.md         # Post-v1 features
 │   └── agents/
 │       ├── CODEMAP.md             # This file
-│       └── TASKS.md               # Claude Code Tasks integration
+│       └── MOSS_CC.md             # Claude Code integration
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # CI pipeline

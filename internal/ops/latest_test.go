@@ -274,7 +274,7 @@ func TestLatest_ReturnsMostRecent(t *testing.T) {
 	}
 }
 
-func TestLatest_TaskLink_Named(t *testing.T) {
+func TestLatest_FetchKey_Named(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
 	if err != nil {
@@ -301,15 +301,15 @@ func TestLatest_TaskLink_Named(t *testing.T) {
 		t.Fatalf("Latest failed: %v", err)
 	}
 
-	if output.Item.TaskLink.MossCapsule != "auth" {
-		t.Errorf("TaskLink.MossCapsule = %q, want 'auth'", output.Item.TaskLink.MossCapsule)
+	if output.Item.FetchKey.MossCapsule != "auth" {
+		t.Errorf("FetchKey.MossCapsule = %q, want 'auth'", output.Item.FetchKey.MossCapsule)
 	}
-	if output.Item.TaskLink.MossWorkspace != "myworkspace" {
-		t.Errorf("TaskLink.MossWorkspace = %q, want 'myworkspace'", output.Item.TaskLink.MossWorkspace)
+	if output.Item.FetchKey.MossWorkspace != "myworkspace" {
+		t.Errorf("FetchKey.MossWorkspace = %q, want 'myworkspace'", output.Item.FetchKey.MossWorkspace)
 	}
 }
 
-func TestLatest_TaskLink_Unnamed(t *testing.T) {
+func TestLatest_FetchKey_Unnamed(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
 	if err != nil {
@@ -335,11 +335,11 @@ func TestLatest_TaskLink_Unnamed(t *testing.T) {
 		t.Fatalf("Latest failed: %v", err)
 	}
 
-	if output.Item.TaskLink.MossID != stored.ID {
-		t.Errorf("TaskLink.MossID = %q, want %q", output.Item.TaskLink.MossID, stored.ID)
+	if output.Item.FetchKey.MossID != stored.ID {
+		t.Errorf("FetchKey.MossID = %q, want %q", output.Item.FetchKey.MossID, stored.ID)
 	}
-	if output.Item.TaskLink.MossCapsule != "" {
-		t.Errorf("TaskLink.MossCapsule = %q, want empty (unnamed)", output.Item.TaskLink.MossCapsule)
+	if output.Item.FetchKey.MossCapsule != "" {
+		t.Errorf("FetchKey.MossCapsule = %q, want empty (unnamed)", output.Item.FetchKey.MossCapsule)
 	}
 }
 

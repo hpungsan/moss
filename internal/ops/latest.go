@@ -9,8 +9,11 @@ import (
 
 // LatestInput contains parameters for the Latest operation.
 type LatestInput struct {
-	Workspace      string // required, defaults to "default"
-	IncludeText    *bool  // default: false (summary only)
+	Workspace      string  // required, defaults to "default"
+	RunID          *string // optional filter
+	Phase          *string // optional filter
+	Role           *string // optional filter
+	IncludeText    *bool   // default: false (summary only)
 	IncludeDeleted bool
 }
 
@@ -23,7 +26,7 @@ type LatestOutput struct {
 type LatestItem struct {
 	capsule.CapsuleSummary          // embedded summary
 	CapsuleText            string   `json:"capsule_text,omitempty"` // only if include_text
-	TaskLink               TaskLink `json:"task_link"`
+	FetchKey               FetchKey `json:"fetch_key"`
 }
 
 // Latest retrieves the most recent capsule in a workspace.
@@ -40,10 +43,17 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 		includeText = *input.IncludeText
 	}
 
+	// Build filters
+	filters := db.LatestFilters{
+		RunID: cleanOptionalString(input.RunID),
+		Phase: cleanOptionalString(input.Phase),
+		Role:  cleanOptionalString(input.Role),
+	}
+
 	// Query database based on include_text
 	if includeText {
 		// Fetch full capsule with text
-		c, err := db.GetLatestFull(database, workspace, input.IncludeDeleted)
+		c, err := db.GetLatestFull(database, workspace, filters, input.IncludeDeleted)
 		if err != nil {
 			return nil, err
 		}
@@ -61,13 +71,13 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 			Item: &LatestItem{
 				CapsuleSummary: c.ToSummary(),
 				CapsuleText:    c.CapsuleText,
-				TaskLink:       BuildTaskLink(c.WorkspaceRaw, name, c.ID),
+				FetchKey:       BuildFetchKey(c.WorkspaceRaw, name, c.ID),
 			},
 		}, nil
 	}
 
 	// Fetch summary only (no text)
-	s, err := db.GetLatestSummary(database, workspace, input.IncludeDeleted)
+	s, err := db.GetLatestSummary(database, workspace, filters, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +95,7 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 		Item: &LatestItem{
 			CapsuleSummary: *s,
 			CapsuleText:    "", // omitted via omitempty
-			TaskLink:       BuildTaskLink(s.Workspace, name, s.ID),
+			FetchKey:       BuildFetchKey(s.Workspace, name, s.ID),
 		},
 	}, nil
 }

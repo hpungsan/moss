@@ -9,17 +9,20 @@ import (
 
 // ListInput contains parameters for the List operation.
 type ListInput struct {
-	Workspace      string // required, defaults to "default"
-	Limit          int    // default: 20, max: 100
-	Offset         int    // default: 0
+	Workspace      string  // required, defaults to "default"
+	RunID          *string // optional filter
+	Phase          *string // optional filter
+	Role           *string // optional filter
+	Limit          int     // default: 20, max: 100
+	Offset         int     // default: 0
 	IncludeDeleted bool
 }
 
 // ListOutput contains the result of the List operation.
 type ListOutput struct {
-	Items      []capsule.CapsuleSummary `json:"items"`
-	Pagination Pagination               `json:"pagination"`
-	Sort       string                   `json:"sort"`
+	Items      []SummaryItem `json:"items"`
+	Pagination Pagination    `json:"pagination"`
+	Sort       string        `json:"sort"`
 }
 
 // List retrieves capsule summaries for a workspace with pagination.
@@ -42,8 +45,15 @@ func List(database *sql.DB, input ListInput) (*ListOutput, error) {
 	// Ensure offset is non-negative
 	offset := max(input.Offset, 0)
 
+	// Build filters
+	filters := db.ListFilters{
+		RunID: cleanOptionalString(input.RunID),
+		Phase: cleanOptionalString(input.Phase),
+		Role:  cleanOptionalString(input.Role),
+	}
+
 	// Query database
-	summaries, total, err := db.ListByWorkspace(database, workspace, limit, offset, input.IncludeDeleted)
+	summaries, total, err := db.ListByWorkspace(database, workspace, filters, limit, offset, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +67,7 @@ func List(database *sql.DB, input ListInput) (*ListOutput, error) {
 	hasMore := offset+len(summaries) < total
 
 	return &ListOutput{
-		Items: summaries,
+		Items: SummariesToItems(summaries),
 		Pagination: Pagination{
 			Limit:   limit,
 			Offset:  offset,

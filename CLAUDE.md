@@ -10,9 +10,10 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 - **Capsule**: Distilled context snapshot (Objective, Status, Decisions, Next actions, Key locations, Open questions)
 - **Workspace**: Namespace (default: "default")
 - **Name**: Unique handle within workspace
+- **Orchestration**: `run_id`, `phase`, `role` for multi-agent workflow scoping
 
 ## MCP Tools
-`moss.store` `moss.fetch` `moss.fetch_many` `moss.update` `moss.delete` `moss.list` `moss.inventory` `moss.latest` `moss.export` `moss.import` `moss.purge`
+`store` `fetch` `fetch_many` `update` `delete` `list` `inventory` `latest` `export` `import` `purge`
 
 ## Guidelines
 - MCP-first (CLI is secondary)
@@ -56,7 +57,7 @@ internal/
 
 ## Paths
 - DB: `~/.moss/moss.db`
-- Tasks: `~/.claude/tasks/` (CC Tasks integration, see `docs/agents/TASKS.md`)
+- Tasks: `~/.claude/tasks/` (CC Tasks integration, see `docs/agents/MOSS_CC.md`)
 
 ## Docs
 `docs/agents/` — supplementary reference docs for AI agents
@@ -68,7 +69,7 @@ internal/
 | `docs/moss/v1/RUNBOOK.md` | Build, configure, run, troubleshoot |
 | `docs/moss/v1/BACKLOG.md` | Post-v1 features |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
-| `docs/agents/TASKS.md` | CC Tasks integration |
+| `docs/agents/MOSS_CC.md` | Claude Code integration |
 
 ## Dev (gitignored)
 | Doc | Purpose |

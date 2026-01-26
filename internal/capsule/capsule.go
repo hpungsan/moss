@@ -36,6 +36,15 @@ type Capsule struct {
 	// Source indicates where the capsule originated (e.g., "claude-code", "manual")
 	Source *string
 
+	// RunID identifies the orchestration run (e.g., "pr-review-abc123")
+	RunID *string
+
+	// Phase indicates the workflow phase (e.g., "design", "implement", "review")
+	Phase *string
+
+	// Role indicates the agent role (e.g., "design-intent", "qa-reviewer")
+	Role *string
+
 	// CreatedAt is the Unix timestamp when the capsule was created
 	CreatedAt int64
 

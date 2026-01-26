@@ -33,6 +33,15 @@ type CapsuleSummary struct {
 	// Source indicates where the capsule originated (e.g., "claude-code", "manual")
 	Source *string `json:"source,omitempty"`
 
+	// RunID identifies the orchestration run (e.g., "pr-review-abc123")
+	RunID *string `json:"run_id,omitempty"`
+
+	// Phase indicates the workflow phase (e.g., "design", "implement", "review")
+	Phase *string `json:"phase,omitempty"`
+
+	// Role indicates the agent role (e.g., "design-intent", "qa-reviewer")
+	Role *string `json:"role,omitempty"`
+
 	// CreatedAt is the Unix timestamp when the capsule was created
 	CreatedAt int64 `json:"created_at"`
 
@@ -56,6 +65,9 @@ func (c *Capsule) ToSummary() CapsuleSummary {
 		TokensEstimate: c.TokensEstimate,
 		Tags:           c.Tags,
 		Source:         c.Source,
+		RunID:          c.RunID,
+		Phase:          c.Phase,
+		Role:           c.Role,
 		CreatedAt:      c.CreatedAt,
 		UpdatedAt:      c.UpdatedAt,
 		DeletedAt:      c.DeletedAt,

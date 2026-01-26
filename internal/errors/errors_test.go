@@ -102,6 +102,24 @@ func TestNewCapsuleTooLarge(t *testing.T) {
 	}
 }
 
+func TestNewFileTooLarge(t *testing.T) {
+	err := NewFileTooLarge(10*1024*1024, 15*1024*1024)
+
+	// Must use ErrFileTooLarge (not ErrCapsuleTooLarge) for file size errors
+	if err.Code != ErrFileTooLarge {
+		t.Errorf("Code = %q, want %q", err.Code, ErrFileTooLarge)
+	}
+	if err.Status != 413 {
+		t.Errorf("Status = %d, want 413", err.Status)
+	}
+	if err.Details["max_bytes"] != int64(10*1024*1024) {
+		t.Errorf("Details[max_bytes] = %v, want %v", err.Details["max_bytes"], int64(10*1024*1024))
+	}
+	if err.Details["actual_bytes"] != int64(15*1024*1024) {
+		t.Errorf("Details[actual_bytes] = %v, want %v", err.Details["actual_bytes"], int64(15*1024*1024))
+	}
+}
+
 func TestNewCapsuleTooThin(t *testing.T) {
 	missing := []string{"Objective", "Next actions"}
 	err := NewCapsuleTooThin(missing)

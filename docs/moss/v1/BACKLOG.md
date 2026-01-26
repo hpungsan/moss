@@ -1,78 +1,12 @@
-# Moss Post-v1.0 Backlog
+# Moss Post-v1 Backlog
 
-Features and enhancements deferred from v1.0.
+Features and enhancements for future versions.
 
 ---
 
-## v1.1 Candidates
+## Candidates
 
-### Orchestration Fields
-
-Add `run_id`, `phase`, `role` for multi-agent workflow scoping:
-
-```json
-{
-  "run_id": "pr-review-abc123",
-  "phase": "design",
-  "role": "design-intent",
-  ...
-}
-```
-
-(Example for `moss.store` tool)
-
-- `run_id` — groups capsules from single command run
-- `phase` — e.g., `base`, `design`, `qa`, `security`, `docs`, `final`
-- `role` — e.g., `design-intent`, `design-principles`
-
-**Database schema additions:**
-
-```sql
--- New columns in capsules table
-run_id TEXT NULL,
-phase TEXT NULL,
-role TEXT NULL
-
--- Index for run-scoped queries
-CREATE INDEX IF NOT EXISTS idx_capsules_run_id
-ON capsules(run_id, phase, role)
-WHERE run_id IS NOT NULL AND deleted_at IS NULL;
-```
-
-Enables filtering on `moss.list` and `moss.inventory`:
-
-```json
-{ "workspace": "startupA", "run_id": "pr-review-abc123", "phase": "design", "limit": 20 }
-```
-
-```json
-{ "run_id": "pr-review-abc123", "phase": "design", "role": "design-intent", "limit": 200 }
-```
-
-**Example flow: PR review with design gate + detail reviewers**
-
-```
-1. Parent stores base context:
-   moss.store { workspace: "phinn", name: "pr-123-base", run_id: "run-abc", phase: "base", ... }
-
-2. Design agents fetch base:
-   moss.fetch { workspace: "phinn", name: "pr-123-base" }
-
-3. Each design agent stores findings:
-   moss.store { name: "pr-123-design-intent", run_id: "run-abc", phase: "design", role: "design-intent", ... }
-   moss.store { name: "pr-123-design-principles", run_id: "run-abc", phase: "design", role: "design-principles", ... }
-
-4. Parent composes design outputs:
-   moss.compose { items: [...], store_as: { name: "pr-123-design" } }
-
-5. QA/Sec/Docs agents batch-fetch:
-   moss.fetch_many { items: [{ name: "pr-123-base" }, { name: "pr-123-design" }] }
-
-6. Browse run artifacts:
-   moss.list { workspace: "phinn", run_id: "run-abc" }
-```
-
-### `moss.compose` Tool
+### `compose` Tool
 
 Deterministic assembly of multiple capsules into one bundle.
 
@@ -123,7 +57,7 @@ Deterministic assembly of multiple capsules into one bundle.
 
 ### Optimistic Concurrency
 
-Add `if_updated_at` to `moss.update`:
+Add `if_updated_at` to `update`:
 
 ```json
 {
@@ -134,6 +68,26 @@ Add `if_updated_at` to `moss.update`:
 ```
 
 Rejects if capsule was modified since timestamp (prevents overwrites).
+
+### Multi-Run Queries
+
+Allow `run_id` filter to accept an array for querying across multiple runs:
+
+```json
+inventory { "run_id": ["run-001", "run-002"] }
+```
+
+Use case: Comparing capsules from related runs or aggregating results from parallel workflows.
+
+### Run-Scoped Purge
+
+Add `run_id` filter to `purge` for cleaning up completed workflows:
+
+```json
+purge { "run_id": "pr-review-abc123" }
+```
+
+Permanently deletes all capsules (including active) matching the run. Requires explicit confirmation param to prevent accidents.
 
 ### REST API
 
@@ -153,8 +107,41 @@ Resource: `/capsules`
 
 ### CLI Enhancements
 
-v1.0 CLI outputs JSON only. Future enhancements:
+v1 CLI outputs JSON only. Future enhancements:
 
+- **TTY banner** — When `moss` is run without arguments in a terminal, show a friendly ASCII banner and usage hint instead of silently waiting for MCP input:
+
+  ```go
+  // In main.go, before MCP server startup
+  func isTerminal() bool {
+      stat, _ := os.Stdin.Stat()
+      return (stat.Mode() & os.ModeCharDevice) != 0
+  }
+
+  func printBanner() {
+      fmt.Println(`
+    __  __  ___  ___ ___
+   |  \/  |/ _ \/ __/ __|
+   | |\/| | (_) \__ \__ \
+   |_|  |_|\___/|___/___/
+
+   Local context capsule store
+
+   Usage: moss <command> [options]
+          moss --help
+
+   MCP server mode requires piped input.
+  `)
+  }
+
+  // Then in main():
+  if isTerminal() {
+      printBanner()
+      return
+  }
+  // ... start MCP server
+  ```
+- **Orchestration flags** — `--run-id`, `--phase`, `--role` for store, update, list, inventory, latest commands (MCP has these; CLI deferred since orchestration is primarily for multi-agent workflows)
 - **Table formatting** for `list` and `inventory` commands (human-readable output)
 - **Color output** for better terminal readability
 - **Shell completion** (bash, zsh, fish)
@@ -164,7 +151,7 @@ v1.0 CLI outputs JSON only. Future enhancements:
 
 Replace word-count heuristic with model-specific tokenizer (e.g., tiktoken).
 
-### `moss.restore` Tool
+### `restore` Tool
 
 Recover soft-deleted capsules:
 
@@ -176,9 +163,9 @@ Currently: use export/import.
 
 ---
 
-## v1.2+ Ideas
+## Future Ideas
 
-### `moss.search` Tool
+### `search` Tool
 
 SQLite FTS5 for full-text search across capsules:
 
@@ -192,7 +179,7 @@ Embeddings-based similarity search.
 
 ### Versioning
 
-Keep last N revisions of a capsule (extends `moss.fetch`):
+Keep last N revisions of a capsule (extends `fetch`):
 
 ```json
 { "name": "auth", "version": -1 }  // previous version
@@ -225,7 +212,7 @@ Pass `context.Context` through MCP handlers to ops functions. Currently handlers
 
 **Stdio**: Already handled. `mcp-go`'s `ServeStdio()` catches SIGTERM/SIGINT and shuts down gracefully.
 
-**HTTP**: Will need explicit shutdown handling when REST API is added (v1.1+). Use the transport server’s `Shutdown(ctx)` (e.g., `server.NewSSEServer(...).Shutdown(ctx)` / `server.NewStreamableHTTPServer(...).Shutdown(ctx)`) with a timeout context.
+**HTTP**: Will need explicit shutdown handling when REST API is added. Use the transport server's `Shutdown(ctx)` (e.g., `server.NewSSEServer(...).Shutdown(ctx)` / `server.NewStreamableHTTPServer(...).Shutdown(ctx)`) with a timeout context.
 
 ### Import: Reuse ULID Entropy Source
 

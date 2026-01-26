@@ -657,7 +657,7 @@ func TestImport_ModeRename_GeneratesNewIDOnCollision(t *testing.T) {
 	}
 
 	// There should now be 2 capsules
-	summaries, total, err := db.ListByWorkspace(database, "default", 10, 0, false)
+	summaries, total, err := db.ListByWorkspace(database, "default", db.ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}

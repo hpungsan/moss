@@ -21,6 +21,9 @@ type UpdateInput struct {
 	Title       *string
 	Tags        *[]string
 	Source      *string
+	RunID       *string // orchestration run ID
+	Phase       *string // workflow phase
+	Role        *string // agent role
 
 	AllowThin bool
 }
@@ -28,7 +31,7 @@ type UpdateInput struct {
 // UpdateOutput contains the result of the Update operation.
 type UpdateOutput struct {
 	ID       string   `json:"id"`
-	TaskLink TaskLink `json:"task_link"`
+	FetchKey FetchKey `json:"fetch_key"`
 }
 
 // Update modifies an existing capsule.
@@ -40,7 +43,8 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 	}
 
 	// Validate at least one editable field is provided
-	if input.CapsuleText == nil && input.Title == nil && input.Tags == nil && input.Source == nil {
+	if input.CapsuleText == nil && input.Title == nil && input.Tags == nil && input.Source == nil &&
+		input.RunID == nil && input.Phase == nil && input.Role == nil {
 		return nil, errors.NewInvalidRequest("at least one editable field must be provided")
 	}
 
@@ -89,6 +93,18 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 		c.Source = input.Source
 	}
 
+	if input.RunID != nil {
+		c.RunID = cleanOptionalString(input.RunID)
+	}
+
+	if input.Phase != nil {
+		c.Phase = cleanOptionalString(input.Phase)
+	}
+
+	if input.Role != nil {
+		c.Role = cleanOptionalString(input.Role)
+	}
+
 	// Persist update
 	if err := db.UpdateByID(database, c); err != nil {
 		return nil, err
@@ -102,6 +118,6 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 
 	return &UpdateOutput{
 		ID:       c.ID,
-		TaskLink: BuildTaskLink(c.WorkspaceRaw, name, c.ID),
+		FetchKey: BuildFetchKey(c.WorkspaceRaw, name, c.ID),
 	}, nil
 }

@@ -62,11 +62,11 @@ func TestStore_HappyPath_Named(t *testing.T) {
 	if len(output.ID) != 26 {
 		t.Errorf("ID length = %d, want 26 (ULID)", len(output.ID))
 	}
-	if output.TaskLink.MossCapsule != "auth" {
-		t.Errorf("TaskLink.MossCapsule = %q, want %q", output.TaskLink.MossCapsule, "auth")
+	if output.FetchKey.MossCapsule != "auth" {
+		t.Errorf("FetchKey.MossCapsule = %q, want %q", output.FetchKey.MossCapsule, "auth")
 	}
-	if output.TaskLink.MossWorkspace != "myworkspace" {
-		t.Errorf("TaskLink.MossWorkspace = %q, want %q", output.TaskLink.MossWorkspace, "myworkspace")
+	if output.FetchKey.MossWorkspace != "myworkspace" {
+		t.Errorf("FetchKey.MossWorkspace = %q, want %q", output.FetchKey.MossWorkspace, "myworkspace")
 	}
 }
 
@@ -89,11 +89,11 @@ func TestStore_HappyPath_Unnamed(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	if output.TaskLink.MossID == "" {
-		t.Error("TaskLink.MossID should not be empty for unnamed capsule")
+	if output.FetchKey.MossID == "" {
+		t.Error("FetchKey.MossID should not be empty for unnamed capsule")
 	}
-	if output.TaskLink.MossCapsule != "" {
-		t.Errorf("TaskLink.MossCapsule = %q, want empty (unnamed)", output.TaskLink.MossCapsule)
+	if output.FetchKey.MossCapsule != "" {
+		t.Errorf("FetchKey.MossCapsule = %q, want empty (unnamed)", output.FetchKey.MossCapsule)
 	}
 }
 
@@ -296,6 +296,79 @@ func TestStore_NameCollision_ModeReplace(t *testing.T) {
 	}
 	if len(capsule.Tags) != 1 || capsule.Tags[0] != "v2" {
 		t.Errorf("Tags = %v, want [v2]", capsule.Tags)
+	}
+}
+
+func TestStore_NameCollision_ModeReplace_Concurrent(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Run multiple concurrent mode:replace operations for the same name.
+	// All should succeed - no NAME_ALREADY_EXISTS errors.
+	const numGoroutines = 10
+	errChan := make(chan error, numGoroutines)
+	idChan := make(chan string, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			input := StoreInput{
+				Workspace:   "default",
+				Name:        stringPtr("concurrent-test"),
+				CapsuleText: validCapsuleText + "\nGoroutine " + string(rune('A'+idx)),
+				Tags:        []string{"concurrent"},
+				Mode:        StoreModeReplace,
+			}
+			output, err := Store(database, cfg, input)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			idChan <- output.ID
+			errChan <- nil
+		}(i)
+	}
+
+	// Collect results
+	var errors []error
+	var ids []string
+	for i := 0; i < numGoroutines; i++ {
+		if err := <-errChan; err != nil {
+			errors = append(errors, err)
+		}
+	}
+	close(idChan)
+	for id := range idChan {
+		ids = append(ids, id)
+	}
+
+	// All operations should succeed (no errors)
+	if len(errors) > 0 {
+		t.Errorf("Expected 0 errors, got %d: %v", len(errors), errors)
+	}
+
+	// All returned IDs should be the same (the first capsule's ID, preserved across updates)
+	if len(ids) > 0 {
+		firstID := ids[0]
+		for i, id := range ids {
+			if id != firstID {
+				t.Errorf("ID[%d] = %q, want %q (all should return same ID)", i, id, firstID)
+			}
+		}
+	}
+
+	// Verify only one capsule exists with this name
+	capsule, err := db.GetByName(database, "default", "concurrent-test", false)
+	if err != nil {
+		t.Fatalf("GetByName failed: %v", err)
+	}
+	if capsule == nil {
+		t.Fatal("Expected capsule to exist")
 	}
 }
 

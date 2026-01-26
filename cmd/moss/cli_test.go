@@ -230,8 +230,8 @@ func TestCLIStore(t *testing.T) {
 	if output.ID == "" {
 		t.Error("expected non-empty ID")
 	}
-	if output.TaskLink.MossCapsule != "test-capsule" {
-		t.Errorf("expected task_link.moss_capsule=test-capsule, got %s", output.TaskLink.MossCapsule)
+	if output.FetchKey.MossCapsule != "test-capsule" {
+		t.Errorf("expected fetch_key.moss_capsule=test-capsule, got %s", output.FetchKey.MossCapsule)
 	}
 }
 

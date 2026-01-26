@@ -42,10 +42,13 @@ type FetchManyItem struct {
 	TokensEstimate int      `json:"tokens_estimate"`
 	Tags           []string `json:"tags,omitempty"`
 	Source         *string  `json:"source,omitempty"`
+	RunID          *string  `json:"run_id,omitempty"`
+	Phase          *string  `json:"phase,omitempty"`
+	Role           *string  `json:"role,omitempty"`
 	CreatedAt      int64    `json:"created_at"`
 	UpdatedAt      int64    `json:"updated_at"`
 	DeletedAt      *int64   `json:"deleted_at,omitempty"`
-	TaskLink       TaskLink `json:"task_link"`
+	FetchKey       FetchKey `json:"fetch_key"`
 }
 
 // FetchManyError represents an error for a specific ref.
@@ -156,9 +159,12 @@ func capsuleToItem(c *capsule.Capsule, includeText bool) FetchManyItem {
 		TokensEstimate: c.TokensEstimate,
 		Tags:           c.Tags,
 		Source:         c.Source,
+		RunID:          c.RunID,
+		Phase:          c.Phase,
+		Role:           c.Role,
 		CreatedAt:      c.CreatedAt,
 		UpdatedAt:      c.UpdatedAt,
 		DeletedAt:      c.DeletedAt,
-		TaskLink:       BuildTaskLink(c.WorkspaceRaw, name, c.ID),
+		FetchKey:       BuildFetchKey(c.WorkspaceRaw, name, c.ID),
 	}
 }

@@ -415,7 +415,7 @@ func TestFetchMany_NilInput(t *testing.T) {
 	}
 }
 
-func TestFetchMany_TaskLink(t *testing.T) {
+func TestFetchMany_FetchKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
 	if err != nil {
@@ -469,26 +469,26 @@ func TestFetchMany_TaskLink(t *testing.T) {
 		}
 	}
 
-	// Verify named capsule TaskLink
+	// Verify named capsule FetchKey
 	if namedItem == nil {
 		t.Fatal("named item not found")
 	}
-	if namedItem.TaskLink.MossCapsule != "auth" {
-		t.Errorf("TaskLink.MossCapsule = %q, want 'auth'", namedItem.TaskLink.MossCapsule)
+	if namedItem.FetchKey.MossCapsule != "auth" {
+		t.Errorf("FetchKey.MossCapsule = %q, want 'auth'", namedItem.FetchKey.MossCapsule)
 	}
-	if namedItem.TaskLink.MossWorkspace != "myworkspace" {
-		t.Errorf("TaskLink.MossWorkspace = %q, want 'myworkspace'", namedItem.TaskLink.MossWorkspace)
+	if namedItem.FetchKey.MossWorkspace != "myworkspace" {
+		t.Errorf("FetchKey.MossWorkspace = %q, want 'myworkspace'", namedItem.FetchKey.MossWorkspace)
 	}
 
-	// Verify unnamed capsule TaskLink
+	// Verify unnamed capsule FetchKey
 	if unnamedItem == nil {
 		t.Fatal("unnamed item not found")
 	}
-	if unnamedItem.TaskLink.MossID != unnamed.ID {
-		t.Errorf("TaskLink.MossID = %q, want %q", unnamedItem.TaskLink.MossID, unnamed.ID)
+	if unnamedItem.FetchKey.MossID != unnamed.ID {
+		t.Errorf("FetchKey.MossID = %q, want %q", unnamedItem.FetchKey.MossID, unnamed.ID)
 	}
-	if unnamedItem.TaskLink.MossCapsule != "" {
-		t.Errorf("TaskLink.MossCapsule = %q, want empty (unnamed)", unnamedItem.TaskLink.MossCapsule)
+	if unnamedItem.FetchKey.MossCapsule != "" {
+		t.Errorf("FetchKey.MossCapsule = %q, want empty (unnamed)", unnamedItem.FetchKey.MossCapsule)
 	}
 }
 

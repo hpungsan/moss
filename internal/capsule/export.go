@@ -1,5 +1,7 @@
 package capsule
 
+import "strings"
+
 // ExportRecord represents a capsule record in JSONL export format.
 // It is used for parsing export files during import.
 type ExportRecord struct {
@@ -22,6 +24,9 @@ type ExportRecord struct {
 	TokensEstimate int      `json:"tokens_estimate"` // IGNORED on import, recomputed
 	Tags           []string `json:"tags"`
 	Source         *string  `json:"source"`
+	RunID          *string  `json:"run_id"`
+	Phase          *string  `json:"phase"`
+	Role           *string  `json:"role"`
 	CreatedAt      int64    `json:"created_at"`
 	UpdatedAt      int64    `json:"updated_at"`
 	DeletedAt      *int64   `json:"deleted_at"`
@@ -40,6 +45,9 @@ func (r *ExportRecord) ToCapsule() *Capsule {
 		TokensEstimate: EstimateTokens(r.CapsuleText), // Recompute
 		Tags:           r.Tags,
 		Source:         r.Source,
+		RunID:          emptyToNil(r.RunID), // Normalize: "" → nil
+		Phase:          emptyToNil(r.Phase), // Normalize: "" → nil
+		Role:           emptyToNil(r.Role),  // Normalize: "" → nil
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 		DeletedAt:      r.DeletedAt,
@@ -52,6 +60,18 @@ func (r *ExportRecord) ToCapsule() *Capsule {
 	}
 
 	return c
+}
+
+// emptyToNil converts empty or whitespace-only string pointers to nil for consistent filter behavior.
+func emptyToNil(s *string) *string {
+	if s == nil {
+		return nil
+	}
+	v := strings.TrimSpace(*s)
+	if v == "" {
+		return nil
+	}
+	return &v
 }
 
 // CapsuleToExportRecord converts a Capsule to an ExportRecord for export.
@@ -68,6 +88,9 @@ func CapsuleToExportRecord(c *Capsule) *ExportRecord {
 		TokensEstimate: c.TokensEstimate,
 		Tags:           c.Tags,
 		Source:         c.Source,
+		RunID:          c.RunID,
+		Phase:          c.Phase,
+		Role:           c.Role,
 		CreatedAt:      c.CreatedAt,
 		UpdatedAt:      c.UpdatedAt,
 		DeletedAt:      c.DeletedAt,

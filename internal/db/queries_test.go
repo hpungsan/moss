@@ -527,7 +527,7 @@ func TestListByWorkspace_Basic(t *testing.T) {
 	}
 
 	// List default workspace
-	summaries, total, err := ListByWorkspace(db, "default", 10, 0, false)
+	summaries, total, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -564,7 +564,7 @@ func TestListByWorkspace_Pagination(t *testing.T) {
 	}
 
 	// Get first page (limit 2)
-	page1, total, err := ListByWorkspace(db, "default", 2, 0, false)
+	page1, total, err := ListByWorkspace(db, "default", ListFilters{}, 2, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace page 1 failed: %v", err)
 	}
@@ -576,7 +576,7 @@ func TestListByWorkspace_Pagination(t *testing.T) {
 	}
 
 	// Get second page (offset 2)
-	page2, _, err := ListByWorkspace(db, "default", 2, 2, false)
+	page2, _, err := ListByWorkspace(db, "default", ListFilters{}, 2, 2, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace page 2 failed: %v", err)
 	}
@@ -609,7 +609,7 @@ func TestListByWorkspace_StableOrdering(t *testing.T) {
 		}
 	}
 
-	summaries, _, err := ListByWorkspace(db, "default", 10, 0, false)
+	summaries, _, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -650,7 +650,7 @@ func TestListByWorkspace_IncludeDeleted(t *testing.T) {
 	}
 
 	// Without includeDeleted
-	_, total, err := ListByWorkspace(db, "default", 10, 0, false)
+	_, total, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -659,7 +659,7 @@ func TestListByWorkspace_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted
-	summaries, total, err := ListByWorkspace(db, "default", 10, 0, true)
+	summaries, total, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, true)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -679,7 +679,7 @@ func TestListByWorkspace_Empty(t *testing.T) {
 	}
 	defer db.Close()
 
-	summaries, total, err := ListByWorkspace(db, "nonexistent", 10, 0, false)
+	summaries, total, err := ListByWorkspace(db, "nonexistent", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -978,7 +978,7 @@ func TestGetLatestSummary_Basic(t *testing.T) {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	summary, err := GetLatestSummary(db, "default", false)
+	summary, err := GetLatestSummary(db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -999,7 +999,7 @@ func TestGetLatestSummary_EmptyWorkspace(t *testing.T) {
 	}
 	defer db.Close()
 
-	summary, err := GetLatestSummary(db, "empty", false)
+	summary, err := GetLatestSummary(db, "empty", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1031,7 +1031,7 @@ func TestGetLatestSummary_StableOrdering(t *testing.T) {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	summary, err := GetLatestSummary(db, "default", false)
+	summary, err := GetLatestSummary(db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1068,7 +1068,7 @@ func TestGetLatestSummary_IncludeDeleted(t *testing.T) {
 	}
 
 	// Without includeDeleted
-	summary, err := GetLatestSummary(db, "default", false)
+	summary, err := GetLatestSummary(db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1077,7 +1077,7 @@ func TestGetLatestSummary_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted - should return deleted one since it's more recent
-	summary, err = GetLatestSummary(db, "default", true)
+	summary, err = GetLatestSummary(db, "default", LatestFilters{}, true)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1103,7 +1103,7 @@ func TestGetLatestFull_Basic(t *testing.T) {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	capsule, err := GetLatestFull(db, "default", false)
+	capsule, err := GetLatestFull(db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestFull failed: %v", err)
 	}
@@ -1124,7 +1124,7 @@ func TestGetLatestFull_EmptyWorkspace(t *testing.T) {
 	}
 	defer db.Close()
 
-	capsule, err := GetLatestFull(db, "empty", false)
+	capsule, err := GetLatestFull(db, "empty", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestFull failed: %v", err)
 	}

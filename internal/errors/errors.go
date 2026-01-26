@@ -12,6 +12,7 @@ const (
 	ErrNameAlreadyExists   ErrorCode = "NAME_ALREADY_EXISTS"  // 409
 	ErrConflict            ErrorCode = "CONFLICT"             // 409 (for future optimistic concurrency)
 	ErrCapsuleTooLarge     ErrorCode = "CAPSULE_TOO_LARGE"    // 413
+	ErrFileTooLarge        ErrorCode = "FILE_TOO_LARGE"       // 413
 	ErrCapsuleTooThin      ErrorCode = "CAPSULE_TOO_THIN"     // 422
 	ErrInternal            ErrorCode = "INTERNAL"             // 500
 )
@@ -93,6 +94,16 @@ func NewCapsuleTooLarge(max, actual int) *MossError {
 		Status:  413,
 		Message: fmt.Sprintf("capsule exceeds maximum size: %d chars (max %d)", actual, max),
 		Details: map[string]any{"max_chars": max, "actual_chars": actual},
+	}
+}
+
+// NewFileTooLarge creates a 413 error when a file exceeds size limit.
+func NewFileTooLarge(maxBytes, actualBytes int64) *MossError {
+	return &MossError{
+		Code:    ErrFileTooLarge,
+		Status:  413,
+		Message: fmt.Sprintf("file exceeds maximum size: %d bytes (max %d)", actualBytes, maxBytes),
+		Details: map[string]any{"max_bytes": maxBytes, "actual_bytes": actualBytes},
 	}
 }
 

@@ -12,6 +12,9 @@ type InventoryInput struct {
 	Workspace      *string // optional filter
 	Tag            *string // optional filter
 	NamePrefix     *string // optional filter
+	RunID          *string // optional filter
+	Phase          *string // optional filter
+	Role           *string // optional filter
 	Limit          int     // default: 100, max: 500
 	Offset         int     // default: 0
 	IncludeDeleted bool
@@ -19,9 +22,9 @@ type InventoryInput struct {
 
 // InventoryOutput contains the result of the Inventory operation.
 type InventoryOutput struct {
-	Items      []capsule.CapsuleSummary `json:"items"`
-	Pagination Pagination               `json:"pagination"`
-	Sort       string                   `json:"sort"`
+	Items      []SummaryItem `json:"items"`
+	Pagination Pagination    `json:"pagination"`
+	Sort       string        `json:"sort"`
 }
 
 // Inventory retrieves capsule summaries across all workspaces with optional filters.
@@ -46,6 +49,9 @@ func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error)
 			filters.NamePrefix = &prefix
 		}
 	}
+	filters.RunID = cleanOptionalString(input.RunID)
+	filters.Phase = cleanOptionalString(input.Phase)
+	filters.Role = cleanOptionalString(input.Role)
 
 	// Apply limit defaults and bounds
 	limit := input.Limit
@@ -74,7 +80,7 @@ func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error)
 	hasMore := offset+len(summaries) < total
 
 	return &InventoryOutput{
-		Items: summaries,
+		Items: SummariesToItems(summaries),
 		Pagination: Pagination{
 			Limit:   limit,
 			Offset:  offset,

@@ -45,9 +45,9 @@ Sub-agents spawned via Task tool are **isolated**—each gets its own 200k conte
 ┌─────────────────────────────────────────────────────────────┐
 │                     ORCHESTRATOR                            │
 │  - Creates task graph with dependencies                     │
-│  - moss.store base context capsule                          │
+│  - store base context capsule                          │
 │  - Spawns sub-agents for unblocked tasks                    │
-│  - moss.fetch_many to gather results                        │
+│  - fetch_many to gather results                        │
 └─────────────────────────────────────────────────────────────┘
         │                    │                    │
         ▼                    ▼                    ▼
@@ -55,9 +55,9 @@ Sub-agents spawned via Task tool are **isolated**—each gets its own 200k conte
 │  SUB-AGENT 1  │  │  SUB-AGENT 2  │  │  SUB-AGENT 3  │
 │  (200k ctx)   │  │  (200k ctx)   │  │  (200k ctx)   │
 │               │  │               │  │               │
-│ moss.fetch    │  │ moss.fetch    │  │ moss.fetch    │
+│ fetch    │  │ fetch    │  │ fetch    │
 │ do work       │  │ do work       │  │ do work       │
-│ moss.store    │  │ moss.store    │  │ moss.store    │
+│ store    │  │ store    │  │ store    │
 └───────────────┘  └───────────────┘  └───────────────┘
 ```
 
@@ -67,7 +67,7 @@ Moss bridges the isolation gap—sub-agents share structured context without pol
 
 Claude Code Tasks handle **coordination** (what to do, dependencies, status). Moss Capsules handle **context** (why, decisions, key locations). They're complementary—Tasks are ephemeral work items, Capsules are durable knowledge artifacts.
 
-See [TASKS.md](../../docs/agents/TASKS.md) for details on integration patterns.
+See [MOSS_CC.md](../agents/MOSS_CC.md) for details on integration patterns.
 
 ## Design Principles
 
@@ -83,16 +83,16 @@ MCP tools (one per operation):
 
 | Tool | Purpose |
 |------|---------|
-| `moss.store` | Create capsule (with upsert mode) |
-| `moss.fetch` | Load capsule by id or name |
-| `moss.fetch_many` | Batch load multiple capsules |
-| `moss.update` | Update capsule content |
-| `moss.delete` | Soft delete (recoverable) |
-| `moss.list` | List capsules in workspace |
-| `moss.inventory` | List all capsules globally |
-| `moss.latest` | Get most recent capsule |
-| `moss.export` | JSONL backup |
-| `moss.import` | JSONL restore |
-| `moss.purge` | Permanently delete soft-deleted |
+| `store` | Create capsule (with upsert mode) |
+| `fetch` | Load capsule by id or name |
+| `fetch_many` | Batch load multiple capsules |
+| `update` | Update capsule content |
+| `delete` | Soft delete (recoverable) |
+| `list` | List capsules in workspace |
+| `inventory` | List all capsules globally |
+| `latest` | Get most recent capsule |
+| `export` | JSONL backup |
+| `import` | JSONL restore |
+| `purge` | Permanently delete soft-deleted |
 
 See [v1/DESIGN.md](v1/DESIGN.md) for full specification.
