@@ -24,6 +24,13 @@ const (
 	ImportModeError   ImportMode = "error"   // fail on collision (atomic)
 	ImportModeReplace ImportMode = "replace" // overwrite on collision
 	ImportModeRename  ImportMode = "rename"  // auto-suffix name on collision
+
+	// MaxImportFileSize is the maximum allowed import file size (prevents OOM).
+	MaxImportFileSize int64 = 25 * 1024 * 1024 // 25MB
+
+	// MaxImportLineSize is the maximum JSONL line size (handles large capsules
+	// when CapsuleMaxChars is configured high + JSON escaping overhead).
+	MaxImportLineSize = 1024 * 1024 // 1MB
 )
 
 // ImportInput contains parameters for the Import operation.
@@ -78,6 +85,15 @@ func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
 	}
 	defer file.Close()
 
+	// Check file size to prevent OOM on large exports
+	info, err := file.Stat()
+	if err != nil {
+		return nil, errors.NewInternal(fmt.Errorf("failed to stat import file: %w", err))
+	}
+	if info.Size() > MaxImportFileSize {
+		return nil, errors.NewFileTooLarge(MaxImportFileSize, info.Size())
+	}
+
 	// Parse all records first
 	records, parseErrors := parseExportFile(file)
 
@@ -109,6 +125,7 @@ func parseExportFile(file *os.File) ([]capsule.ExportRecord, []ImportError) {
 	var parseErrors []ImportError
 
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, MaxImportLineSize), MaxImportLineSize)
 	lineNum := 0
 
 	for scanner.Scan() {

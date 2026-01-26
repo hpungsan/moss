@@ -96,6 +96,16 @@ func NewCapsuleTooLarge(max, actual int) *MossError {
 	}
 }
 
+// NewFileTooLarge creates a 413 error when a file exceeds size limit.
+func NewFileTooLarge(maxBytes, actualBytes int64) *MossError {
+	return &MossError{
+		Code:    ErrCapsuleTooLarge,
+		Status:  413,
+		Message: fmt.Sprintf("file exceeds maximum size: %d bytes (max %d)", actualBytes, maxBytes),
+		Details: map[string]any{"max_bytes": maxBytes, "actual_bytes": actualBytes},
+	}
+}
+
 // NewCapsuleTooThin creates a 422 error when capsule is missing required sections.
 func NewCapsuleTooThin(missing []string) *MossError {
 	return &MossError{
