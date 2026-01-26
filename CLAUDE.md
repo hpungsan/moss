@@ -57,7 +57,7 @@ internal/
 
 ## Paths
 - DB: `~/.moss/moss.db`
-- Tasks: `~/.claude/tasks/` (CC Tasks integration, see `docs/agents/TASKS.md`)
+- Tasks: `~/.claude/tasks/` (CC Tasks integration, see `docs/agents/MOSS_CC.md`)
 
 ## Docs
 `docs/agents/` — supplementary reference docs for AI agents
@@ -69,7 +69,7 @@ internal/
 | `docs/moss/v1/RUNBOOK.md` | Build, configure, run, troubleshoot |
 | `docs/moss/v1/BACKLOG.md` | Post-v1 features |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
-| `docs/agents/TASKS.md` | CC Tasks integration |
+| `docs/agents/MOSS_CC.md` | Claude Code integration |
 
 ## Dev (gitignored)
 | Doc | Purpose |

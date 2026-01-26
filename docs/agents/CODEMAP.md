@@ -52,7 +52,7 @@ moss/
 │   │       └── BACKLOG.md         # Post-v1 features
 │   └── agents/
 │       ├── CODEMAP.md             # This file
-│       └── TASKS.md               # Claude Code Tasks integration
+│       └── MOSS_CC.md             # Claude Code integration
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # CI pipeline

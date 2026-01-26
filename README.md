@@ -160,7 +160,7 @@ Run `moss --help` for all commands.
 - [Overview & Use Cases](docs/moss/OVERVIEW.md)
 - [Design Spec](docs/moss/v1/DESIGN.md)
 - [Runbook](docs/moss/v1/RUNBOOK.md) — Installation, configuration, troubleshooting
-- [Pairing Moss with Claude Code Tasks](docs/agents/TASKS.md)
+- [Moss + Claude Code](docs/agents/MOSS_CC.md)
 
 ## License
 
