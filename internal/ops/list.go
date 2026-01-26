@@ -47,9 +47,9 @@ func List(database *sql.DB, input ListInput) (*ListOutput, error) {
 
 	// Build filters
 	filters := db.ListFilters{
-		RunID: input.RunID,
-		Phase: input.Phase,
-		Role:  input.Role,
+		RunID: cleanOptionalString(input.RunID),
+		Phase: cleanOptionalString(input.Phase),
+		Role:  cleanOptionalString(input.Role),
 	}
 
 	// Query database

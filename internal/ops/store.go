@@ -54,6 +54,9 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 	if strings.TrimSpace(input.Workspace) == "" {
 		input.Workspace = "default"
 	}
+	input.RunID = cleanOptionalString(input.RunID)
+	input.Phase = cleanOptionalString(input.Phase)
+	input.Role = cleanOptionalString(input.Role)
 	if input.Mode == "" {
 		input.Mode = StoreModeError
 	}

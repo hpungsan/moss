@@ -49,15 +49,9 @@ func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error)
 			filters.NamePrefix = &prefix
 		}
 	}
-	if input.RunID != nil && *input.RunID != "" {
-		filters.RunID = input.RunID
-	}
-	if input.Phase != nil && *input.Phase != "" {
-		filters.Phase = input.Phase
-	}
-	if input.Role != nil && *input.Role != "" {
-		filters.Role = input.Role
-	}
+	filters.RunID = cleanOptionalString(input.RunID)
+	filters.Phase = cleanOptionalString(input.Phase)
+	filters.Role = cleanOptionalString(input.Role)
 
 	// Apply limit defaults and bounds
 	limit := input.Limit

@@ -94,15 +94,15 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 	}
 
 	if input.RunID != nil {
-		c.RunID = input.RunID
+		c.RunID = cleanOptionalString(input.RunID)
 	}
 
 	if input.Phase != nil {
-		c.Phase = input.Phase
+		c.Phase = cleanOptionalString(input.Phase)
 	}
 
 	if input.Role != nil {
-		c.Role = input.Role
+		c.Role = cleanOptionalString(input.Role)
 	}
 
 	// Persist update

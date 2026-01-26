@@ -45,9 +45,9 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 
 	// Build filters
 	filters := db.LatestFilters{
-		RunID: input.RunID,
-		Phase: input.Phase,
-		Role:  input.Role,
+		RunID: cleanOptionalString(input.RunID),
+		Phase: cleanOptionalString(input.Phase),
+		Role:  cleanOptionalString(input.Role),
 	}
 
 	// Query database based on include_text

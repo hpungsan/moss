@@ -79,6 +79,17 @@ func ValidateAddress(id, workspace, name string) (*Address, error) {
 	}, nil
 }
 
+func cleanOptionalString(s *string) *string {
+	if s == nil {
+		return nil
+	}
+	v := strings.TrimSpace(*s)
+	if v == "" {
+		return nil
+	}
+	return &v
+}
+
 // TaskLink provides a reference for Claude Code Tasks integration.
 // Either (MossCapsule + MossWorkspace) or MossID is populated.
 type TaskLink struct {
