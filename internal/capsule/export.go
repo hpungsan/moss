@@ -1,5 +1,7 @@
 package capsule
 
+import "strings"
+
 // ExportRecord represents a capsule record in JSONL export format.
 // It is used for parsing export files during import.
 type ExportRecord struct {
@@ -60,12 +62,16 @@ func (r *ExportRecord) ToCapsule() *Capsule {
 	return c
 }
 
-// emptyToNil converts empty string pointers to nil for consistent filter behavior.
+// emptyToNil converts empty or whitespace-only string pointers to nil for consistent filter behavior.
 func emptyToNil(s *string) *string {
-	if s == nil || *s == "" {
+	if s == nil {
 		return nil
 	}
-	return s
+	v := strings.TrimSpace(*s)
+	if v == "" {
+		return nil
+	}
+	return &v
 }
 
 // CapsuleToExportRecord converts a Capsule to an ExportRecord for export.

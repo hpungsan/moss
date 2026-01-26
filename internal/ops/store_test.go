@@ -62,11 +62,11 @@ func TestStore_HappyPath_Named(t *testing.T) {
 	if len(output.ID) != 26 {
 		t.Errorf("ID length = %d, want 26 (ULID)", len(output.ID))
 	}
-	if output.TaskLink.MossCapsule != "auth" {
-		t.Errorf("TaskLink.MossCapsule = %q, want %q", output.TaskLink.MossCapsule, "auth")
+	if output.FetchKey.MossCapsule != "auth" {
+		t.Errorf("FetchKey.MossCapsule = %q, want %q", output.FetchKey.MossCapsule, "auth")
 	}
-	if output.TaskLink.MossWorkspace != "myworkspace" {
-		t.Errorf("TaskLink.MossWorkspace = %q, want %q", output.TaskLink.MossWorkspace, "myworkspace")
+	if output.FetchKey.MossWorkspace != "myworkspace" {
+		t.Errorf("FetchKey.MossWorkspace = %q, want %q", output.FetchKey.MossWorkspace, "myworkspace")
 	}
 }
 
@@ -89,11 +89,11 @@ func TestStore_HappyPath_Unnamed(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	if output.TaskLink.MossID == "" {
-		t.Error("TaskLink.MossID should not be empty for unnamed capsule")
+	if output.FetchKey.MossID == "" {
+		t.Error("FetchKey.MossID should not be empty for unnamed capsule")
 	}
-	if output.TaskLink.MossCapsule != "" {
-		t.Errorf("TaskLink.MossCapsule = %q, want empty (unnamed)", output.TaskLink.MossCapsule)
+	if output.FetchKey.MossCapsule != "" {
+		t.Errorf("FetchKey.MossCapsule = %q, want empty (unnamed)", output.FetchKey.MossCapsule)
 	}
 }
 

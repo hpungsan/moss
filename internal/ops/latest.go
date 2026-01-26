@@ -26,7 +26,7 @@ type LatestOutput struct {
 type LatestItem struct {
 	capsule.CapsuleSummary          // embedded summary
 	CapsuleText            string   `json:"capsule_text,omitempty"` // only if include_text
-	TaskLink               TaskLink `json:"task_link"`
+	FetchKey               FetchKey `json:"fetch_key"`
 }
 
 // Latest retrieves the most recent capsule in a workspace.
@@ -71,7 +71,7 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 			Item: &LatestItem{
 				CapsuleSummary: c.ToSummary(),
 				CapsuleText:    c.CapsuleText,
-				TaskLink:       BuildTaskLink(c.WorkspaceRaw, name, c.ID),
+				FetchKey:       BuildFetchKey(c.WorkspaceRaw, name, c.ID),
 			},
 		}, nil
 	}
@@ -95,7 +95,7 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 		Item: &LatestItem{
 			CapsuleSummary: *s,
 			CapsuleText:    "", // omitted via omitempty
-			TaskLink:       BuildTaskLink(s.Workspace, name, s.ID),
+			FetchKey:       BuildFetchKey(s.Workspace, name, s.ID),
 		},
 	}, nil
 }

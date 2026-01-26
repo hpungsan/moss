@@ -18,8 +18,24 @@ type FetchInput struct {
 
 // FetchOutput contains the result of the Fetch operation.
 type FetchOutput struct {
-	capsule.Capsule          // embedded (copy, not pointer)
-	TaskLink        TaskLink `json:"task_link"`
+	ID             string   `json:"id"`
+	Workspace      string   `json:"workspace"`
+	WorkspaceNorm  string   `json:"workspace_norm"`
+	Name           *string  `json:"name,omitempty"`
+	NameNorm       *string  `json:"name_norm,omitempty"`
+	Title          *string  `json:"title,omitempty"`
+	CapsuleText    string   `json:"capsule_text,omitempty"`
+	CapsuleChars   int      `json:"capsule_chars"`
+	TokensEstimate int      `json:"tokens_estimate"`
+	Tags           []string `json:"tags,omitempty"`
+	Source         *string  `json:"source,omitempty"`
+	RunID          *string  `json:"run_id,omitempty"`
+	Phase          *string  `json:"phase,omitempty"`
+	Role           *string  `json:"role,omitempty"`
+	CreatedAt      int64    `json:"created_at"`
+	UpdatedAt      int64    `json:"updated_at"`
+	DeletedAt      *int64   `json:"deleted_at,omitempty"`
+	FetchKey       FetchKey `json:"fetch_key"`
 }
 
 // Fetch retrieves a capsule by ID or name.
@@ -41,17 +57,10 @@ func Fetch(database *sql.DB, input FetchInput) (*FetchOutput, error) {
 		return nil, err
 	}
 
-	// Create output with a copy of the capsule
-	output := &FetchOutput{
-		Capsule: *c, // copy, not pointer
-	}
-
+	// Determine include_text (default: true)
 	includeText := true
 	if input.IncludeText != nil {
 		includeText = *input.IncludeText
-	}
-	if !includeText {
-		output.CapsuleText = ""
 	}
 
 	// Build task link
@@ -59,7 +68,32 @@ func Fetch(database *sql.DB, input FetchInput) (*FetchOutput, error) {
 	if c.NameRaw != nil {
 		name = *c.NameRaw
 	}
-	output.TaskLink = BuildTaskLink(c.WorkspaceRaw, name, c.ID)
+
+	// Build output with explicit field mapping
+	output := &FetchOutput{
+		ID:             c.ID,
+		Workspace:      c.WorkspaceRaw,
+		WorkspaceNorm:  c.WorkspaceNorm,
+		Name:           c.NameRaw,
+		NameNorm:       c.NameNorm,
+		Title:          c.Title,
+		CapsuleChars:   c.CapsuleChars,
+		TokensEstimate: c.TokensEstimate,
+		Tags:           c.Tags,
+		Source:         c.Source,
+		RunID:          c.RunID,
+		Phase:          c.Phase,
+		Role:           c.Role,
+		CreatedAt:      c.CreatedAt,
+		UpdatedAt:      c.UpdatedAt,
+		DeletedAt:      c.DeletedAt,
+		FetchKey:       BuildFetchKey(c.WorkspaceRaw, name, c.ID),
+	}
+
+	// Only include text if requested (omitempty handles the rest)
+	if includeText {
+		output.CapsuleText = c.CapsuleText
+	}
 
 	return output, nil
 }

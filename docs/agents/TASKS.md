@@ -177,12 +177,12 @@ Tasks can reference their capsule via metadata:
 }
 ```
 
-Moss responses include a ready-to-use `task_link`:
+Moss responses include a ready-to-use `fetch_key`:
 
 ```json
 {
   "id": "01J...ULID",
-  "task_link": {
+  "fetch_key": {
     "moss_capsule": "auth-handoff",
     "moss_workspace": "my-project"
   }
@@ -190,8 +190,8 @@ Moss responses include a ready-to-use `task_link`:
 ```
 
 Workflow:
-1. `moss.store` → get `task_link` in response
-2. `TaskUpdate` with `metadata` = `task_link`
+1. `moss.store` → get `fetch_key` in response
+2. `TaskUpdate` with `metadata` = `fetch_key`
 3. Later agent picks up task, reads `metadata.moss_capsule`
 4. `moss.fetch` → has full context
 

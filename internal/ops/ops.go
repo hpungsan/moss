@@ -24,20 +24,20 @@ type Pagination struct {
 	Total   int  `json:"total"`
 }
 
-// Address represents a validated capsule address.
-type Address struct {
+// ParsedAddress represents a validated capsule address.
+type ParsedAddress struct {
 	ByID      bool
 	ID        string
 	Workspace string // normalized, defaulted to "default" for name-mode
 	Name      string // normalized
 }
 
-// ValidateAddress validates addressing parameters and returns a normalized Address.
+// ValidateAddress validates addressing parameters and returns a normalized ParsedAddress.
 // Rules:
 // - Must specify exactly one addressing mode: id OR (workspace + name)
 // - If id provided with name or workspace → ErrAmbiguousAddressing
 // - If neither id nor name provided → ErrInvalidRequest
-func ValidateAddress(id, workspace, name string) (*Address, error) {
+func ValidateAddress(id, workspace, name string) (*ParsedAddress, error) {
 	id = strings.TrimSpace(id)
 	name = strings.TrimSpace(name)
 	workspace = strings.TrimSpace(workspace)
@@ -56,7 +56,7 @@ func ValidateAddress(id, workspace, name string) (*Address, error) {
 	}
 
 	if hasID {
-		return &Address{
+		return &ParsedAddress{
 			ByID: true,
 			ID:   id,
 		}, nil
@@ -72,7 +72,7 @@ func ValidateAddress(id, workspace, name string) (*Address, error) {
 		return nil, errors.NewInvalidRequest("name must not be empty")
 	}
 
-	return &Address{
+	return &ParsedAddress{
 		ByID:      false,
 		Workspace: workspaceNorm,
 		Name:      nameNorm,
@@ -90,25 +90,52 @@ func cleanOptionalString(s *string) *string {
 	return &v
 }
 
-// TaskLink provides a reference for Claude Code Tasks integration.
+// FetchKey provides an address for fetching a capsule.
 // Either (MossCapsule + MossWorkspace) or MossID is populated.
-type TaskLink struct {
+type FetchKey struct {
 	MossCapsule   string `json:"moss_capsule,omitempty"`
 	MossWorkspace string `json:"moss_workspace,omitempty"`
 	MossID        string `json:"moss_id,omitempty"`
 }
 
-// BuildTaskLink creates a TaskLink for the given capsule identifiers.
+// BuildFetchKey creates a FetchKey for the given capsule identifiers.
 // If name present: {moss_capsule: name, moss_workspace: workspace}
 // If unnamed: {moss_id: id}
-func BuildTaskLink(workspace, name, id string) TaskLink {
+func BuildFetchKey(workspace, name, id string) FetchKey {
 	if name != "" {
-		return TaskLink{
+		return FetchKey{
 			MossCapsule:   name,
 			MossWorkspace: workspace,
 		}
 	}
-	return TaskLink{
+	return FetchKey{
 		MossID: id,
 	}
+}
+
+// SummaryItem wraps a CapsuleSummary with a FetchKey for list/inventory responses.
+type SummaryItem struct {
+	capsule.CapsuleSummary
+	FetchKey FetchKey `json:"fetch_key"`
+}
+
+// SummaryToItem converts a CapsuleSummary to a SummaryItem with fetch_key.
+func SummaryToItem(s capsule.CapsuleSummary) SummaryItem {
+	name := ""
+	if s.Name != nil {
+		name = *s.Name
+	}
+	return SummaryItem{
+		CapsuleSummary: s,
+		FetchKey:       BuildFetchKey(s.Workspace, name, s.ID),
+	}
+}
+
+// SummariesToItems converts a slice of CapsuleSummary to SummaryItems.
+func SummariesToItems(summaries []capsule.CapsuleSummary) []SummaryItem {
+	items := make([]SummaryItem, len(summaries))
+	for i, s := range summaries {
+		items[i] = SummaryToItem(s)
+	}
+	return items
 }

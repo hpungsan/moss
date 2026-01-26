@@ -40,7 +40,7 @@ type StoreInput struct {
 // StoreOutput contains the result of the Store operation.
 type StoreOutput struct {
 	ID       string   `json:"id"`
-	TaskLink TaskLink `json:"task_link"`
+	FetchKey FetchKey `json:"fetch_key"`
 }
 
 // Store creates or replaces a capsule.
@@ -146,7 +146,7 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 
 		return &StoreOutput{
 			ID:       existingCapsule.ID,
-			TaskLink: BuildTaskLink(existingCapsule.WorkspaceRaw, name, existingCapsule.ID),
+			FetchKey: BuildFetchKey(existingCapsule.WorkspaceRaw, name, existingCapsule.ID),
 		}, nil
 	}
 
@@ -187,7 +187,7 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 
 	return &StoreOutput{
 		ID:       id,
-		TaskLink: BuildTaskLink(input.Workspace, name, id),
+		FetchKey: BuildFetchKey(input.Workspace, name, id),
 	}, nil
 }
 

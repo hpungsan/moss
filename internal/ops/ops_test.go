@@ -96,8 +96,8 @@ func TestValidateAddress_Invalid_Neither(t *testing.T) {
 	}
 }
 
-func TestBuildTaskLink_Named(t *testing.T) {
-	link := BuildTaskLink("myworkspace", "auth", "01ABC123")
+func TestBuildFetchKey_Named(t *testing.T) {
+	link := BuildFetchKey("myworkspace", "auth", "01ABC123")
 
 	if link.MossCapsule != "auth" {
 		t.Errorf("MossCapsule = %q, want %q", link.MossCapsule, "auth")
@@ -110,8 +110,8 @@ func TestBuildTaskLink_Named(t *testing.T) {
 	}
 }
 
-func TestBuildTaskLink_Unnamed(t *testing.T) {
-	link := BuildTaskLink("default", "", "01ABC123")
+func TestBuildFetchKey_Unnamed(t *testing.T) {
+	link := BuildFetchKey("default", "", "01ABC123")
 
 	if link.MossID != "01ABC123" {
 		t.Errorf("MossID = %q, want %q", link.MossID, "01ABC123")

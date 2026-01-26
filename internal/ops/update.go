@@ -31,7 +31,7 @@ type UpdateInput struct {
 // UpdateOutput contains the result of the Update operation.
 type UpdateOutput struct {
 	ID       string   `json:"id"`
-	TaskLink TaskLink `json:"task_link"`
+	FetchKey FetchKey `json:"fetch_key"`
 }
 
 // Update modifies an existing capsule.
@@ -118,6 +118,6 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 
 	return &UpdateOutput{
 		ID:       c.ID,
-		TaskLink: BuildTaskLink(c.WorkspaceRaw, name, c.ID),
+		FetchKey: BuildFetchKey(c.WorkspaceRaw, name, c.ID),
 	}, nil
 }

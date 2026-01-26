@@ -45,8 +45,8 @@ func TestFetch_ByID(t *testing.T) {
 	if output.CapsuleText == "" {
 		t.Error("CapsuleText should not be empty")
 	}
-	if output.TaskLink.MossCapsule != "test" {
-		t.Errorf("TaskLink.MossCapsule = %q, want %q", output.TaskLink.MossCapsule, "test")
+	if output.FetchKey.MossCapsule != "test" {
+		t.Errorf("FetchKey.MossCapsule = %q, want %q", output.FetchKey.MossCapsule, "test")
 	}
 }
 
@@ -84,8 +84,8 @@ func TestFetch_ByName(t *testing.T) {
 	if output.ID != storeOutput.ID {
 		t.Errorf("ID = %q, want %q", output.ID, storeOutput.ID)
 	}
-	if output.TaskLink.MossWorkspace != "myworkspace" {
-		t.Errorf("TaskLink.MossWorkspace = %q, want %q", output.TaskLink.MossWorkspace, "myworkspace")
+	if output.FetchKey.MossWorkspace != "myworkspace" {
+		t.Errorf("FetchKey.MossWorkspace = %q, want %q", output.FetchKey.MossWorkspace, "myworkspace")
 	}
 }
 
@@ -262,7 +262,7 @@ func TestFetch_IncludeDeleted(t *testing.T) {
 	}
 }
 
-func TestFetch_UnnamedCapsule_TaskLink(t *testing.T) {
+func TestFetch_UnnamedCapsule_FetchKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
 	if err != nil {
@@ -290,12 +290,12 @@ func TestFetch_UnnamedCapsule_TaskLink(t *testing.T) {
 		t.Fatalf("Fetch failed: %v", err)
 	}
 
-	// TaskLink should use ID for unnamed capsule
-	if output.TaskLink.MossID != storeOutput.ID {
-		t.Errorf("TaskLink.MossID = %q, want %q", output.TaskLink.MossID, storeOutput.ID)
+	// FetchKey should use ID for unnamed capsule
+	if output.FetchKey.MossID != storeOutput.ID {
+		t.Errorf("FetchKey.MossID = %q, want %q", output.FetchKey.MossID, storeOutput.ID)
 	}
-	if output.TaskLink.MossCapsule != "" {
-		t.Errorf("TaskLink.MossCapsule = %q, want empty (unnamed)", output.TaskLink.MossCapsule)
+	if output.FetchKey.MossCapsule != "" {
+		t.Errorf("FetchKey.MossCapsule = %q, want empty (unnamed)", output.FetchKey.MossCapsule)
 	}
 }
 

@@ -203,7 +203,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 - Lint fails → **422 CAPSULE_TOO_THIN**
 - Soft-deleted capsules don't participate in name uniqueness
 
-**Output:** `{ id, task_link }` — `task_link` provides ready-to-use metadata for Claude Code Tasks integration.
+**Output:** `{ id, fetch_key }` — `fetch_key` provides ready-to-use metadata for Claude Code Tasks integration.
 
 ---
 
@@ -230,7 +230,7 @@ Batch fetch multiple capsules.
 
 **Behaviors:**
 - Partial success allowed — missing items in `errors` array
-- Each item includes `task_link`
+- Each item includes `fetch_key`
 
 ---
 

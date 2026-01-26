@@ -31,7 +31,7 @@ moss/
 │   │   ├── server.go              # NewServer, Run (stdio transport)
 │   │   └── tools.go               # 11 tool definitions with JSON schemas
 │   └── ops/
-│       ├── ops.go                 # Address validation, TaskLink
+│       ├── ops.go                 # Address validation, FetchKey
 │       ├── store.go               # Store operation (create/replace)
 │       ├── fetch.go               # Fetch operation
 │       ├── fetch_many.go          # FetchMany operation (batch fetch)

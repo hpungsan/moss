@@ -22,9 +22,9 @@ type InventoryInput struct {
 
 // InventoryOutput contains the result of the Inventory operation.
 type InventoryOutput struct {
-	Items      []capsule.CapsuleSummary `json:"items"`
-	Pagination Pagination               `json:"pagination"`
-	Sort       string                   `json:"sort"`
+	Items      []SummaryItem `json:"items"`
+	Pagination Pagination    `json:"pagination"`
+	Sort       string        `json:"sort"`
 }
 
 // Inventory retrieves capsule summaries across all workspaces with optional filters.
@@ -80,7 +80,7 @@ func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error)
 	hasMore := offset+len(summaries) < total
 
 	return &InventoryOutput{
-		Items: summaries,
+		Items: SummariesToItems(summaries),
 		Pagination: Pagination{
 			Limit:   limit,
 			Offset:  offset,

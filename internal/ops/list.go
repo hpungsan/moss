@@ -20,9 +20,9 @@ type ListInput struct {
 
 // ListOutput contains the result of the List operation.
 type ListOutput struct {
-	Items      []capsule.CapsuleSummary `json:"items"`
-	Pagination Pagination               `json:"pagination"`
-	Sort       string                   `json:"sort"`
+	Items      []SummaryItem `json:"items"`
+	Pagination Pagination    `json:"pagination"`
+	Sort       string        `json:"sort"`
 }
 
 // List retrieves capsule summaries for a workspace with pagination.
@@ -67,7 +67,7 @@ func List(database *sql.DB, input ListInput) (*ListOutput, error) {
 	hasMore := offset+len(summaries) < total
 
 	return &ListOutput{
-		Items: summaries,
+		Items: SummariesToItems(summaries),
 		Pagination: Pagination{
 			Limit:   limit,
 			Offset:  offset,
