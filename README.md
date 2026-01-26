@@ -73,6 +73,8 @@ A capsule is not a chat log. It's a structured summary:
 
 Capsules are size-bounded and linted to stay useful. See [examples/capsule.md](examples/capsule.md) for a complete example.
 
+**Orchestration fields** (MCP only): `run_id`, `phase`, `role` enable multi-agent workflow scoping.
+
 ## Quick Start
 
 ### Store a Capsule
@@ -127,7 +129,7 @@ moss.export { "path": "/tmp/backup.jsonl" }
 
 ## CLI
 
-The CLI mirrors MCP operations for debugging and scripting:
+The CLI mirrors MCP operations for debugging and scripting. Note: orchestration fields (`run_id`, `phase`, `role`) are MCP-only.
 
 ```bash
 # Store (reads capsule from stdin)

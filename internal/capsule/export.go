@@ -43,9 +43,9 @@ func (r *ExportRecord) ToCapsule() *Capsule {
 		TokensEstimate: EstimateTokens(r.CapsuleText), // Recompute
 		Tags:           r.Tags,
 		Source:         r.Source,
-		RunID:          r.RunID,
-		Phase:          r.Phase,
-		Role:           r.Role,
+		RunID:          emptyToNil(r.RunID), // Normalize: "" → nil
+		Phase:          emptyToNil(r.Phase), // Normalize: "" → nil
+		Role:           emptyToNil(r.Role),  // Normalize: "" → nil
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 		DeletedAt:      r.DeletedAt,
@@ -58,6 +58,14 @@ func (r *ExportRecord) ToCapsule() *Capsule {
 	}
 
 	return c
+}
+
+// emptyToNil converts empty string pointers to nil for consistent filter behavior.
+func emptyToNil(s *string) *string {
+	if s == nil || *s == "" {
+		return nil
+	}
+	return s
 }
 
 // CapsuleToExportRecord converts a Capsule to an ExportRecord for export.
