@@ -971,17 +971,17 @@ func TestServerRegistration(t *testing.T) {
 	}
 
 	expectedTools := []string{
-		"moss.store",
-		"moss.fetch",
-		"moss.fetch_many",
-		"moss.update",
-		"moss.delete",
-		"moss.latest",
-		"moss.list",
-		"moss.inventory",
-		"moss.export",
-		"moss.import",
-		"moss.purge",
+		"store",
+		"fetch",
+		"fetch_many",
+		"update",
+		"delete",
+		"latest",
+		"list",
+		"inventory",
+		"export",
+		"import",
+		"purge",
 	}
 
 	if len(tools) != len(expectedTools) {

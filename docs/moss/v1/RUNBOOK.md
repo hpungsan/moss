@@ -105,16 +105,16 @@ This allows all Moss MCP tools without prompting. For finer control:
 | Permission | Effect |
 |------------|--------|
 | `mcp__moss__*` | All Moss tools (recommended for orchestration) |
-| `mcp__moss__moss_fetch` | Only fetch |
-| `mcp__moss__moss_store` | Only store |
-| `mcp__moss__moss_list` | Only list |
+| `mcp__moss__fetch` | Only fetch |
+| `mcp__moss__store` | Only store |
+| `mcp__moss__list` | Only list |
 
 **Why this matters:** In swarm patterns, workers run autonomously in background. Manual approval would block the workflow. Pre-approving Moss lets agents share context without human intervention.
 
 ### Verify Integration
 
 1. **Restart Claude Code** (or start a new session) to load the MCP server
-2. Ask: "Use moss.inventory to list all capsules"
+2. Ask: "Use inventory to list all capsules"
 3. Expected: Tool call succeeds with `items: []` (empty store) or list of existing capsules
 
 
@@ -122,17 +122,17 @@ This allows all Moss MCP tools without prompting. For finer control:
 
 | Tool | Description |
 |------|-------------|
-| `moss.store` | Create a new capsule |
-| `moss.fetch` | Retrieve a capsule by ID or name |
-| `moss.fetch_many` | Batch fetch multiple capsules |
-| `moss.update` | Update an existing capsule |
-| `moss.delete` | Soft-delete a capsule |
-| `moss.latest` | Get most recent capsule in workspace |
-| `moss.list` | List capsules in a workspace |
-| `moss.inventory` | List all capsules across workspaces |
-| `moss.export` | Export capsules to JSONL file |
-| `moss.import` | Import capsules from JSONL file |
-| `moss.purge` | Permanently delete soft-deleted capsules |
+| `store` | Create a new capsule |
+| `fetch` | Retrieve a capsule by ID or name |
+| `fetch_many` | Batch fetch multiple capsules |
+| `update` | Update an existing capsule |
+| `delete` | Soft-delete a capsule |
+| `latest` | Get most recent capsule in workspace |
+| `list` | List capsules in a workspace |
+| `inventory` | List all capsules across workspaces |
+| `export` | Export capsules to JSONL file |
+| `import` | Import capsules from JSONL file |
+| `purge` | Permanently delete soft-deleted capsules |
 
 ---
 
@@ -247,7 +247,7 @@ Expected: JSON response listing 11 tools.
 ### 2. Inventory (Empty Store)
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"moss.inventory","arguments":{}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"inventory","arguments":{}}}' | ./moss
 ```
 
 Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"total":0},"sort":"updated_at_desc"}`
@@ -256,24 +256,24 @@ Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"to
 
 ```bash
 # Store a capsule
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"moss.store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | ./moss
 
 # Fetch it back
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"moss.fetch","arguments":{"workspace":"default","name":"test"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch","arguments":{"workspace":"default","name":"test"}}}' | ./moss
 ```
 
 ### 4. Error Cases
 
 **Missing sections (422):**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"moss.store","arguments":{"capsule_text":"too short"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store","arguments":{"capsule_text":"too short"}}}' | ./moss
 ```
 
 Expected: `isError: true` with `code: "CAPSULE_TOO_THIN"`
 
 **Ambiguous addressing (400):**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"moss.fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | ./moss
 ```
 
 Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
@@ -285,7 +285,7 @@ Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
 ### Store a Capsule
 
 ```
-moss.store {
+store {
   "workspace": "myproject",
   "name": "auth",
   "capsule_text": "## Objective\n...\n## Current status\n...\n## Decisions\n...\n## Next actions\n...\n## Key locations\n...\n## Open questions\n..."
@@ -295,31 +295,31 @@ moss.store {
 ### Fetch by Name
 
 ```
-moss.fetch { "workspace": "myproject", "name": "auth" }
+fetch { "workspace": "myproject", "name": "auth" }
 ```
 
 ### Fetch by ID
 
 ```
-moss.fetch { "id": "01KFPRNV1JEK4F870H1K84XS6S" }
+fetch { "id": "01KFPRNV1JEK4F870H1K84XS6S" }
 ```
 
 ### List All Capsules
 
 ```
-moss.inventory {}
+inventory {}
 ```
 
 ### Export for Backup
 
 ```
-moss.export { "path": "/tmp/moss-backup.jsonl" }
+export { "path": "/tmp/moss-backup.jsonl" }
 ```
 
 ### Import from Backup
 
 ```
-moss.import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
+import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
 ```
 
 ---
@@ -331,7 +331,7 @@ Multi-agent workflows can use `run_id`, `phase`, and `role` to scope capsules.
 ### Store with Orchestration
 
 ```
-moss.store {
+store {
   "workspace": "myproject",
   "name": "design-intent",
   "run_id": "pr-review-abc123",
@@ -344,7 +344,7 @@ moss.store {
 ### Filter by Run ID
 
 ```
-moss.list {
+list {
   "workspace": "myproject",
   "run_id": "pr-review-abc123"
 }
@@ -353,7 +353,7 @@ moss.list {
 ### Latest Design Capsule from Run
 
 ```
-moss.latest {
+latest {
   "workspace": "myproject",
   "run_id": "pr-review-abc123",
   "phase": "design",
@@ -364,7 +364,7 @@ moss.latest {
 ### Cross-Workspace Run Query
 
 ```
-moss.inventory {
+inventory {
   "run_id": "pr-review-abc123"
 }
 ```

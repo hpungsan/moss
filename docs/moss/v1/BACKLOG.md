@@ -6,7 +6,7 @@ Features and enhancements for future versions.
 
 ## Candidates
 
-### `moss.compose` Tool
+### `compose` Tool
 
 Deterministic assembly of multiple capsules into one bundle.
 
@@ -57,7 +57,7 @@ Deterministic assembly of multiple capsules into one bundle.
 
 ### Optimistic Concurrency
 
-Add `if_updated_at` to `moss.update`:
+Add `if_updated_at` to `update`:
 
 ```json
 {
@@ -74,17 +74,17 @@ Rejects if capsule was modified since timestamp (prevents overwrites).
 Allow `run_id` filter to accept an array for querying across multiple runs:
 
 ```json
-moss.inventory { "run_id": ["run-001", "run-002"] }
+inventory { "run_id": ["run-001", "run-002"] }
 ```
 
 Use case: Comparing capsules from related runs or aggregating results from parallel workflows.
 
 ### Run-Scoped Purge
 
-Add `run_id` filter to `moss.purge` for cleaning up completed workflows:
+Add `run_id` filter to `purge` for cleaning up completed workflows:
 
 ```json
-moss.purge { "run_id": "pr-review-abc123" }
+purge { "run_id": "pr-review-abc123" }
 ```
 
 Permanently deletes all capsules (including active) matching the run. Requires explicit confirmation param to prevent accidents.
@@ -151,7 +151,7 @@ v1 CLI outputs JSON only. Future enhancements:
 
 Replace word-count heuristic with model-specific tokenizer (e.g., tiktoken).
 
-### `moss.restore` Tool
+### `restore` Tool
 
 Recover soft-deleted capsules:
 
@@ -165,7 +165,7 @@ Currently: use export/import.
 
 ## Future Ideas
 
-### `moss.search` Tool
+### `search` Tool
 
 SQLite FTS5 for full-text search across capsules:
 
@@ -179,7 +179,7 @@ Embeddings-based similarity search.
 
 ### Versioning
 
-Keep last N revisions of a capsule (extends `moss.fetch`):
+Keep last N revisions of a capsule (extends `fetch`):
 
 ```json
 { "name": "auth", "version": -1 }  // previous version

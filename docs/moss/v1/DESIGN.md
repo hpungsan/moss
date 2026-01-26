@@ -159,17 +159,17 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 
 | Tool | Description |
 |------|-------------|
-| `moss.store` | Create new capsule (supports upsert via `mode`) |
-| `moss.fetch` | Read capsule by id OR by name |
-| `moss.fetch_many` | Batch fetch multiple capsules |
-| `moss.update` | Update capsule content/metadata |
-| `moss.delete` | Soft delete (recoverable) |
-| `moss.latest` | Most recent capsule in workspace |
-| `moss.list` | List capsule summaries in workspace |
-| `moss.inventory` | List capsule summaries globally |
-| `moss.export` | JSONL backup |
-| `moss.import` | JSONL restore |
-| `moss.purge` | Permanently delete soft-deleted |
+| `store` | Create new capsule (supports upsert via `mode`) |
+| `fetch` | Read capsule by id OR by name |
+| `fetch_many` | Batch fetch multiple capsules |
+| `update` | Update capsule content/metadata |
+| `delete` | Soft delete (recoverable) |
+| `latest` | Most recent capsule in workspace |
+| `list` | List capsule summaries in workspace |
+| `inventory` | List capsule summaries globally |
+| `export` | JSONL backup |
+| `import` | JSONL restore |
+| `purge` | Permanently delete soft-deleted |
 
 Each tool has a focused schema — no `action` dispatch needed.
 
@@ -188,7 +188,7 @@ Each tool has a focused schema — no `action` dispatch needed.
 
 Tool schemas are defined in code (`internal/mcp/tools.go`). This section documents key behaviors.
 
-## 6.1 `moss.store`
+## 6.1 `store`
 
 **Required:** `capsule_text`
 
@@ -207,7 +207,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 ---
 
-## 6.2 `moss.fetch`
+## 6.2 `fetch`
 
 **Addressing:** `id` OR (`workspace` + `name`) — not both
 
@@ -220,7 +220,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 ---
 
-## 6.3 `moss.fetch_many`
+## 6.3 `fetch_many`
 
 Batch fetch multiple capsules.
 
@@ -234,7 +234,7 @@ Batch fetch multiple capsules.
 
 ---
 
-## 6.4 `moss.update`
+## 6.4 `update`
 
 **Addressing:** `id` OR (`workspace` + `name`)
 
@@ -250,13 +250,13 @@ Batch fetch multiple capsules.
 
 ---
 
-## 6.5 `moss.delete`
+## 6.5 `delete`
 
 Soft-deletes by setting `deleted_at`. Capsule recoverable via `include_deleted` or export/import.
 
 ---
 
-## 6.6 `moss.latest`
+## 6.6 `latest`
 
 Returns most recent capsule in workspace.
 
@@ -266,7 +266,7 @@ Returns most recent capsule in workspace.
 
 ---
 
-## 6.7 `moss.list`
+## 6.7 `list`
 
 List summaries in workspace. **Never returns `capsule_text`.**
 
@@ -276,7 +276,7 @@ List summaries in workspace. **Never returns `capsule_text`.**
 
 ---
 
-## 6.8 `moss.inventory`
+## 6.8 `inventory`
 
 Global list across all workspaces. **Never returns `capsule_text`.**
 
@@ -284,7 +284,7 @@ Global list across all workspaces. **Never returns `capsule_text`.**
 
 ---
 
-## 6.9 `moss.export`
+## 6.9 `export`
 
 Export to JSONL file.
 
@@ -292,7 +292,7 @@ Export to JSONL file.
 
 ---
 
-## 6.10 `moss.import`
+## 6.10 `import`
 
 Import from JSONL file.
 
@@ -304,7 +304,7 @@ Import from JSONL file.
 
 ---
 
-## 6.11 `moss.purge`
+## 6.11 `purge`
 
 Permanently delete soft-deleted capsules.
 

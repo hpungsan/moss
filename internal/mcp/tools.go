@@ -6,7 +6,7 @@ import "github.com/mark3labs/mcp-go/mcp"
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
-var storeToolDef = mcp.NewTool("moss.store",
+var storeToolDef = mcp.NewTool("store",
 	mcp.WithDescription("Store a new context capsule. Creates a distilled context snapshot for AI session handoffs."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("capsule_text",
@@ -47,7 +47,7 @@ var storeToolDef = mcp.NewTool("moss.store",
 	),
 )
 
-var fetchToolDef = mcp.NewTool("moss.fetch",
+var fetchToolDef = mcp.NewTool("fetch",
 	mcp.WithDescription("Fetch a single capsule by ID or name. Use exactly one addressing mode: id OR (workspace+name)."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -68,7 +68,7 @@ var fetchToolDef = mcp.NewTool("moss.fetch",
 	),
 )
 
-var fetchManyToolDef = mcp.NewTool("moss.fetch_many",
+var fetchManyToolDef = mcp.NewTool("fetch_many",
 	mcp.WithDescription("Fetch multiple capsules in a single request. Returns partial success with items and errors arrays."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -92,7 +92,7 @@ var fetchManyToolDef = mcp.NewTool("moss.fetch_many",
 	),
 )
 
-var updateToolDef = mcp.NewTool("moss.update",
+var updateToolDef = mcp.NewTool("update",
 	mcp.WithDescription("Update an existing capsule. Address by id OR (workspace+name). At least one editable field required."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("id",
@@ -131,7 +131,7 @@ var updateToolDef = mcp.NewTool("moss.update",
 	),
 )
 
-var deleteToolDef = mcp.NewTool("moss.delete",
+var deleteToolDef = mcp.NewTool("delete",
 	mcp.WithDescription("Soft-delete a capsule. Address by id OR (workspace+name). Can be recovered with include_deleted."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("id",
@@ -145,7 +145,7 @@ var deleteToolDef = mcp.NewTool("moss.delete",
 	),
 )
 
-var latestToolDef = mcp.NewTool("moss.latest",
+var latestToolDef = mcp.NewTool("latest",
 	mcp.WithDescription("Get the most recently updated capsule in a workspace. Quick way to resume work."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -169,7 +169,7 @@ var latestToolDef = mcp.NewTool("moss.latest",
 	),
 )
 
-var listToolDef = mcp.NewTool("moss.list",
+var listToolDef = mcp.NewTool("list",
 	mcp.WithDescription("List capsule summaries in a workspace with pagination. Sorted by updated_at descending."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -196,7 +196,7 @@ var listToolDef = mcp.NewTool("moss.list",
 	),
 )
 
-var inventoryToolDef = mcp.NewTool("moss.inventory",
+var inventoryToolDef = mcp.NewTool("inventory",
 	mcp.WithDescription("List capsule summaries across all workspaces with optional filters. Use for discovery and search."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -229,7 +229,7 @@ var inventoryToolDef = mcp.NewTool("moss.inventory",
 	),
 )
 
-var exportToolDef = mcp.NewTool("moss.export",
+var exportToolDef = mcp.NewTool("export",
 	mcp.WithDescription("Export capsules to a JSONL file for backup or migration."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -244,7 +244,7 @@ var exportToolDef = mcp.NewTool("moss.export",
 	),
 )
 
-var importToolDef = mcp.NewTool("moss.import",
+var importToolDef = mcp.NewTool("import",
 	mcp.WithDescription("Import capsules from a JSONL export file."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("path",
@@ -257,7 +257,7 @@ var importToolDef = mcp.NewTool("moss.import",
 	),
 )
 
-var purgeToolDef = mcp.NewTool("moss.purge",
+var purgeToolDef = mcp.NewTool("purge",
 	mcp.WithDescription("Permanently delete soft-deleted capsules. Irreversible."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("workspace",

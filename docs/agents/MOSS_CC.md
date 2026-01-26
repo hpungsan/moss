@@ -63,7 +63,7 @@ Teammate({ operation: "write", target_agent_id: "team-lead", value: "findings...
 ```
 // Each specialist stores structured findings
 security-reviewer:
-  moss.store {
+  store {
     name: "security-findings",
     run_id: "pr-review-123",
     role: "security-reviewer",
@@ -71,7 +71,7 @@ security-reviewer:
   }
 
 performance-reviewer:
-  moss.store {
+  store {
     name: "perf-findings",
     run_id: "pr-review-123",
     role: "performance-reviewer",
@@ -80,7 +80,7 @@ performance-reviewer:
 
 // Leader gathers ALL findings in one call
 team-lead:
-  moss.fetch_many { run_id: "pr-review-123" }
+  fetch_many { run_id: "pr-review-123" }
   // Gets structured, queryable results from all specialists
 ```
 
@@ -102,7 +102,7 @@ team-lead:
 ```
 Stage 1 (Research):
   // Do research
-  moss.store {
+  store {
     name: "research",
     run_id: "feature-oauth",
     phase: "research",
@@ -111,10 +111,10 @@ Stage 1 (Research):
   TaskUpdate { taskId: "1", status: "completed" }
 
 Stage 2 (Plan) - blocked by Stage 1:
-  moss.fetch { name: "research" }
+  fetch { name: "research" }
   // Now has: WHY Auth0, WHERE existing code lives
   // Create plan informed by research decisions
-  moss.store {
+  store {
     name: "plan",
     run_id: "feature-oauth",
     phase: "plan",
@@ -122,7 +122,7 @@ Stage 2 (Plan) - blocked by Stage 1:
   }
 
 Stage 3 (Implement) - blocked by Stage 2:
-  moss.fetch_many { run_id: "feature-oauth" }
+  fetch_many { run_id: "feature-oauth" }
   // Gets BOTH research AND plan context
   // Implements with full decision history
 ```
@@ -144,7 +144,7 @@ Stage 3 (Implement) - blocked by Stage 2:
 ```
 // Workers share discoveries in real-time
 worker-1 (reviewing user.rb):
-  moss.store {
+  store {
     name: "user-model-review",
     run_id: "codebase-review",
     capsule_text: "## Decisions\n- Found shared validation logic that affects payment.rb..."
@@ -152,15 +152,15 @@ worker-1 (reviewing user.rb):
 
 worker-2 (reviewing payment.rb):
   // Before starting, check what others found
-  moss.list { run_id: "codebase-review" }
+  list { run_id: "codebase-review" }
   // Sees worker-1 found shared validation logic
-  moss.fetch { name: "user-model-review" }
+  fetch { name: "user-model-review" }
   // Can now account for the dependency
 
 // Leader synthesizes all findings
 team-lead:
-  moss.inventory { run_id: "codebase-review" }
-  moss.fetch_many { ... }
+  inventory { run_id: "codebase-review" }
+  fetch_many { ... }
 ```
 
 **Benefits:**
@@ -180,7 +180,7 @@ team-lead:
 ```
 // Research phase
 researcher:
-  moss.store {
+  store {
     name: "caching-research",
     phase: "research",
     capsule_text: "## Decisions\n- Redis over Memcached because...\n- Cache invalidation strategy: write-through\n## Key locations\n- Existing cache config at config/cache.yml"
@@ -188,12 +188,12 @@ researcher:
 
 // Implementation phase (could be hours/days later)
 implementer:
-  moss.fetch { name: "caching-research" }
+  fetch { name: "caching-research" }
   // Has full research context even if researcher session is gone
 
 // Review phase (could be different person/session)
 reviewer:
-  moss.fetch { name: "caching-research" }
+  fetch { name: "caching-research" }
   // Can verify implementation matches research recommendations
 ```
 
@@ -213,17 +213,17 @@ reviewer:
 **With Moss:**
 ```
 architect:
-  moss.store {
+  store {
     name: "oauth-plan",
     phase: "plan",
     role: "architect",
     capsule_text: "## Objective\nAdd OAuth2 authentication\n## Decisions\n- Use Auth0\n- Store tokens in httpOnly cookies\n## Next actions\n1. Install auth0 SDK\n2. Create callback route..."
   }
   // Capsule is validated: has all 6 required sections
-  Teammate({ operation: "write", target_agent_id: "team-lead", value: "Plan ready: moss.fetch { name: 'oauth-plan' }" })
+  Teammate({ operation: "write", target_agent_id: "team-lead", value: "Plan ready: fetch { name: 'oauth-plan' }" })
 
 team-lead:
-  moss.fetch { name: "oauth-plan" }
+  fetch { name: "oauth-plan" }
   // Structured plan with guaranteed sections
   // Can approve knowing it's complete
 ```
@@ -244,7 +244,7 @@ team-lead:
 **With Moss:**
 ```
 model-worker (refactoring User model):
-  moss.store {
+  store {
     name: "user-refactor",
     run_id: "auth-refactor",
     role: "model-worker",
@@ -252,7 +252,7 @@ model-worker (refactoring User model):
   }
 
 controller-worker (refactoring Session controller):
-  moss.store {
+  store {
     name: "session-refactor",
     run_id: "auth-refactor",
     role: "controller-worker",
@@ -260,7 +260,7 @@ controller-worker (refactoring Session controller):
   }
 
 spec-worker (blocked by both):
-  moss.fetch_many { run_id: "auth-refactor" }
+  fetch_many { run_id: "auth-refactor" }
   // Knows:
   // - New concern location
   // - Method signature changed to authenticate!
@@ -284,11 +284,11 @@ No swarms needed—just persist context across sessions.
 ```
 Session A:
   1. Do work
-  2. moss.store { name: "auth-progress", ... }
+  2. store { name: "auth-progress", ... }
   3. End session (or /clear)
 
 Session B (hours/days later):
-  1. moss.fetch { name: "auth-progress" }
+  1. fetch { name: "auth-progress" }
   2. Continue with full context
 ```
 
@@ -299,9 +299,9 @@ Track work with Tasks, persist context with Capsules.
 ```
 1. TaskCreate { subject: "Implement auth" }
 2. Do work, make decisions
-3. moss.store { name: "auth-context", ... } → get fetch_key
+3. store { name: "auth-context", ... } → get fetch_key
 4. TaskUpdate { taskId: "1", metadata: fetch_key }
-5. Later: pick up task, read metadata, moss.fetch
+5. Later: pick up task, read metadata, fetch
 ```
 
 ---
@@ -318,14 +318,14 @@ Scope capsules to specific workflow runs:
 
 **Store with scope:**
 ```json
-moss.store { "run_id": "pr-123", "phase": "security", "role": "reviewer", ... }
+store { "run_id": "pr-123", "phase": "security", "role": "reviewer", ... }
 ```
 
 **Query by scope:**
 ```
-moss.list { run_id: "pr-123" }                    // All capsules from this run
-moss.list { run_id: "pr-123", phase: "research" } // Just research phase
-moss.latest { run_id: "pr-123", role: "architect" } // Latest from architect
+list { run_id: "pr-123" }                    // All capsules from this run
+list { run_id: "pr-123", phase: "research" } // Just research phase
+latest { run_id: "pr-123", role: "architect" } // Latest from architect
 ```
 
 ---
@@ -341,8 +341,8 @@ CLAUDE_CODE_TASK_LIST_ID=my-project claude
 ```
 
 ```
-moss.store { workspace: "my-project", name: "auth", ... }
-moss.list { workspace: "my-project" }
+store { workspace: "my-project", name: "auth", ... }
+list { workspace: "my-project" }
 ```
 
 All capsules for a project live in one queryable namespace.
@@ -362,9 +362,9 @@ Moss responses include `fetch_key` for direct Task metadata linking:
 ```
 
 **Workflow:**
-1. `moss.store` → get `fetch_key`
+1. `store` → get `fetch_key`
 2. `TaskUpdate { metadata: fetch_key }`
-3. Later: read `metadata`, `moss.fetch`
+3. Later: read `metadata`, `fetch`
 
 ---
 
@@ -375,8 +375,8 @@ Moss responses include `fetch_key` for direct Task metadata linking:
 | Track what to do | Tasks |
 | Enforce execution order | `blockedBy` / `blocks` |
 | Persist decisions and reasoning | Capsules |
-| Context across sessions | `moss.store` → `moss.fetch` |
-| Gather parallel results | `moss.fetch_many` |
+| Context across sessions | `store` → `fetch` |
+| Gather parallel results | `fetch_many` |
 | Scope to workflow run | `run_id` filter |
 | Filter by workflow stage | `phase` filter |
 | Filter by agent role | `role` filter |

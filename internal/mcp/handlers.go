@@ -25,7 +25,7 @@ func NewHandlers(db *sql.DB, cfg *config.Config) *Handlers {
 
 // Request types for each tool
 
-// StoreRequest represents the arguments for moss.store.
+// StoreRequest represents the arguments for store.
 type StoreRequest struct {
 	Workspace   string   `json:"workspace"`
 	Name        *string  `json:"name,omitempty"`
@@ -40,7 +40,7 @@ type StoreRequest struct {
 	AllowThin   bool     `json:"allow_thin,omitempty"`
 }
 
-// FetchRequest represents the arguments for moss.fetch.
+// FetchRequest represents the arguments for fetch.
 type FetchRequest struct {
 	ID             string `json:"id,omitempty"`
 	Workspace      string `json:"workspace,omitempty"`
@@ -49,7 +49,7 @@ type FetchRequest struct {
 	IncludeText    *bool  `json:"include_text,omitempty"`
 }
 
-// FetchManyRequest represents the arguments for moss.fetch_many.
+// FetchManyRequest represents the arguments for fetch_many.
 type FetchManyRequest struct {
 	Items          []FetchManyRef `json:"items"`
 	IncludeText    *bool          `json:"include_text,omitempty"`
@@ -63,7 +63,7 @@ type FetchManyRef struct {
 	Name      string `json:"name,omitempty"`
 }
 
-// UpdateRequest represents the arguments for moss.update.
+// UpdateRequest represents the arguments for update.
 type UpdateRequest struct {
 	ID          string    `json:"id,omitempty"`
 	Workspace   string    `json:"workspace,omitempty"`
@@ -78,14 +78,14 @@ type UpdateRequest struct {
 	AllowThin   bool      `json:"allow_thin,omitempty"`
 }
 
-// DeleteRequest represents the arguments for moss.delete.
+// DeleteRequest represents the arguments for delete.
 type DeleteRequest struct {
 	ID        string `json:"id,omitempty"`
 	Workspace string `json:"workspace,omitempty"`
 	Name      string `json:"name,omitempty"`
 }
 
-// LatestRequest represents the arguments for moss.latest.
+// LatestRequest represents the arguments for latest.
 type LatestRequest struct {
 	Workspace      string  `json:"workspace,omitempty"`
 	RunID          *string `json:"run_id,omitempty"`
@@ -95,7 +95,7 @@ type LatestRequest struct {
 	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
-// ListRequest represents the arguments for moss.list.
+// ListRequest represents the arguments for list.
 type ListRequest struct {
 	Workspace      string  `json:"workspace,omitempty"`
 	RunID          *string `json:"run_id,omitempty"`
@@ -106,7 +106,7 @@ type ListRequest struct {
 	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
-// InventoryRequest represents the arguments for moss.inventory.
+// InventoryRequest represents the arguments for inventory.
 type InventoryRequest struct {
 	Workspace      *string `json:"workspace,omitempty"`
 	Tag            *string `json:"tag,omitempty"`
@@ -119,20 +119,20 @@ type InventoryRequest struct {
 	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
-// ExportRequest represents the arguments for moss.export.
+// ExportRequest represents the arguments for export.
 type ExportRequest struct {
 	Path           string  `json:"path,omitempty"`
 	Workspace      *string `json:"workspace,omitempty"`
 	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
-// ImportRequest represents the arguments for moss.import.
+// ImportRequest represents the arguments for import.
 type ImportRequest struct {
 	Path string `json:"path"`
 	Mode string `json:"mode,omitempty"`
 }
 
-// PurgeRequest represents the arguments for moss.purge.
+// PurgeRequest represents the arguments for purge.
 type PurgeRequest struct {
 	Workspace     *string `json:"workspace,omitempty"`
 	OlderThanDays *int    `json:"older_than_days,omitempty"`
@@ -140,7 +140,7 @@ type PurgeRequest struct {
 
 // Handler implementations
 
-// HandleStore handles the moss.store tool call.
+// HandleStore handles the store tool call.
 func (h *Handlers) HandleStore(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[StoreRequest](req)
 	if err != nil {
@@ -173,7 +173,7 @@ func (h *Handlers) HandleStore(ctx context.Context, req mcp.CallToolRequest) (*m
 	return successResult(result)
 }
 
-// HandleFetch handles the moss.fetch tool call.
+// HandleFetch handles the fetch tool call.
 func (h *Handlers) HandleFetch(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[FetchRequest](req)
 	if err != nil {
@@ -194,7 +194,7 @@ func (h *Handlers) HandleFetch(ctx context.Context, req mcp.CallToolRequest) (*m
 	return successResult(result)
 }
 
-// HandleFetchMany handles the moss.fetch_many tool call.
+// HandleFetchMany handles the fetch_many tool call.
 func (h *Handlers) HandleFetchMany(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[FetchManyRequest](req)
 	if err != nil {
@@ -223,7 +223,7 @@ func (h *Handlers) HandleFetchMany(ctx context.Context, req mcp.CallToolRequest)
 	return successResult(result)
 }
 
-// HandleUpdate handles the moss.update tool call.
+// HandleUpdate handles the update tool call.
 func (h *Handlers) HandleUpdate(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[UpdateRequest](req)
 	if err != nil {
@@ -250,7 +250,7 @@ func (h *Handlers) HandleUpdate(ctx context.Context, req mcp.CallToolRequest) (*
 	return successResult(result)
 }
 
-// HandleDelete handles the moss.delete tool call.
+// HandleDelete handles the delete tool call.
 func (h *Handlers) HandleDelete(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[DeleteRequest](req)
 	if err != nil {
@@ -269,7 +269,7 @@ func (h *Handlers) HandleDelete(ctx context.Context, req mcp.CallToolRequest) (*
 	return successResult(result)
 }
 
-// HandleLatest handles the moss.latest tool call.
+// HandleLatest handles the latest tool call.
 func (h *Handlers) HandleLatest(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[LatestRequest](req)
 	if err != nil {
@@ -291,7 +291,7 @@ func (h *Handlers) HandleLatest(ctx context.Context, req mcp.CallToolRequest) (*
 	return successResult(result)
 }
 
-// HandleList handles the moss.list tool call.
+// HandleList handles the list tool call.
 func (h *Handlers) HandleList(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[ListRequest](req)
 	if err != nil {
@@ -314,7 +314,7 @@ func (h *Handlers) HandleList(ctx context.Context, req mcp.CallToolRequest) (*mc
 	return successResult(result)
 }
 
-// HandleInventory handles the moss.inventory tool call.
+// HandleInventory handles the inventory tool call.
 func (h *Handlers) HandleInventory(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[InventoryRequest](req)
 	if err != nil {
@@ -339,7 +339,7 @@ func (h *Handlers) HandleInventory(ctx context.Context, req mcp.CallToolRequest)
 	return successResult(result)
 }
 
-// HandleExport handles the moss.export tool call.
+// HandleExport handles the export tool call.
 func (h *Handlers) HandleExport(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[ExportRequest](req)
 	if err != nil {
@@ -358,7 +358,7 @@ func (h *Handlers) HandleExport(ctx context.Context, req mcp.CallToolRequest) (*
 	return successResult(result)
 }
 
-// HandleImport handles the moss.import tool call.
+// HandleImport handles the import tool call.
 func (h *Handlers) HandleImport(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[ImportRequest](req)
 	if err != nil {
@@ -385,7 +385,7 @@ func (h *Handlers) HandleImport(ctx context.Context, req mcp.CallToolRequest) (*
 	return successResult(result)
 }
 
-// HandlePurge handles the moss.purge tool call.
+// HandlePurge handles the purge tool call.
 func (h *Handlers) HandlePurge(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	input, err := decode[PurgeRequest](req)
 	if err != nil {

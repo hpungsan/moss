@@ -80,7 +80,7 @@ Capsules are size-bounded and linted to stay useful. See [examples/capsule.md](e
 ### Store a Capsule
 
 ```
-moss.store {
+store {
   "workspace": "myproject",
   "name": "auth",
   "capsule_text": "## Objective\nImplement JWT auth\n## Current status\nMiddleware done\n## Decisions\nUsing RS256\n## Next actions\nAdd refresh tokens\n## Key locations\nsrc/auth/\n## Open questions\nToken expiry policy?"
@@ -90,42 +90,42 @@ moss.store {
 ### Fetch by Name
 
 ```
-moss.fetch { "workspace": "myproject", "name": "auth" }
+fetch { "workspace": "myproject", "name": "auth" }
 ```
 
 ### List All Capsules
 
 ```
-moss.inventory {}
+inventory {}
 ```
 
 ### Get Latest in Workspace
 
 ```
-moss.latest { "workspace": "myproject", "include_text": true }
+latest { "workspace": "myproject", "include_text": true }
 ```
 
 ### Export for Backup
 
 ```
-moss.export { "path": "/tmp/backup.jsonl" }
+export { "path": "/tmp/backup.jsonl" }
 ```
 
 ## MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `moss.store` | Create a new capsule |
-| `moss.fetch` | Retrieve by ID or name |
-| `moss.fetch_many` | Batch fetch multiple |
-| `moss.update` | Update existing capsule |
-| `moss.delete` | Soft-delete (recoverable) |
-| `moss.latest` | Most recent in workspace |
-| `moss.list` | List capsules in workspace |
-| `moss.inventory` | List all capsules globally |
-| `moss.export` | JSONL backup |
-| `moss.import` | JSONL restore |
-| `moss.purge` | Permanent delete |
+| `store` | Create a new capsule |
+| `fetch` | Retrieve by ID or name |
+| `fetch_many` | Batch fetch multiple |
+| `update` | Update existing capsule |
+| `delete` | Soft-delete (recoverable) |
+| `latest` | Most recent in workspace |
+| `list` | List capsules in workspace |
+| `inventory` | List all capsules globally |
+| `export` | JSONL backup |
+| `import` | JSONL restore |
+| `purge` | Permanent delete |
 
 ## CLI
 
