@@ -45,10 +45,10 @@ moss/
 ├── docs/
 │   ├── moss/
 │   │   ├── OVERVIEW.md            # Concepts, use cases
-│   │   └── v1.0/
+│   │   └── v1/
 │   │       ├── DESIGN.md          # API spec + implementation details
 │   │       ├── RUNBOOK.md         # Build, configure, run, troubleshoot
-│   │       └── BACKLOG.md         # Post-v1.0 features
+│   │       └── BACKLOG.md         # Post-v1 features
 │   └── agents/
 │       ├── CODEMAP.md             # This file
 │       └── TASKS.md               # Claude Code Tasks integration
@@ -73,7 +73,7 @@ moss/
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/500) |
 | `internal/mcp/` | MCP server exposing 11 tools via stdio transport |
 | `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge |
-| `docs/moss/v1.0/DESIGN.md` | Full v1.0 spec |
+| `docs/moss/v1/DESIGN.md` | Full v1 spec |
 
 ## Notes
 

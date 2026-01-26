@@ -156,8 +156,8 @@ Run `moss --help` for all commands.
 ## Documentation
 
 - [Overview & Use Cases](docs/moss/OVERVIEW.md)
-- [Design Spec](docs/moss/v1.0/DESIGN.md)
-- [Runbook](docs/moss/v1.0/RUNBOOK.md) — Installation, configuration, troubleshooting
+- [Design Spec](docs/moss/v1/DESIGN.md)
+- [Runbook](docs/moss/v1/RUNBOOK.md) — Installation, configuration, troubleshooting
 - [Pairing Moss with Claude Code Tasks](docs/agents/TASKS.md)
 
 ## License

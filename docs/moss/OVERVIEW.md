@@ -95,4 +95,4 @@ MCP tools (one per operation):
 | `moss.import` | JSONL restore |
 | `moss.purge` | Permanently delete soft-deleted |
 
-See [v1.0/DESIGN.md](v1.0/DESIGN.md) for full specification.
+See [v1/DESIGN.md](v1/DESIGN.md) for full specification.
