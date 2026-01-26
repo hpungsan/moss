@@ -69,6 +69,26 @@ Add `if_updated_at` to `moss.update`:
 
 Rejects if capsule was modified since timestamp (prevents overwrites).
 
+### Multi-Run Queries
+
+Allow `run_id` filter to accept an array for querying across multiple runs:
+
+```json
+moss.inventory { "run_id": ["run-001", "run-002"] }
+```
+
+Use case: Comparing capsules from related runs or aggregating results from parallel workflows.
+
+### Run-Scoped Purge
+
+Add `run_id` filter to `moss.purge` for cleaning up completed workflows:
+
+```json
+moss.purge { "run_id": "pr-review-abc123" }
+```
+
+Permanently deletes all capsules (including active) matching the run. Requires explicit confirmation param to prevent accidents.
+
 ### REST API
 
 HTTP interface for debugging (localhost only, bind to `127.0.0.1`).
@@ -89,6 +109,38 @@ Resource: `/capsules`
 
 v1 CLI outputs JSON only. Future enhancements:
 
+- **TTY banner** — When `moss` is run without arguments in a terminal, show a friendly ASCII banner and usage hint instead of silently waiting for MCP input:
+
+  ```go
+  // In main.go, before MCP server startup
+  func isTerminal() bool {
+      stat, _ := os.Stdin.Stat()
+      return (stat.Mode() & os.ModeCharDevice) != 0
+  }
+
+  func printBanner() {
+      fmt.Println(`
+    __  __  ___  ___ ___
+   |  \/  |/ _ \/ __/ __|
+   | |\/| | (_) \__ \__ \
+   |_|  |_|\___/|___/___/
+
+   Local context capsule store
+
+   Usage: moss <command> [options]
+          moss --help
+
+   MCP server mode requires piped input.
+  `)
+  }
+
+  // Then in main():
+  if isTerminal() {
+      printBanner()
+      return
+  }
+  // ... start MCP server
+  ```
 - **Orchestration flags** — `--run-id`, `--phase`, `--role` for store, update, list, inventory, latest commands (MCP has these; CLI deferred since orchestration is primarily for multi-agent workflows)
 - **Table formatting** for `list` and `inventory` commands (human-readable output)
 - **Color output** for better terminal readability

@@ -65,17 +65,18 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 ## Claude Code Integration
 
-Add Moss as an MCP server in your Claude Code settings.
+Add Moss as an MCP server via `.mcp.json` in your project root.
 
 ### Configuration
 
-Edit `~/.claude/settings.json`:
+Create `.mcp.json` in your project root:
 
 ```json
 {
   "mcpServers": {
     "moss": {
-      "command": "/path/to/moss"
+      "command": "/path/to/moss",
+      "args": ["mcp"]
     }
   }
 }
@@ -83,13 +84,39 @@ Edit `~/.claude/settings.json`:
 
 Replace `/path/to/moss` with the actual path to your built binary:
 - If installed via `go install`: use `moss` (must be in PATH)
-- If built locally: use absolute path like `/Users/you/moss/moss`
+- If built locally: use absolute path like `/Users/you/moss/bin/moss`
+
+### Permissions for Multi-Agent Orchestration
+
+By default, Claude Code prompts for approval on each MCP tool call. For autonomous multi-agent workflows (swarms, pipelines), pre-approve Moss tools in `~/.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "mcp__moss__*"
+    ]
+  }
+}
+```
+
+This allows all Moss MCP tools without prompting. For finer control:
+
+| Permission | Effect |
+|------------|--------|
+| `mcp__moss__*` | All Moss tools (recommended for orchestration) |
+| `mcp__moss__moss_fetch` | Only fetch |
+| `mcp__moss__moss_store` | Only store |
+| `mcp__moss__moss_list` | Only list |
+
+**Why this matters:** In swarm patterns, workers run autonomously in background. Manual approval would block the workflow. Pre-approving Moss lets agents share context without human intervention.
 
 ### Verify Integration
 
-1. Start a new Claude Code session
+1. **Restart Claude Code** (or start a new session) to load the MCP server
 2. Ask: "Use moss.inventory to list all capsules"
 3. Expected: Tool call succeeds with `items: []` (empty store) or list of existing capsules
+
 
 ### Available Tools
 

@@ -41,3 +41,4 @@ dev/
 
 # Claude Code
 .claude/
+.mcp.json
