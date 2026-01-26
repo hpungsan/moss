@@ -299,6 +299,79 @@ func TestStore_NameCollision_ModeReplace(t *testing.T) {
 	}
 }
 
+func TestStore_NameCollision_ModeReplace_Concurrent(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Run multiple concurrent mode:replace operations for the same name.
+	// All should succeed - no NAME_ALREADY_EXISTS errors.
+	const numGoroutines = 10
+	errChan := make(chan error, numGoroutines)
+	idChan := make(chan string, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			input := StoreInput{
+				Workspace:   "default",
+				Name:        stringPtr("concurrent-test"),
+				CapsuleText: validCapsuleText + "\nGoroutine " + string(rune('A'+idx)),
+				Tags:        []string{"concurrent"},
+				Mode:        StoreModeReplace,
+			}
+			output, err := Store(database, cfg, input)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			idChan <- output.ID
+			errChan <- nil
+		}(i)
+	}
+
+	// Collect results
+	var errors []error
+	var ids []string
+	for i := 0; i < numGoroutines; i++ {
+		if err := <-errChan; err != nil {
+			errors = append(errors, err)
+		}
+	}
+	close(idChan)
+	for id := range idChan {
+		ids = append(ids, id)
+	}
+
+	// All operations should succeed (no errors)
+	if len(errors) > 0 {
+		t.Errorf("Expected 0 errors, got %d: %v", len(errors), errors)
+	}
+
+	// All returned IDs should be the same (the first capsule's ID, preserved across updates)
+	if len(ids) > 0 {
+		firstID := ids[0]
+		for i, id := range ids {
+			if id != firstID {
+				t.Errorf("ID[%d] = %q, want %q (all should return same ID)", i, id, firstID)
+			}
+		}
+	}
+
+	// Verify only one capsule exists with this name
+	capsule, err := db.GetByName(database, "default", "concurrent-test", false)
+	if err != nil {
+		t.Fatalf("GetByName failed: %v", err)
+	}
+	if capsule == nil {
+		t.Fatal("Expected capsule to exist")
+	}
+}
+
 func TestStore_TitleDefaultsToName(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

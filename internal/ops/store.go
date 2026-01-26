@@ -107,50 +107,7 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 	tokensEstimate := capsule.EstimateTokens(input.CapsuleText)
 	now := time.Now().Unix()
 
-	// Check for existing capsule if named
-	var existingCapsule *capsule.Capsule
-	if nameNorm != nil {
-		existing, err := db.GetByName(database, workspaceNorm, *nameNorm, false)
-		if err != nil && !errors.Is(err, errors.ErrNotFound) {
-			return nil, err
-		}
-		existingCapsule = existing
-	}
-
-	// Handle collision
-	if existingCapsule != nil {
-		if input.Mode == StoreModeError {
-			return nil, errors.NewNameAlreadyExists(input.Workspace, *input.Name)
-		}
-
-		// mode:replace - update existing capsule
-		existingCapsule.CapsuleText = input.CapsuleText
-		existingCapsule.CapsuleChars = capsuleChars
-		existingCapsule.TokensEstimate = tokensEstimate
-		existingCapsule.Title = title
-		existingCapsule.Tags = input.Tags
-		existingCapsule.Source = input.Source
-		existingCapsule.RunID = input.RunID
-		existingCapsule.Phase = input.Phase
-		existingCapsule.Role = input.Role
-
-		if err := db.UpdateByID(database, existingCapsule); err != nil {
-			return nil, err
-		}
-
-		// Use existing name values for task link
-		name := ""
-		if existingCapsule.NameRaw != nil {
-			name = *existingCapsule.NameRaw
-		}
-
-		return &StoreOutput{
-			ID:       existingCapsule.ID,
-			FetchKey: BuildFetchKey(existingCapsule.WorkspaceRaw, name, existingCapsule.ID),
-		}, nil
-	}
-
-	// Create new capsule
+	// Generate ULID for new capsule (may be discarded if upsert updates existing)
 	id, err := generateULID()
 	if err != nil {
 		return nil, errors.NewInternal(err)
@@ -175,14 +132,30 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 		UpdatedAt:      now,
 	}
 
-	if err := db.Insert(database, c); err != nil {
-		return nil, err
-	}
-
-	// Build task link
+	// Build name for fetch key
 	name := ""
 	if nameRaw != nil {
 		name = *nameRaw
+	}
+
+	if input.Mode == StoreModeReplace {
+		// Use atomic UPSERT to avoid race conditions between concurrent callers.
+		// If a capsule with the same (workspace, name) exists, it updates that capsule.
+		// Otherwise, it inserts a new capsule.
+		result, err := db.Upsert(database, c)
+		if err != nil {
+			return nil, err
+		}
+
+		return &StoreOutput{
+			ID:       result.ID,
+			FetchKey: BuildFetchKey(input.Workspace, name, result.ID),
+		}, nil
+	}
+
+	// mode:error - Insert and fail on conflict
+	if err := db.Insert(database, c); err != nil {
+		return nil, err
 	}
 
 	return &StoreOutput{

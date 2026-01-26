@@ -404,6 +404,7 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 
 * Default `capsule_max_chars`: **12,000** (configurable in `~/.moss/config.json`)
 * `len(capsule_text) <= capsule_max_chars` else **413 CAPSULE_TOO_LARGE**
+* Import JSONL file size is capped (default: **25MB**) else **413 FILE_TOO_LARGE**
 
 ## Mode validation
 
@@ -429,6 +430,7 @@ See section 3.2 for lint rules, section 4.2 for normalization.
 | NOT_FOUND | 404 | Capsule doesn't exist (or is soft-deleted) |
 | NAME_ALREADY_EXISTS | 409 | Name collision on store with mode:"error" |
 | CAPSULE_TOO_LARGE | 413 | Exceeds `capsule_max_chars` |
+| FILE_TOO_LARGE | 413 | Import file exceeds max size limit |
 | CAPSULE_TOO_THIN | 422 | Missing required sections |
 | INTERNAL | 500 | Unexpected error |
 
@@ -447,7 +449,7 @@ Response format:
 }
 ```
 
-The `details` field varies by error code (e.g., `max_chars`/`actual_chars` for CAPSULE_TOO_LARGE).
+The `details` field varies by error code (e.g., `max_chars`/`actual_chars` for CAPSULE_TOO_LARGE; `max_bytes`/`actual_bytes` for FILE_TOO_LARGE).
 
 ---
 

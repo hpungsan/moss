@@ -76,6 +76,92 @@ func isNameUniquenessViolation(err error) bool {
 		strings.Contains(msg, "capsules.name_norm")
 }
 
+// UpsertResult contains the result of an Upsert operation.
+type UpsertResult struct {
+	ID        string // The final capsule ID (existing on update, new on insert)
+	WasUpdate bool   // True if an existing capsule was updated
+}
+
+// Upsert atomically inserts a new capsule or updates an existing one with the same name.
+// This is used for mode:replace to avoid race conditions between concurrent callers.
+//
+// For named capsules: On conflict with (workspace_norm, name_norm), updates the existing row.
+// For unnamed capsules (name is nil): Always inserts (no conflict possible).
+//
+// On update, preserves: id, workspace_raw/norm, name_raw/norm, created_at
+// On update, changes: capsule_text, title, tags, source, run_id, phase, role, updated_at, metrics
+func Upsert(q Querier, c *capsule.Capsule) (*UpsertResult, error) {
+	// Convert tags to JSON
+	var tagsJSON sql.NullString
+	if len(c.Tags) > 0 {
+		data, err := json.Marshal(c.Tags)
+		if err != nil {
+			return nil, errors.NewInternal(err)
+		}
+		tagsJSON = sql.NullString{String: string(data), Valid: true}
+	}
+
+	// Convert nullable fields
+	nameRaw := toNullString(c.NameRaw)
+	nameNorm := toNullString(c.NameNorm)
+	title := toNullString(c.Title)
+	source := toNullString(c.Source)
+	runID := toNullString(c.RunID)
+	phase := toNullString(c.Phase)
+	role := toNullString(c.Role)
+
+	// Use SQLite UPSERT syntax with partial index conflict target.
+	// The conflict target matches our unique partial index:
+	//   idx_capsules_workspace_name_norm ON (workspace_norm, name_norm)
+	//   WHERE name_norm IS NOT NULL AND deleted_at IS NULL
+	//
+	// When name_norm IS NULL, the partial index doesn't apply, so no conflict occurs.
+	// When there's a conflict, we update the mutable fields and preserve the original ID.
+	//
+	// RETURNING id gives us the final row's ID:
+	// - On insert: the new ID we provided (c.ID)
+	// - On conflict/update: the existing capsule's ID (preserved)
+	// We determine WasUpdate by comparing the returned ID with the ID we tried to insert.
+	query := `
+		INSERT INTO capsules (
+			id, workspace_raw, workspace_norm, name_raw, name_norm,
+			title, capsule_text, capsule_chars, tokens_estimate,
+			tags_json, source, run_id, phase, role,
+			created_at, updated_at, deleted_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+		ON CONFLICT(workspace_norm, name_norm) WHERE name_norm IS NOT NULL AND deleted_at IS NULL
+		DO UPDATE SET
+			title = excluded.title,
+			capsule_text = excluded.capsule_text,
+			capsule_chars = excluded.capsule_chars,
+			tokens_estimate = excluded.tokens_estimate,
+			tags_json = excluded.tags_json,
+			source = excluded.source,
+			run_id = excluded.run_id,
+			phase = excluded.phase,
+			role = excluded.role,
+			updated_at = excluded.updated_at
+		RETURNING id
+	`
+
+	var resultID string
+	err := q.QueryRow(query,
+		c.ID, c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
+		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
+		tagsJSON, source, runID, phase, role,
+		c.CreatedAt, c.UpdatedAt,
+	).Scan(&resultID)
+
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
+
+	return &UpsertResult{
+		ID:        resultID,
+		WasUpdate: resultID != c.ID, // If IDs differ, we updated an existing row
+	}, nil
+}
+
 // GetByID retrieves a capsule by its ULID.
 // If includeDeleted is false, soft-deleted capsules are excluded.
 func GetByID(q Querier, id string, includeDeleted bool) (*capsule.Capsule, error) {
