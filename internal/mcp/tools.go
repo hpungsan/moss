@@ -7,7 +7,7 @@ import "github.com/mark3labs/mcp-go/mcp"
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
 var storeToolDef = mcp.NewTool("store",
-	mcp.WithDescription("Store a new context capsule. Creates a distilled context snapshot for AI session handoffs."),
+	mcp.WithDescription("Store a new context capsule (max 12K chars). Creates a distilled context snapshot for AI session handoffs."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("capsule_text",
 		mcp.Required(),
@@ -105,7 +105,7 @@ var updateToolDef = mcp.NewTool("update",
 		mcp.Description("Capsule name within workspace."),
 	),
 	mcp.WithString("capsule_text",
-		mcp.Description("New capsule content (validates sections unless allow_thin)"),
+		mcp.Description("New content (validates 6 sections unless allow_thin)"),
 	),
 	mcp.WithString("title",
 		mcp.Description("New title"),
