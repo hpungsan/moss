@@ -1,76 +1,10 @@
-# Moss Post-v1.0 Backlog
+# Moss Post-v1 Backlog
 
-Features and enhancements deferred from v1.0.
+Features and enhancements for future versions.
 
 ---
 
 ## v1.1 Candidates
-
-### Orchestration Fields
-
-Add `run_id`, `phase`, `role` for multi-agent workflow scoping:
-
-```json
-{
-  "run_id": "pr-review-abc123",
-  "phase": "design",
-  "role": "design-intent",
-  ...
-}
-```
-
-(Example for `moss.store` tool)
-
-- `run_id` — groups capsules from single command run
-- `phase` — e.g., `base`, `design`, `qa`, `security`, `docs`, `final`
-- `role` — e.g., `design-intent`, `design-principles`
-
-**Database schema additions:**
-
-```sql
--- New columns in capsules table
-run_id TEXT NULL,
-phase TEXT NULL,
-role TEXT NULL
-
--- Index for run-scoped queries
-CREATE INDEX IF NOT EXISTS idx_capsules_run_id
-ON capsules(run_id, phase, role)
-WHERE run_id IS NOT NULL AND deleted_at IS NULL;
-```
-
-Enables filtering on `moss.list` and `moss.inventory`:
-
-```json
-{ "workspace": "startupA", "run_id": "pr-review-abc123", "phase": "design", "limit": 20 }
-```
-
-```json
-{ "run_id": "pr-review-abc123", "phase": "design", "role": "design-intent", "limit": 200 }
-```
-
-**Example flow: PR review with design gate + detail reviewers**
-
-```
-1. Parent stores base context:
-   moss.store { workspace: "phinn", name: "pr-123-base", run_id: "run-abc", phase: "base", ... }
-
-2. Design agents fetch base:
-   moss.fetch { workspace: "phinn", name: "pr-123-base" }
-
-3. Each design agent stores findings:
-   moss.store { name: "pr-123-design-intent", run_id: "run-abc", phase: "design", role: "design-intent", ... }
-   moss.store { name: "pr-123-design-principles", run_id: "run-abc", phase: "design", role: "design-principles", ... }
-
-4. Parent composes design outputs:
-   moss.compose { items: [...], store_as: { name: "pr-123-design" } }
-
-5. QA/Sec/Docs agents batch-fetch:
-   moss.fetch_many { items: [{ name: "pr-123-base" }, { name: "pr-123-design" }] }
-
-6. Browse run artifacts:
-   moss.list { workspace: "phinn", run_id: "run-abc" }
-```
 
 ### `moss.compose` Tool
 
@@ -153,8 +87,9 @@ Resource: `/capsules`
 
 ### CLI Enhancements
 
-v1.0 CLI outputs JSON only. Future enhancements:
+v1 CLI outputs JSON only. Future enhancements:
 
+- **Orchestration flags** — `--run-id`, `--phase`, `--role` for store, update, list, inventory, latest commands (MCP has these; CLI deferred since orchestration is primarily for multi-agent workflows)
 - **Table formatting** for `list` and `inventory` commands (human-readable output)
 - **Color output** for better terminal readability
 - **Shell completion** (bash, zsh, fish)

@@ -22,6 +22,9 @@ type ExportRecord struct {
 	TokensEstimate int      `json:"tokens_estimate"` // IGNORED on import, recomputed
 	Tags           []string `json:"tags"`
 	Source         *string  `json:"source"`
+	RunID          *string  `json:"run_id"`
+	Phase          *string  `json:"phase"`
+	Role           *string  `json:"role"`
 	CreatedAt      int64    `json:"created_at"`
 	UpdatedAt      int64    `json:"updated_at"`
 	DeletedAt      *int64   `json:"deleted_at"`
@@ -40,6 +43,9 @@ func (r *ExportRecord) ToCapsule() *Capsule {
 		TokensEstimate: EstimateTokens(r.CapsuleText), // Recompute
 		Tags:           r.Tags,
 		Source:         r.Source,
+		RunID:          r.RunID,
+		Phase:          r.Phase,
+		Role:           r.Role,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 		DeletedAt:      r.DeletedAt,
@@ -68,6 +74,9 @@ func CapsuleToExportRecord(c *Capsule) *ExportRecord {
 		TokensEstimate: c.TokensEstimate,
 		Tags:           c.Tags,
 		Source:         c.Source,
+		RunID:          c.RunID,
+		Phase:          c.Phase,
+		Role:           c.Role,
 		CreatedAt:      c.CreatedAt,
 		UpdatedAt:      c.UpdatedAt,
 		DeletedAt:      c.DeletedAt,

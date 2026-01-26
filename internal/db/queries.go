@@ -35,19 +35,24 @@ func Insert(q Querier, c *capsule.Capsule) error {
 	nameNorm := toNullString(c.NameNorm)
 	title := toNullString(c.Title)
 	source := toNullString(c.Source)
+	runID := toNullString(c.RunID)
+	phase := toNullString(c.Phase)
+	role := toNullString(c.Role)
 
 	query := `
 		INSERT INTO capsules (
 			id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
-			tags_json, source, created_at, updated_at, deleted_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+			tags_json, source, run_id, phase, role,
+			created_at, updated_at, deleted_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
 	`
 
 	_, err := q.Exec(query,
 		c.ID, c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
-		tagsJSON, source, c.CreatedAt, c.UpdatedAt,
+		tagsJSON, source, runID, phase, role,
+		c.CreatedAt, c.UpdatedAt,
 	)
 	if err != nil {
 		if isNameUniquenessViolation(err) && c.NameRaw != nil {
@@ -77,7 +82,8 @@ func GetByID(q Querier, id string, includeDeleted bool) (*capsule.Capsule, error
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
-			tags_json, source, created_at, updated_at, deleted_at
+			tags_json, source, run_id, phase, role,
+			created_at, updated_at, deleted_at
 		FROM capsules
 		WHERE id = ?
 	`
@@ -103,7 +109,8 @@ func GetByName(q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
-			tags_json, source, created_at, updated_at, deleted_at
+			tags_json, source, run_id, phase, role,
+			created_at, updated_at, deleted_at
 		FROM capsules
 		WHERE workspace_norm = ? AND name_norm = ?
 	`
@@ -164,18 +171,23 @@ func UpdateByID(db *sql.DB, c *capsule.Capsule) error {
 	// Convert nullable fields
 	title := toNullString(c.Title)
 	source := toNullString(c.Source)
+	runID := toNullString(c.RunID)
+	phase := toNullString(c.Phase)
+	role := toNullString(c.Role)
 
 	now := time.Now().Unix()
 
 	query := `
 		UPDATE capsules
 		SET capsule_text = ?, title = ?, tags_json = ?, source = ?,
+			run_id = ?, phase = ?, role = ?,
 			capsule_chars = ?, tokens_estimate = ?, updated_at = ?
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
 	result, err := db.Exec(query,
 		c.CapsuleText, title, tagsJSON, source,
+		runID, phase, role,
 		c.CapsuleChars, c.TokensEstimate, now,
 		c.ID,
 	)
@@ -232,13 +244,17 @@ func scanCapsule(row *sql.Row) (*capsule.Capsule, error) {
 		title     sql.NullString
 		tagsJSON  sql.NullString
 		source    sql.NullString
+		runID     sql.NullString
+		phase     sql.NullString
+		role      sql.NullString
 		deletedAt sql.NullInt64
 	)
 
 	err := row.Scan(
 		&c.ID, &c.WorkspaceRaw, &c.WorkspaceNorm, &nameRaw, &nameNorm,
 		&title, &c.CapsuleText, &c.CapsuleChars, &c.TokensEstimate,
-		&tagsJSON, &source, &c.CreatedAt, &c.UpdatedAt, &deletedAt,
+		&tagsJSON, &source, &runID, &phase, &role,
+		&c.CreatedAt, &c.UpdatedAt, &deletedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -249,6 +265,9 @@ func scanCapsule(row *sql.Row) (*capsule.Capsule, error) {
 	c.NameNorm = fromNullString(nameNorm)
 	c.Title = fromNullString(title)
 	c.Source = fromNullString(source)
+	c.RunID = fromNullString(runID)
+	c.Phase = fromNullString(phase)
+	c.Role = fromNullString(role)
 
 	// Convert deleted_at
 	if deletedAt.Valid {
@@ -291,7 +310,8 @@ func escapeLikePattern(s string) string {
 
 // scanCapsuleSummary scans a single row into a CapsuleSummary struct.
 // Expects columns: id, workspace_raw, workspace_norm, name_raw, name_norm,
-// title, capsule_chars, tokens_estimate, tags_json, source, created_at, updated_at, deleted_at
+// title, capsule_chars, tokens_estimate, tags_json, source, run_id, phase, role,
+// created_at, updated_at, deleted_at
 func scanCapsuleSummary(scanner interface{ Scan(...any) error }) (*capsule.CapsuleSummary, error) {
 	var (
 		s         capsule.CapsuleSummary
@@ -300,13 +320,17 @@ func scanCapsuleSummary(scanner interface{ Scan(...any) error }) (*capsule.Capsu
 		title     sql.NullString
 		tagsJSON  sql.NullString
 		source    sql.NullString
+		runID     sql.NullString
+		phase     sql.NullString
+		role      sql.NullString
 		deletedAt sql.NullInt64
 	)
 
 	err := scanner.Scan(
 		&s.ID, &s.Workspace, &s.WorkspaceNorm, &nameRaw, &nameNorm,
 		&title, &s.CapsuleChars, &s.TokensEstimate,
-		&tagsJSON, &source, &s.CreatedAt, &s.UpdatedAt, &deletedAt,
+		&tagsJSON, &source, &runID, &phase, &role,
+		&s.CreatedAt, &s.UpdatedAt, &deletedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -317,6 +341,9 @@ func scanCapsuleSummary(scanner interface{ Scan(...any) error }) (*capsule.Capsu
 	s.NameNorm = fromNullString(nameNorm)
 	s.Title = fromNullString(title)
 	s.Source = fromNullString(source)
+	s.RunID = fromNullString(runID)
+	s.Phase = fromNullString(phase)
+	s.Role = fromNullString(role)
 
 	// Convert deleted_at
 	if deletedAt.Valid {
@@ -333,18 +360,43 @@ func scanCapsuleSummary(scanner interface{ Scan(...any) error }) (*capsule.Capsu
 	return &s, nil
 }
 
+// ListFilters contains optional filters for list operations.
+type ListFilters struct {
+	RunID *string
+	Phase *string
+	Role  *string
+}
+
 // ListByWorkspace retrieves capsule summaries for a workspace with pagination.
 // Returns summaries (no capsule_text) + total count.
 // Ordered by updated_at DESC, id DESC (stable pagination).
-func ListByWorkspace(db *sql.DB, workspaceNorm string, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
-	// Build count query
-	countQuery := `SELECT COUNT(*) FROM capsules WHERE workspace_norm = ?`
+func ListByWorkspace(db *sql.DB, workspaceNorm string, filters ListFilters, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
+	// Build WHERE conditions
+	conditions := []string{"workspace_norm = ?"}
+	args := []any{workspaceNorm}
+
 	if !includeDeleted {
-		countQuery += " AND deleted_at IS NULL"
+		conditions = append(conditions, "deleted_at IS NULL")
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "role = ?")
+		args = append(args, *filters.Role)
 	}
 
+	whereClause := " WHERE " + strings.Join(conditions, " AND ")
+
+	// Build count query
+	countQuery := "SELECT COUNT(*) FROM capsules" + whereClause
 	var total int
-	if err := db.QueryRow(countQuery, workspaceNorm).Scan(&total); err != nil {
+	if err := db.QueryRow(countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, errors.NewInternal(err)
 	}
 
@@ -352,16 +404,11 @@ func ListByWorkspace(db *sql.DB, workspaceNorm string, limit, offset int, includ
 	listQuery := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_chars, tokens_estimate, tags_json, source,
-			created_at, updated_at, deleted_at
-		FROM capsules
-		WHERE workspace_norm = ?
-	`
-	if !includeDeleted {
-		listQuery += " AND deleted_at IS NULL"
-	}
-	listQuery += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+			run_id, phase, role, created_at, updated_at, deleted_at
+		FROM capsules` + whereClause + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
 
-	rows, err := db.Query(listQuery, workspaceNorm, limit, offset)
+	listArgs := append(args, limit, offset)
+	rows, err := db.Query(listQuery, listArgs...)
 	if err != nil {
 		return nil, 0, errors.NewInternal(err)
 	}
@@ -387,6 +434,9 @@ type InventoryFilters struct {
 	Workspace  *string // filter by workspace_norm
 	Tag        *string // filter by tag using JSON1
 	NamePrefix *string // filter by name_norm LIKE 'prefix%'
+	RunID      *string // filter by run_id
+	Phase      *string // filter by phase
+	Role       *string // filter by role
 }
 
 // ListAll retrieves capsule summaries across all workspaces with optional filters.
@@ -412,6 +462,18 @@ func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDel
 		conditions = append(conditions, "name_norm LIKE ? ESCAPE '\\'")
 		args = append(args, escapeLikePattern(*filters.NamePrefix)+"%")
 	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "role = ?")
+		args = append(args, *filters.Role)
+	}
 
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -429,7 +491,7 @@ func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDel
 	listQuery := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_chars, tokens_estimate, tags_json, source,
-			created_at, updated_at, deleted_at
+			run_id, phase, role, created_at, updated_at, deleted_at
 		FROM capsules` + whereClause + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
 
 	listArgs := append(args, limit, offset)
@@ -454,23 +516,45 @@ func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDel
 	return summaries, total, nil
 }
 
+// LatestFilters contains optional filters for latest queries.
+type LatestFilters struct {
+	RunID *string
+	Phase *string
+	Role  *string
+}
+
 // GetLatestSummary retrieves the most recent capsule summary in a workspace.
 // Returns summary (no capsule_text).
 // Returns nil, nil if workspace is empty (not an error).
-func GetLatestSummary(db *sql.DB, workspaceNorm string, includeDeleted bool) (*capsule.CapsuleSummary, error) {
+func GetLatestSummary(db *sql.DB, workspaceNorm string, filters LatestFilters, includeDeleted bool) (*capsule.CapsuleSummary, error) {
+	conditions := []string{"workspace_norm = ?"}
+	args := []any{workspaceNorm}
+
+	if !includeDeleted {
+		conditions = append(conditions, "deleted_at IS NULL")
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "role = ?")
+		args = append(args, *filters.Role)
+	}
+
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_chars, tokens_estimate, tags_json, source,
-			created_at, updated_at, deleted_at
+			run_id, phase, role, created_at, updated_at, deleted_at
 		FROM capsules
-		WHERE workspace_norm = ?
-	`
-	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
-	}
-	query += " ORDER BY updated_at DESC, id DESC LIMIT 1"
+		WHERE ` + strings.Join(conditions, " AND ") + `
+		ORDER BY updated_at DESC, id DESC LIMIT 1`
 
-	row := db.QueryRow(query, workspaceNorm)
+	row := db.QueryRow(query, args...)
 	s, err := scanCapsuleSummary(row)
 	if err == sql.ErrNoRows {
 		return nil, nil // Empty workspace is not an error
@@ -484,20 +568,36 @@ func GetLatestSummary(db *sql.DB, workspaceNorm string, includeDeleted bool) (*c
 
 // GetLatestFull retrieves the most recent full capsule (including text) in a workspace.
 // Returns nil, nil if workspace is empty (not an error).
-func GetLatestFull(db *sql.DB, workspaceNorm string, includeDeleted bool) (*capsule.Capsule, error) {
+func GetLatestFull(db *sql.DB, workspaceNorm string, filters LatestFilters, includeDeleted bool) (*capsule.Capsule, error) {
+	conditions := []string{"workspace_norm = ?"}
+	args := []any{workspaceNorm}
+
+	if !includeDeleted {
+		conditions = append(conditions, "deleted_at IS NULL")
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "role = ?")
+		args = append(args, *filters.Role)
+	}
+
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
-			tags_json, source, created_at, updated_at, deleted_at
+			tags_json, source, run_id, phase, role,
+			created_at, updated_at, deleted_at
 		FROM capsules
-		WHERE workspace_norm = ?
-	`
-	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
-	}
-	query += " ORDER BY updated_at DESC, id DESC LIMIT 1"
+		WHERE ` + strings.Join(conditions, " AND ") + `
+		ORDER BY updated_at DESC, id DESC LIMIT 1`
 
-	row := db.QueryRow(query, workspaceNorm)
+	row := db.QueryRow(query, args...)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
 		return nil, nil // Empty workspace is not an error
@@ -531,7 +631,8 @@ func StreamForExport(db *sql.DB, workspace *string, includeDeleted bool) (*sql.R
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
-			tags_json, source, created_at, updated_at, deleted_at
+			tags_json, source, run_id, phase, role,
+			created_at, updated_at, deleted_at
 		FROM capsules
 	`
 	if len(conditions) > 0 {
@@ -557,13 +658,17 @@ func ScanCapsuleFromRows(rows *sql.Rows) (*capsule.Capsule, error) {
 		title     sql.NullString
 		tagsJSON  sql.NullString
 		source    sql.NullString
+		runID     sql.NullString
+		phase     sql.NullString
+		role      sql.NullString
 		deletedAt sql.NullInt64
 	)
 
 	err := rows.Scan(
 		&c.ID, &c.WorkspaceRaw, &c.WorkspaceNorm, &nameRaw, &nameNorm,
 		&title, &c.CapsuleText, &c.CapsuleChars, &c.TokensEstimate,
-		&tagsJSON, &source, &c.CreatedAt, &c.UpdatedAt, &deletedAt,
+		&tagsJSON, &source, &runID, &phase, &role,
+		&c.CreatedAt, &c.UpdatedAt, &deletedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -574,6 +679,9 @@ func ScanCapsuleFromRows(rows *sql.Rows) (*capsule.Capsule, error) {
 	c.NameNorm = fromNullString(nameNorm)
 	c.Title = fromNullString(title)
 	c.Source = fromNullString(source)
+	c.RunID = fromNullString(runID)
+	c.Phase = fromNullString(phase)
+	c.Role = fromNullString(role)
 
 	// Convert deleted_at
 	if deletedAt.Valid {
@@ -609,6 +717,9 @@ func UpdateFull(q Querier, c *capsule.Capsule) error {
 	nameNorm := toNullString(c.NameNorm)
 	title := toNullString(c.Title)
 	source := toNullString(c.Source)
+	runID := toNullString(c.RunID)
+	phase := toNullString(c.Phase)
+	role := toNullString(c.Role)
 	var deletedAt sql.NullInt64
 	if c.DeletedAt != nil {
 		deletedAt = sql.NullInt64{Int64: *c.DeletedAt, Valid: true}
@@ -618,14 +729,16 @@ func UpdateFull(q Querier, c *capsule.Capsule) error {
 		UPDATE capsules
 		SET workspace_raw = ?, workspace_norm = ?, name_raw = ?, name_norm = ?,
 			title = ?, capsule_text = ?, capsule_chars = ?, tokens_estimate = ?,
-			tags_json = ?, source = ?, created_at = ?, updated_at = ?, deleted_at = ?
+			tags_json = ?, source = ?, run_id = ?, phase = ?, role = ?,
+			created_at = ?, updated_at = ?, deleted_at = ?
 		WHERE id = ?
 	`
 
 	result, err := q.Exec(query,
 		c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
-		tagsJSON, source, c.CreatedAt, c.UpdatedAt, deletedAt,
+		tagsJSON, source, runID, phase, role,
+		c.CreatedAt, c.UpdatedAt, deletedAt,
 		c.ID,
 	)
 	if err != nil {

@@ -63,7 +63,7 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 
-	// Migration 0 -> 1: Initial schema (v1.0)
+	// Migration 0 -> 1: Initial schema (v1)
 	if version < 1 {
 		schema := `
 		CREATE TABLE IF NOT EXISTS capsules (
@@ -78,6 +78,9 @@ func migrate(db *sql.DB) error {
 		  tokens_estimate INTEGER NOT NULL,
 		  tags_json       TEXT,
 		  source          TEXT,
+		  run_id          TEXT,
+		  phase           TEXT,
+		  role            TEXT,
 		  created_at      INTEGER NOT NULL,
 		  updated_at      INTEGER NOT NULL,
 		  deleted_at      INTEGER
@@ -90,6 +93,10 @@ func migrate(db *sql.DB) error {
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_capsules_workspace_name_norm
 		ON capsules(workspace_norm, name_norm)
 		WHERE name_norm IS NOT NULL AND deleted_at IS NULL;
+
+		CREATE INDEX IF NOT EXISTS idx_capsules_run_id
+		ON capsules(run_id, phase, role)
+		WHERE run_id IS NOT NULL AND deleted_at IS NULL;
 		`
 		if _, err := db.Exec(schema); err != nil {
 			return fmt.Errorf("migration 1 failed: %w", err)

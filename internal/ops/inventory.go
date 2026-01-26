@@ -12,6 +12,9 @@ type InventoryInput struct {
 	Workspace      *string // optional filter
 	Tag            *string // optional filter
 	NamePrefix     *string // optional filter
+	RunID          *string // optional filter
+	Phase          *string // optional filter
+	Role           *string // optional filter
 	Limit          int     // default: 100, max: 500
 	Offset         int     // default: 0
 	IncludeDeleted bool
@@ -45,6 +48,15 @@ func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error)
 		if prefix != "" {
 			filters.NamePrefix = &prefix
 		}
+	}
+	if input.RunID != nil && *input.RunID != "" {
+		filters.RunID = input.RunID
+	}
+	if input.Phase != nil && *input.Phase != "" {
+		filters.Phase = input.Phase
+	}
+	if input.Role != nil && *input.Role != "" {
+		filters.Role = input.Role
 	}
 
 	// Apply limit defaults and bounds

@@ -9,8 +9,11 @@ import (
 
 // LatestInput contains parameters for the Latest operation.
 type LatestInput struct {
-	Workspace      string // required, defaults to "default"
-	IncludeText    *bool  // default: false (summary only)
+	Workspace      string  // required, defaults to "default"
+	RunID          *string // optional filter
+	Phase          *string // optional filter
+	Role           *string // optional filter
+	IncludeText    *bool   // default: false (summary only)
 	IncludeDeleted bool
 }
 
@@ -40,10 +43,17 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 		includeText = *input.IncludeText
 	}
 
+	// Build filters
+	filters := db.LatestFilters{
+		RunID: input.RunID,
+		Phase: input.Phase,
+		Role:  input.Role,
+	}
+
 	// Query database based on include_text
 	if includeText {
 		// Fetch full capsule with text
-		c, err := db.GetLatestFull(database, workspace, input.IncludeDeleted)
+		c, err := db.GetLatestFull(database, workspace, filters, input.IncludeDeleted)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +77,7 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 	}
 
 	// Fetch summary only (no text)
-	s, err := db.GetLatestSummary(database, workspace, input.IncludeDeleted)
+	s, err := db.GetLatestSummary(database, workspace, filters, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

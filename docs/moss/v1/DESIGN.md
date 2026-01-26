@@ -2,6 +2,7 @@
 
 ## Version History
 
+- **v1.1**: Orchestration fields — `run_id`, `phase`, `role` for multi-agent workflow scoping
 - **v1.0**: Initial release — 11 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import
 
 ---
@@ -192,7 +193,9 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 **Required:** `capsule_text`
 
-**Optional:** `workspace` (default: "default"), `name`, `title`, `tags`, `source`, `mode` ("error"|"replace"), `allow_thin`
+**Optional:** `workspace` (default: "default"), `name`, `title`, `tags`, `source`, `run_id`, `phase`, `role`, `mode` ("error"|"replace"), `allow_thin`
+
+**Orchestration fields** (v1.1): `run_id`, `phase`, `role` enable multi-agent workflow scoping (e.g., `run_id: "pr-review-abc123"`, `phase: "design"`, `role: "design-intent"`).
 
 **Behaviors:**
 - `mode:"error"` + name collision → **409 NAME_ALREADY_EXISTS**
@@ -236,7 +239,7 @@ Batch fetch multiple capsules.
 
 **Addressing:** `id` OR (`workspace` + `name`)
 
-**Editable:** `capsule_text`, `title`, `tags`, `source`
+**Editable:** `capsule_text`, `title`, `tags`, `source`, `run_id`, `phase`, `role`
 
 **Immutable:** `id`, `workspace`, `name` — to "rename", delete and re-store
 
@@ -258,7 +261,9 @@ Soft-deletes by setting `deleted_at`. Capsule recoverable via `include_deleted` 
 
 Returns most recent capsule in workspace.
 
-**Optional:** `include_text` (default: false), `include_deleted`
+**Optional:** `include_text` (default: false), `include_deleted`, `run_id`, `phase`, `role`
+
+**Filters** (v1.1): Use `run_id`/`phase`/`role` to get "latest design capsule from this run".
 
 ---
 
@@ -266,7 +271,9 @@ Returns most recent capsule in workspace.
 
 List summaries in workspace. **Never returns `capsule_text`.**
 
-**Optional:** `limit` (default: 20, max: 100), `offset`, `include_deleted`
+**Optional:** `limit` (default: 20, max: 100), `offset`, `include_deleted`, `run_id`, `phase`, `role`
+
+**Filters** (v1.1): `run_id`/`phase`/`role` narrow results to capsules in specific workflow contexts.
 
 ---
 
@@ -274,7 +281,7 @@ List summaries in workspace. **Never returns `capsule_text`.**
 
 Global list across all workspaces. **Never returns `capsule_text`.**
 
-**Optional filters:** `workspace`, `tag`, `name_prefix`, `include_deleted`, `limit` (default: 100, max: 500), `offset`
+**Optional filters:** `workspace`, `tag`, `name_prefix`, `run_id`, `phase`, `role`, `include_deleted`, `limit` (default: 100, max: 500), `offset`
 
 ---
 
@@ -371,6 +378,9 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 * `tokens_estimate INTEGER NOT NULL` — heuristic: word count × 1.3
 * `tags_json TEXT NULL`
 * `source TEXT NULL`
+* `run_id TEXT NULL` — orchestration run identifier (v1.1)
+* `phase TEXT NULL` — workflow phase (v1.1)
+* `role TEXT NULL` — agent role (v1.1)
 * `created_at INTEGER NOT NULL`
 * `updated_at INTEGER NOT NULL`
 * `deleted_at INTEGER NULL` — soft delete timestamp (null = active)
@@ -379,6 +389,7 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 
 * Unique name handles: `UNIQUE(workspace_norm, name_norm)` excluding soft-deleted
 * Fast list/latest: `INDEX(workspace_norm, updated_at DESC)` excluding soft-deleted
+* Orchestration queries: `INDEX(run_id, phase, role)` excluding soft-deleted, partial (run_id IS NOT NULL)
 
 ---
 

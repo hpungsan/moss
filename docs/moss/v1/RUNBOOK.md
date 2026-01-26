@@ -1,4 +1,4 @@
-# Moss v1.0 Runbook
+# Moss v1 Runbook
 
 Operational guide for building, configuring, and running Moss.
 
@@ -293,6 +293,53 @@ moss.export { "path": "/tmp/moss-backup.jsonl" }
 
 ```
 moss.import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
+```
+
+---
+
+## Orchestration (v1.1)
+
+Multi-agent workflows can use `run_id`, `phase`, and `role` to scope capsules.
+
+### Store with Orchestration
+
+```
+moss.store {
+  "workspace": "myproject",
+  "name": "design-intent",
+  "run_id": "pr-review-abc123",
+  "phase": "design",
+  "role": "design-intent",
+  "capsule_text": "## Objective\n..."
+}
+```
+
+### Filter by Run ID
+
+```
+moss.list {
+  "workspace": "myproject",
+  "run_id": "pr-review-abc123"
+}
+```
+
+### Latest Design Capsule from Run
+
+```
+moss.latest {
+  "workspace": "myproject",
+  "run_id": "pr-review-abc123",
+  "phase": "design",
+  "include_text": true
+}
+```
+
+### Cross-Workspace Run Query
+
+```
+moss.inventory {
+  "run_id": "pr-review-abc123"
+}
 ```
 
 ---

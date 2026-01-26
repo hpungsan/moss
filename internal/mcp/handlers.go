@@ -33,6 +33,9 @@ type StoreRequest struct {
 	CapsuleText string   `json:"capsule_text"`
 	Tags        []string `json:"tags,omitempty"`
 	Source      *string  `json:"source,omitempty"`
+	RunID       *string  `json:"run_id,omitempty"`
+	Phase       *string  `json:"phase,omitempty"`
+	Role        *string  `json:"role,omitempty"`
 	Mode        string   `json:"mode,omitempty"`
 	AllowThin   bool     `json:"allow_thin,omitempty"`
 }
@@ -69,6 +72,9 @@ type UpdateRequest struct {
 	Title       *string   `json:"title,omitempty"`
 	Tags        *[]string `json:"tags,omitempty"`
 	Source      *string   `json:"source,omitempty"`
+	RunID       *string   `json:"run_id,omitempty"`
+	Phase       *string   `json:"phase,omitempty"`
+	Role        *string   `json:"role,omitempty"`
 	AllowThin   bool      `json:"allow_thin,omitempty"`
 }
 
@@ -81,17 +87,23 @@ type DeleteRequest struct {
 
 // LatestRequest represents the arguments for moss.latest.
 type LatestRequest struct {
-	Workspace      string `json:"workspace,omitempty"`
-	IncludeText    *bool  `json:"include_text,omitempty"`
-	IncludeDeleted bool   `json:"include_deleted,omitempty"`
+	Workspace      string  `json:"workspace,omitempty"`
+	RunID          *string `json:"run_id,omitempty"`
+	Phase          *string `json:"phase,omitempty"`
+	Role           *string `json:"role,omitempty"`
+	IncludeText    *bool   `json:"include_text,omitempty"`
+	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
 // ListRequest represents the arguments for moss.list.
 type ListRequest struct {
-	Workspace      string `json:"workspace,omitempty"`
-	Limit          int    `json:"limit,omitempty"`
-	Offset         int    `json:"offset,omitempty"`
-	IncludeDeleted bool   `json:"include_deleted,omitempty"`
+	Workspace      string  `json:"workspace,omitempty"`
+	RunID          *string `json:"run_id,omitempty"`
+	Phase          *string `json:"phase,omitempty"`
+	Role           *string `json:"role,omitempty"`
+	Limit          int     `json:"limit,omitempty"`
+	Offset         int     `json:"offset,omitempty"`
+	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
 // InventoryRequest represents the arguments for moss.inventory.
@@ -99,6 +111,9 @@ type InventoryRequest struct {
 	Workspace      *string `json:"workspace,omitempty"`
 	Tag            *string `json:"tag,omitempty"`
 	NamePrefix     *string `json:"name_prefix,omitempty"`
+	RunID          *string `json:"run_id,omitempty"`
+	Phase          *string `json:"phase,omitempty"`
+	Role           *string `json:"role,omitempty"`
 	Limit          int     `json:"limit,omitempty"`
 	Offset         int     `json:"offset,omitempty"`
 	IncludeDeleted bool    `json:"include_deleted,omitempty"`
@@ -145,6 +160,9 @@ func (h *Handlers) HandleStore(ctx context.Context, req mcp.CallToolRequest) (*m
 		CapsuleText: input.CapsuleText,
 		Tags:        input.Tags,
 		Source:      input.Source,
+		RunID:       input.RunID,
+		Phase:       input.Phase,
+		Role:        input.Role,
 		Mode:        mode,
 		AllowThin:   input.AllowThin,
 	})
@@ -220,6 +238,9 @@ func (h *Handlers) HandleUpdate(ctx context.Context, req mcp.CallToolRequest) (*
 		Title:       input.Title,
 		Tags:        input.Tags,
 		Source:      input.Source,
+		RunID:       input.RunID,
+		Phase:       input.Phase,
+		Role:        input.Role,
 		AllowThin:   input.AllowThin,
 	})
 	if err != nil {
@@ -257,6 +278,9 @@ func (h *Handlers) HandleLatest(ctx context.Context, req mcp.CallToolRequest) (*
 
 	result, err := ops.Latest(h.db, ops.LatestInput{
 		Workspace:      input.Workspace,
+		RunID:          input.RunID,
+		Phase:          input.Phase,
+		Role:           input.Role,
 		IncludeText:    input.IncludeText,
 		IncludeDeleted: input.IncludeDeleted,
 	})
@@ -276,6 +300,9 @@ func (h *Handlers) HandleList(ctx context.Context, req mcp.CallToolRequest) (*mc
 
 	result, err := ops.List(h.db, ops.ListInput{
 		Workspace:      input.Workspace,
+		RunID:          input.RunID,
+		Phase:          input.Phase,
+		Role:           input.Role,
 		Limit:          input.Limit,
 		Offset:         input.Offset,
 		IncludeDeleted: input.IncludeDeleted,
@@ -298,6 +325,9 @@ func (h *Handlers) HandleInventory(ctx context.Context, req mcp.CallToolRequest)
 		Workspace:      input.Workspace,
 		Tag:            input.Tag,
 		NamePrefix:     input.NamePrefix,
+		RunID:          input.RunID,
+		Phase:          input.Phase,
+		Role:           input.Role,
 		Limit:          input.Limit,
 		Offset:         input.Offset,
 		IncludeDeleted: input.IncludeDeleted,

@@ -30,6 +30,9 @@ type StoreInput struct {
 	CapsuleText string  // required
 	Tags        []string
 	Source      *string
+	RunID       *string   // orchestration run ID
+	Phase       *string   // workflow phase
+	Role        *string   // agent role
 	Mode        StoreMode // default: StoreModeError
 	AllowThin   bool
 }
@@ -124,6 +127,9 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 		existingCapsule.Title = title
 		existingCapsule.Tags = input.Tags
 		existingCapsule.Source = input.Source
+		existingCapsule.RunID = input.RunID
+		existingCapsule.Phase = input.Phase
+		existingCapsule.Role = input.Role
 
 		if err := db.UpdateByID(database, existingCapsule); err != nil {
 			return nil, err
@@ -159,6 +165,9 @@ func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput
 		TokensEstimate: tokensEstimate,
 		Tags:           input.Tags,
 		Source:         input.Source,
+		RunID:          input.RunID,
+		Phase:          input.Phase,
+		Role:           input.Role,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}

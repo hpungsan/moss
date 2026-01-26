@@ -21,6 +21,9 @@ type UpdateInput struct {
 	Title       *string
 	Tags        *[]string
 	Source      *string
+	RunID       *string // orchestration run ID
+	Phase       *string // workflow phase
+	Role        *string // agent role
 
 	AllowThin bool
 }
@@ -40,7 +43,8 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 	}
 
 	// Validate at least one editable field is provided
-	if input.CapsuleText == nil && input.Title == nil && input.Tags == nil && input.Source == nil {
+	if input.CapsuleText == nil && input.Title == nil && input.Tags == nil && input.Source == nil &&
+		input.RunID == nil && input.Phase == nil && input.Role == nil {
 		return nil, errors.NewInvalidRequest("at least one editable field must be provided")
 	}
 
@@ -87,6 +91,18 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 
 	if input.Source != nil {
 		c.Source = input.Source
+	}
+
+	if input.RunID != nil {
+		c.RunID = input.RunID
+	}
+
+	if input.Phase != nil {
+		c.Phase = input.Phase
+	}
+
+	if input.Role != nil {
+		c.Role = input.Role
 	}
 
 	// Persist update
