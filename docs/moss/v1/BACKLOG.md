@@ -305,6 +305,16 @@ Pass `context.Context` through MCP handlers to ops functions. Currently handlers
 
 `internal/ops/import.go` uses `bufio.NewScanner()` with default 64KB line limit. If `capsule_max_chars` is increased significantly (e.g., 50K+), large export records could be silently truncated. Consider using `scanner.Buffer()` to set explicit limit matching max capsule size + overhead.
 
+### Multi-Fetch Snapshot Consistency
+
+`compose` and `fetch_many` fetch capsules in a loop without a read transaction. Concurrent updates during the operation could yield mixed-version results (TOCTOU-ish).
+
+**Current:** Each capsule fetched in separate query.
+
+**Fix:** Wrap fetch loop in a read-only transaction for point-in-time consistency.
+
+**Impact:** Low for Moss's typical use case (local, single-user, capsules don't change rapidly). Worth fixing for correctness if transaction support is added for other reasons.
+
 ---
 
 ## Considered & Deferred

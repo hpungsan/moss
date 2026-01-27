@@ -2,7 +2,7 @@ package mcp
 
 import "github.com/mark3labs/mcp-go/mcp"
 
-// Tool definitions for all 11 Moss MCP tools.
+// Tool definitions for all 12 Moss MCP tools.
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 

@@ -349,10 +349,10 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 **Optional:** `format` ("markdown"|"json", default: "markdown"), `store_as` (persist result)
 
 **Format options:**
-- `markdown`: `## <title or name or id>\n\n<text>\n\n---\n\n...`
-- `json`: `{ "parts": [{ "id", "workspace", "name", "title", "text", "chars" }, ...] }`
+- `markdown`: `## <display_name>\n\n<text>\n\n---\n\n...`
+- `json`: `{ "parts": [{ "id", "workspace", "name", "display_name", "text", "chars" }, ...] }`
 
-**Display name priority:** title > name > id
+**Display name:** computed as title > name > id (always present)
 
 **Behaviors:**
 - All-or-nothing: if any item missing → **404 NOT_FOUND**

@@ -43,12 +43,12 @@ type ComposeOutput struct {
 
 // ComposePart represents a single capsule in the composed bundle.
 type ComposePart struct {
-	ID        string `json:"id"`
-	Workspace string `json:"workspace"`
-	Name      string `json:"name,omitempty"`
-	Title     string `json:"title,omitempty"`
-	Text      string `json:"text"`
-	Chars     int    `json:"chars"`
+	ID          string `json:"id"`
+	Workspace   string `json:"workspace"`
+	Name        string `json:"name,omitempty"`
+	DisplayName string `json:"display_name"` // computed: title > name > id
+	Text        string `json:"text"`
+	Chars       int    `json:"chars"`
 }
 
 // ComposeBundle is the JSON format output structure.
@@ -84,6 +84,7 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 
 	// Fetch all capsules (all-or-nothing)
 	parts := make([]ComposePart, 0, len(input.Items))
+	estimatedChars := 0
 	for i, ref := range input.Items {
 		// Validate addressing for this ref
 		addr, err := ValidateAddress(ref.ID, ref.Workspace, ref.Name)
@@ -106,6 +107,12 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 			return nil, err
 		}
 
+		// Early size check (conservative estimate without formatting overhead)
+		estimatedChars += c.CapsuleChars
+		if estimatedChars > cfg.CapsuleMaxChars {
+			return nil, errors.NewComposeTooLarge(cfg.CapsuleMaxChars, estimatedChars)
+		}
+
 		// Build part with display name priority: title > name > id
 		displayName := c.ID
 		if c.NameRaw != nil {
@@ -121,12 +128,12 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		}
 
 		parts = append(parts, ComposePart{
-			ID:        c.ID,
-			Workspace: c.WorkspaceRaw,
-			Name:      name,
-			Title:     displayName, // Use display name (title > name > id)
-			Text:      c.CapsuleText,
-			Chars:     c.CapsuleChars,
+			ID:          c.ID,
+			Workspace:   c.WorkspaceRaw,
+			Name:        name,
+			DisplayName: displayName,
+			Text:        c.CapsuleText,
+			Chars:       c.CapsuleChars,
 		})
 	}
 
@@ -181,7 +188,7 @@ func assembleMarkdown(parts []ComposePart) string {
 			sb.WriteString("\n\n---\n\n")
 		}
 		sb.WriteString("## ")
-		sb.WriteString(part.Title)
+		sb.WriteString(part.DisplayName)
 		sb.WriteString("\n\n")
 		sb.WriteString(part.Text)
 	}
@@ -190,10 +197,12 @@ func assembleMarkdown(parts []ComposePart) string {
 
 // assembleJSON creates JSON format: {"parts": [...]}
 func assembleJSON(parts []ComposePart) string {
-	// Restore original title (not display name) for JSON output
-	bundle := ComposeBundle{
-		Parts: parts,
+	bundle := ComposeBundle{Parts: parts}
+	// MarshalIndent only fails on unmarshalable types (channels, funcs);
+	// our struct is safe, so error is unreachable
+	data, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		panic("compose: unexpected marshal error: " + err.Error())
 	}
-	data, _ := json.MarshalIndent(bundle, "", "  ")
 	return string(data)
 }
