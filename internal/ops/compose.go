@@ -142,7 +142,11 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 	if format == "markdown" {
 		bundleText = assembleMarkdown(parts)
 	} else {
-		bundleText = assembleJSON(parts)
+		var err error
+		bundleText, err = assembleJSON(parts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	bundleChars := capsule.CountChars(bundleText)
@@ -196,13 +200,11 @@ func assembleMarkdown(parts []ComposePart) string {
 }
 
 // assembleJSON creates JSON format: {"parts": [...]}
-func assembleJSON(parts []ComposePart) string {
+func assembleJSON(parts []ComposePart) (string, error) {
 	bundle := ComposeBundle{Parts: parts}
-	// MarshalIndent only fails on unmarshalable types (channels, funcs);
-	// our struct is safe, so error is unreachable
 	data, err := json.MarshalIndent(bundle, "", "  ")
 	if err != nil {
-		panic("compose: unexpected marshal error: " + err.Error())
+		return "", errors.NewInternal(err)
 	}
-	return string(data)
+	return string(data), nil
 }
