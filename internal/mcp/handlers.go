@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	stderrors "errors"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -475,10 +476,17 @@ func (h *Handlers) HandleCompose(ctx context.Context, req mcp.CallToolRequest) (
 func errorResult(err error) *mcp.CallToolResult {
 	var payload map[string]any
 
-	if mossErr, ok := err.(*errors.MossError); ok {
+	var mossErr *errors.MossError
+	if stderrors.As(err, &mossErr) {
+		// Use full error message if wrapped (preserves context like "items[0]: ...")
+		// Otherwise use the original MossError message
+		message := mossErr.Message
+		if err.Error() != mossErr.Error() {
+			message = err.Error()
+		}
 		errorObj := map[string]any{
 			"code":    mossErr.Code,
-			"message": mossErr.Message,
+			"message": message,
 			"status":  mossErr.Status,
 		}
 		// Only include details for non-internal errors to avoid leaking

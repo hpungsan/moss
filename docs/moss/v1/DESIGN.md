@@ -357,6 +357,7 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 **Behaviors:**
 - All-or-nothing: if any item missing → **404 NOT_FOUND**
 - Too large → **413 COMPOSE_TOO_LARGE**
+- `format:"json"` + `store_as` → **400 INVALID_REQUEST** (JSON lacks section headers)
 - If `store_as` provided: lint + store via `store` operation
 - `store_as.name` required when `store_as` provided
 

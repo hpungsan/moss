@@ -561,6 +561,48 @@ func TestCompose_InvalidFormat(t *testing.T) {
 	}
 }
 
+func TestCompose_JSON_WithStoreAs_Rejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Store a capsule
+	_, err = Store(database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Try to compose with JSON format and store_as - should be rejected
+	_, err = Compose(database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Format: "json",
+		StoreAs: &ComposeStoreAs{
+			Workspace: "composed",
+			Name:      "bundle",
+		},
+	})
+	if err == nil {
+		t.Fatal("Compose should reject format:json with store_as")
+	}
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("error = %v, want ErrInvalidRequest", err)
+	}
+	if !strings.Contains(err.Error(), "json") {
+		t.Errorf("error message should mention json, got: %v", err)
+	}
+}
+
 func TestCompose_DefaultFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

@@ -366,6 +366,8 @@ compose {
 }
 ```
 
+**Note:** `store_as` requires `format:"markdown"` (the default). Using `format:"json"` with `store_as` returns an error because JSON output lacks section headers required for capsule lint.
+
 ---
 
 ## Orchestration

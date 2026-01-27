@@ -77,6 +77,11 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		return nil, errors.NewInvalidRequest("format must be one of: markdown, json")
 	}
 
+	// Reject JSON format with store_as (JSON output lacks section headers, so lint would fail)
+	if format == "json" && input.StoreAs != nil {
+		return nil, errors.NewInvalidRequest("cannot use format:\"json\" with store_as; JSON output is not a valid capsule structure")
+	}
+
 	// Fetch all capsules (all-or-nothing)
 	parts := make([]ComposePart, 0, len(input.Items))
 	for i, ref := range input.Items {

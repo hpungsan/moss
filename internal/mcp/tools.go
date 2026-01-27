@@ -289,7 +289,7 @@ var composeToolDef = mcp.NewTool("compose",
 		mcp.Enum("markdown", "json"),
 	),
 	mcp.WithObject("store_as",
-		mcp.Description("Optional: persist the composed bundle as a new capsule"),
+		mcp.Description("Optional: persist the composed bundle as a new capsule. Requires format:'markdown' (JSON lacks section headers for lint)."),
 		mcp.Properties(map[string]any{
 			"workspace": map[string]any{"type": "string", "description": "Target workspace (default: 'default')"},
 			"name":      map[string]any{"type": "string", "description": "Capsule name (required)"},

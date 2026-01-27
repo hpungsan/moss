@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -1013,6 +1014,34 @@ func TestErrorResult_InternalDoesNotExposeDetails(t *testing.T) {
 	}
 	if _, ok := errObj["details"]; ok {
 		t.Fatal("expected INTERNAL errors to omit details")
+	}
+}
+
+func TestErrorResult_WrappedErrorPreservesContext(t *testing.T) {
+	// Simulate wrapped error like compose.go does: fmt.Errorf("items[%d]: %w", i, err)
+	originalErr := errors.NewAmbiguousAddressing()
+	wrappedErr := fmt.Errorf("items[2]: %w", originalErr)
+
+	r := errorResult(wrappedErr)
+	if !r.IsError {
+		t.Fatal("expected IsError=true")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(r.Content[0].(mcp.TextContent).Text), &payload); err != nil {
+		t.Fatalf("failed to unmarshal error payload: %v", err)
+	}
+	errObj := payload["error"].(map[string]any)
+
+	// Should extract the correct code from wrapped error
+	if errObj["code"] != string(errors.ErrAmbiguousAddressing) {
+		t.Errorf("code=%v, want %v", errObj["code"], errors.ErrAmbiguousAddressing)
+	}
+
+	// Message should include the wrapper context "items[2]:"
+	msg := errObj["message"].(string)
+	if !strings.Contains(msg, "items[2]") {
+		t.Errorf("message should contain wrapper context 'items[2]', got: %s", msg)
 	}
 }
 
