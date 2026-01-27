@@ -717,6 +717,50 @@ func TestCompose_StoreAs_LintFailure(t *testing.T) {
 	}
 }
 
+func TestCompose_DuplicateReferences(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Store a capsule
+	_, err = Store(database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		Title:       stringPtr("Capsule One"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Compose with the same capsule referenced twice
+	output, err := Compose(database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+			{Workspace: "default", Name: "cap1"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	// Should produce 2 parts (duplicates allowed)
+	if output.PartsCount != 2 {
+		t.Errorf("PartsCount = %d, want 2", output.PartsCount)
+	}
+
+	// Both sections should be present
+	count := strings.Count(output.BundleText, "## Capsule One")
+	if count != 2 {
+		t.Errorf("Expected 2 occurrences of '## Capsule One', got %d", count)
+	}
+}
+
 func TestCompose_AmbiguousAddressing(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
