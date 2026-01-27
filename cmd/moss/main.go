@@ -117,6 +117,13 @@ func main() {
 		return
 	}
 
+	// Unknown argument + terminal → show error (don't start MCP server)
+	if len(os.Args) >= 2 && isTerminal() {
+		fmt.Fprintf(os.Stderr, "error: unknown command %q\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "Run 'moss --help' for usage.\n")
+		os.Exit(1)
+	}
+
 	// MCP server mode (default)
 	if err := mcp.Run(database, cfg, Version); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

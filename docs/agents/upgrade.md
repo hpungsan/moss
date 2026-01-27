@@ -4,27 +4,6 @@ Future enhancements for AI agent skills and orchestration patterns.
 
 ---
 
-## CLI Improvements
-
-### Unknown Command Handling
-
-Currently, `moss invalidcommand` falls through to MCP server mode and hangs waiting for stdin. Should show an error instead.
-
-**Current behavior:**
-```
-moss invalidcommand  # hangs (starts MCP server, waits for JSON-RPC)
-```
-
-**Expected behavior:**
-```
-moss invalidcommand  # error: unknown command "invalidcommand"
-                     # Run 'moss --help' for usage.
-```
-
-**Fix:** In `main.go`, if there's an argument that's not a known command and stdin is a terminal, show error instead of starting MCP mode.
-
----
-
 ## Skill Integrations
 
 ### PR Review → Fix Handoff
