@@ -2,7 +2,7 @@
 
 ## Summary
 
-11 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
+12 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -170,6 +170,7 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanently delete soft-deleted |
+| `compose` | Assemble multiple capsules into bundle |
 
 Each tool has a focused schema — no `action` dispatch needed.
 
@@ -222,15 +223,42 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 ## 6.3 `fetch_many`
 
-Batch fetch multiple capsules.
+Batch fetch multiple capsules in a single call. Useful for fan-in patterns where an orchestrator gathers results from parallel workers.
 
-**Required:** `items` array (each addressed by `id` OR `workspace`+`name`)
+**Required:** `items` array (max 50, each addressed by `id` OR `workspace`+`name`)
 
-**Optional:** `include_text`, `include_deleted`
+**Optional:** `include_text` (default: true), `include_deleted`
 
 **Behaviors:**
-- Partial success allowed — missing items in `errors` array
-- Each item includes `fetch_key`
+- Partial success: found items in `items` array, failures in `errors` array
+- Each item includes `fetch_key` for subsequent operations
+- Mixed addressing allowed (some by id, some by name)
+- Too many items (>50) → **400 INVALID_REQUEST**
+
+**Output:**
+```json
+{
+  "items": [
+    {
+      "id": "01J...",
+      "workspace": "default",
+      "name": "auth",
+      "title": "Auth Implementation",
+      "capsule_text": "## Objective\n...",
+      "capsule_chars": 2400,
+      "tokens_estimate": 600,
+      "fetch_key": { "moss_capsule": "auth", "moss_workspace": "default" }
+    }
+  ],
+  "errors": [
+    {
+      "ref": { "workspace": "default", "name": "missing" },
+      "code": "NOT_FOUND",
+      "message": "capsule not found: missing"
+    }
+  ]
+}
+```
 
 ---
 
@@ -309,6 +337,38 @@ Import from JSONL file.
 Permanently delete soft-deleted capsules.
 
 **Optional:** `workspace`, `older_than_days`
+
+---
+
+## 6.12 `compose`
+
+Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing.
+
+**Required:** `items` array (each addressed by `id` OR `workspace`+`name`)
+
+**Optional:** `format` ("markdown"|"json", default: "markdown"), `store_as` (persist result)
+
+**Format options:**
+- `markdown`: `## <title or name or id>\n\n<text>\n\n---\n\n...`
+- `json`: `{ "parts": [{ "id", "workspace", "name", "title", "text", "chars" }, ...] }`
+
+**Display name priority:** title > name > id
+
+**Behaviors:**
+- All-or-nothing: if any item missing → **404 NOT_FOUND**
+- Too large → **413 COMPOSE_TOO_LARGE**
+- If `store_as` provided: lint + store via `store` operation
+- `store_as.name` required when `store_as` provided
+
+**Output:**
+```json
+{
+  "bundle_text": "## cap1\n\n...\n\n---\n\n## cap2\n\n...",
+  "bundle_chars": 3241,
+  "parts_count": 2,
+  "stored": { "id": "01J...", "fetch_key": {...} }  // only if store_as
+}
+```
 
 ---
 
@@ -431,6 +491,7 @@ See section 3.2 for lint rules, section 4.2 for normalization.
 | NAME_ALREADY_EXISTS | 409 | Name collision on store with mode:"error" |
 | CAPSULE_TOO_LARGE | 413 | Exceeds `capsule_max_chars` |
 | FILE_TOO_LARGE | 413 | Import file exceeds max size limit |
+| COMPOSE_TOO_LARGE | 413 | Composed bundle exceeds `capsule_max_chars` |
 | CAPSULE_TOO_THIN | 422 | Missing required sections |
 | INTERNAL | 500 | Unexpected error |
 

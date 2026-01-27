@@ -133,6 +133,7 @@ This allows all Moss MCP tools without prompting. For finer control:
 | `export` | Export capsules to JSONL file |
 | `import` | Import capsules from JSONL file |
 | `purge` | Permanently delete soft-deleted capsules |
+| `compose` | Assemble multiple capsules into bundle |
 
 ---
 
@@ -243,7 +244,7 @@ Files are named: `<workspace>-<timestamp>.jsonl` or `all-<timestamp>.jsonl`
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./moss
 ```
 
-Expected: JSON response listing 11 tools.
+Expected: JSON response listing 12 tools.
 
 ### 2. Inventory (Empty Store)
 
@@ -305,6 +306,20 @@ fetch { "workspace": "myproject", "name": "auth" }
 fetch { "id": "01KFPRNV1JEK4F870H1K84XS6S" }
 ```
 
+### Batch Fetch Multiple Capsules
+
+```
+fetch_many {
+  "items": [
+    { "workspace": "myproject", "name": "research" },
+    { "workspace": "myproject", "name": "design" },
+    { "id": "01KFPRNV1JEK4F870H1K84XS6S" }
+  ]
+}
+```
+
+Partial success is allowed — found capsules in `items`, failures in `errors`.
+
 ### List All Capsules
 
 ```
@@ -321,6 +336,34 @@ export { "path": "/tmp/moss-backup.jsonl" }
 
 ```
 import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
+```
+
+### Compose Multiple Capsules
+
+```
+compose {
+  "items": [
+    { "workspace": "myproject", "name": "research" },
+    { "workspace": "myproject", "name": "design" }
+  ],
+  "format": "markdown"
+}
+```
+
+With optional storage:
+
+```
+compose {
+  "items": [
+    { "workspace": "myproject", "name": "research" },
+    { "workspace": "myproject", "name": "design" }
+  ],
+  "store_as": {
+    "workspace": "myproject",
+    "name": "combined",
+    "mode": "replace"
+  }
+}
 ```
 
 ---

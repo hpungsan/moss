@@ -6,55 +6,6 @@ Features and enhancements for future versions.
 
 ## Candidates
 
-### `compose` Tool
-
-Deterministic assembly of multiple capsules into one bundle.
-
-```json
-{
-  "items": [
-    { "workspace": "phinn", "name": "pr-123-base" },
-    { "workspace": "phinn", "name": "pr-123-design" }
-  ],
-  "format": "markdown",
-  "store_as": { "workspace": "phinn", "name": "pr-123-postgate", "mode": "replace" }
-}
-```
-
-**Parameters:**
-- `items` — ordered list of capsule refs (by id OR by workspace+name)
-- `format` — `"markdown"` (default) or `"json"`
-- `store_as` — optional; if provided, persists the composed output as a new capsule
-
-**Format options:**
-- `markdown`: adds `## <title or name>` headers between capsules
-- `json`: `{ "parts": [{ "name": "...", "text": "..." }, ...] }`
-
-**Behavior:**
-- Deterministic assembly (no LLM)
-- Enforce `capsule_max_chars` on output → **413 COMPOSE_TOO_LARGE** if exceeded
-- Lint only if `store_as` is provided
-- Partial failure: if any item is missing, return error (no partial compose)
-
-**Output (no store_as):**
-```json
-{
-  "bundle_text": "## pr-123-base\n\nObjective: ...\n\n---\n\n## pr-123-design\n\nObjective: ...",
-  "bundle_chars": 3241,
-  "parts_count": 2
-}
-```
-
-**Output (with store_as):**
-```json
-{
-  "bundle_text": "...",
-  "bundle_chars": 3241,
-  "parts_count": 2,
-  "stored": { "id": "01J...ULID" }
-}
-```
-
 ### Optimistic Concurrency
 
 Add `if_updated_at` to `update`:
@@ -338,7 +289,7 @@ Optional snippets/transcript refs with "expand" semantics:
 
 Pass `context.Context` through MCP handlers to ops functions. Currently handlers accept context but don't pass it to the ops layer, preventing cancellation of long-running operations (e.g., large imports).
 
-**Scope:** Modify all 11 ops functions to accept `context.Context` as first parameter, propagate to db layer.
+**Scope:** Modify all 12 ops functions to accept `context.Context` as first parameter, propagate to db layer.
 
 ### MCP Server Graceful Shutdown (HTTP Transport)
 

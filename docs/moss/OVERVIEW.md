@@ -94,5 +94,6 @@ MCP tools (one per operation):
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanently delete soft-deleted |
+| `compose` | Assemble multiple capsules into bundle |
 
 See [v1/DESIGN.md](v1/DESIGN.md) for full specification.

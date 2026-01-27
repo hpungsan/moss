@@ -982,6 +982,7 @@ func TestServerRegistration(t *testing.T) {
 		"export",
 		"import",
 		"purge",
+		"compose",
 	}
 
 	if len(tools) != len(expectedTools) {

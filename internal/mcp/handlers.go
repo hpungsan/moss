@@ -138,6 +138,27 @@ type PurgeRequest struct {
 	OlderThanDays *int    `json:"older_than_days,omitempty"`
 }
 
+// ComposeRequest represents the arguments for compose.
+type ComposeRequest struct {
+	Items   []ComposeRef    `json:"items"`
+	Format  string          `json:"format,omitempty"`
+	StoreAs *ComposeStoreAs `json:"store_as,omitempty"`
+}
+
+// ComposeRef identifies a capsule in compose.
+type ComposeRef struct {
+	ID        string `json:"id,omitempty"`
+	Workspace string `json:"workspace,omitempty"`
+	Name      string `json:"name,omitempty"`
+}
+
+// ComposeStoreAs specifies how to persist the composed bundle.
+type ComposeStoreAs struct {
+	Workspace string `json:"workspace,omitempty"`
+	Name      string `json:"name"`
+	Mode      string `json:"mode,omitempty"`
+}
+
 // Handler implementations
 
 // HandleStore handles the store tool call.
@@ -396,6 +417,49 @@ func (h *Handlers) HandlePurge(ctx context.Context, req mcp.CallToolRequest) (*m
 		Workspace:     input.Workspace,
 		OlderThanDays: input.OlderThanDays,
 	})
+	if err != nil {
+		return errorResult(err), nil
+	}
+
+	return successResult(result)
+}
+
+// HandleCompose handles the compose tool call.
+func (h *Handlers) HandleCompose(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input, err := decode[ComposeRequest](req)
+	if err != nil {
+		return errorResult(errors.NewInvalidRequest(err.Error())), nil
+	}
+
+	// Convert refs
+	refs := make([]ops.ComposeRef, len(input.Items))
+	for i, item := range input.Items {
+		refs[i] = ops.ComposeRef{
+			ID:        item.ID,
+			Workspace: item.Workspace,
+			Name:      item.Name,
+		}
+	}
+
+	// Build ops input
+	opsInput := ops.ComposeInput{
+		Items:  refs,
+		Format: input.Format,
+	}
+
+	if input.StoreAs != nil {
+		mode := ops.StoreModeError
+		if input.StoreAs.Mode == "replace" {
+			mode = ops.StoreModeReplace
+		}
+		opsInput.StoreAs = &ops.ComposeStoreAs{
+			Workspace: input.StoreAs.Workspace,
+			Name:      input.StoreAs.Name,
+			Mode:      mode,
+		}
+	}
+
+	result, err := ops.Compose(h.db, h.cfg, opsInput)
 	if err != nil {
 		return errorResult(err), nil
 	}
