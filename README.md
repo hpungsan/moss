@@ -126,6 +126,7 @@ export { "path": "/tmp/backup.jsonl" }
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanent delete |
+| `compose` | Assemble multiple capsules |
 
 ## CLI
 

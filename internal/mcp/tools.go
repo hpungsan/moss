@@ -2,7 +2,7 @@ package mcp
 
 import "github.com/mark3labs/mcp-go/mcp"
 
-// Tool definitions for all 11 Moss MCP tools.
+// Tool definitions for all 12 Moss MCP tools.
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
@@ -265,5 +265,35 @@ var purgeToolDef = mcp.NewTool("purge",
 	),
 	mcp.WithNumber("older_than_days",
 		mcp.Description("Only purge capsules deleted more than N days ago"),
+	),
+)
+
+var composeToolDef = mcp.NewTool("compose",
+	mcp.WithDescription("Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing."),
+	mcp.WithReadOnlyHintAnnotation(false), // May write if store_as provided
+	mcp.WithDestructiveHintAnnotation(false),
+	mcp.WithArray("items",
+		mcp.Required(),
+		mcp.Description("Ordered list of capsule references. Each item uses id OR (workspace+name)."),
+		mcp.Items(map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"id":        map[string]any{"type": "string", "description": "Capsule ID (ULID)"},
+				"workspace": map[string]any{"type": "string", "description": "Workspace namespace"},
+				"name":      map[string]any{"type": "string", "description": "Capsule name"},
+			},
+		}),
+	),
+	mcp.WithString("format",
+		mcp.Description("Output format: 'markdown' (default) or 'json'"),
+		mcp.Enum("markdown", "json"),
+	),
+	mcp.WithObject("store_as",
+		mcp.Description("Optional: persist the composed bundle as a new capsule. Requires format:'markdown' (JSON lacks section headers for lint)."),
+		mcp.Properties(map[string]any{
+			"workspace": map[string]any{"type": "string", "description": "Target workspace (default: 'default')"},
+			"name":      map[string]any{"type": "string", "description": "Capsule name (required)"},
+			"mode":      map[string]any{"type": "string", "enum": []string{"error", "replace"}, "description": "Collision behavior: 'error' (default) or 'replace'"},
+		}),
 	),
 )

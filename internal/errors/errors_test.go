@@ -120,6 +120,23 @@ func TestNewFileTooLarge(t *testing.T) {
 	}
 }
 
+func TestNewComposeTooLarge(t *testing.T) {
+	err := NewComposeTooLarge(12000, 15000)
+
+	if err.Code != ErrComposeTooLarge {
+		t.Errorf("Code = %q, want %q", err.Code, ErrComposeTooLarge)
+	}
+	if err.Status != 413 {
+		t.Errorf("Status = %d, want 413", err.Status)
+	}
+	if err.Details["max_chars"] != 12000 {
+		t.Errorf("Details[max_chars] = %v, want 12000", err.Details["max_chars"])
+	}
+	if err.Details["actual_chars"] != 15000 {
+		t.Errorf("Details[actual_chars] = %v, want 15000", err.Details["actual_chars"])
+	}
+}
+
 func TestNewCapsuleTooThin(t *testing.T) {
 	missing := []string{"Objective", "Next actions"}
 	err := NewCapsuleTooThin(missing)

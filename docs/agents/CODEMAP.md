@@ -29,7 +29,7 @@ moss/
 │   │   ├── decode.go              # Generic decode[T] helper for MCP requests
 │   │   ├── handlers.go            # Tool handlers calling ops functions
 │   │   ├── server.go              # NewServer, Run (stdio transport)
-│   │   └── tools.go               # 11 tool definitions with JSON schemas
+│   │   └── tools.go               # 12 tool definitions with JSON schemas
 │   └── ops/
 │       ├── ops.go                 # Address validation, FetchKey
 │       ├── store.go               # Store operation (create/replace)
@@ -42,7 +42,8 @@ moss/
 │       ├── latest.go              # Latest operation
 │       ├── export.go              # Export to JSONL
 │       ├── import.go              # Import from JSONL
-│       └── purge.go               # Purge soft-deleted capsules
+│       ├── purge.go               # Purge soft-deleted capsules
+│       └── compose.go             # Compose multiple capsules into bundle
 ├── docs/
 │   ├── moss/
 │   │   ├── OVERVIEW.md            # Concepts, use cases
@@ -72,8 +73,8 @@ moss/
 | `internal/db/` | SQLite init, schema, CRUD + browse queries, Querier interface for transactions |
 | `internal/config/` | Config loading from ~/.moss/config.json |
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/500) |
-| `internal/mcp/` | MCP server exposing 11 tools via stdio transport |
-| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge |
+| `internal/mcp/` | MCP server exposing 12 tools via stdio transport |
+| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge, Compose |
 | `docs/moss/v1/DESIGN.md` | Full v1 spec |
 
 ## Notes
