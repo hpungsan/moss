@@ -990,3 +990,99 @@ func BulkSoftDelete(ctx context.Context, db *sql.DB, filters InventoryFilters) (
 
 	return int(rowsAffected), nil
 }
+
+// BulkUpdateFields contains the fields to update in a bulk update operation.
+type BulkUpdateFields struct {
+	Phase *string
+	Role  *string
+	Tags  *[]string
+}
+
+// BulkUpdate updates metadata on all active capsules matching the given filters.
+// Only targets active capsules (deleted_at IS NULL is hardcoded).
+// Filter validation is the caller's responsibility.
+// Empty string values in fields mean "clear the field" (set to NULL).
+func BulkUpdate(ctx context.Context, db *sql.DB, filters InventoryFilters, fields BulkUpdateFields) (int, error) {
+	now := time.Now().Unix()
+
+	// Build SET clause from non-nil fields
+	var setClauses []string
+	var setArgs []any
+
+	if fields.Phase != nil {
+		if *fields.Phase == "" {
+			setClauses = append(setClauses, "phase = NULL")
+		} else {
+			setClauses = append(setClauses, "phase = ?")
+			setArgs = append(setArgs, *fields.Phase)
+		}
+	}
+	if fields.Role != nil {
+		if *fields.Role == "" {
+			setClauses = append(setClauses, "role = NULL")
+		} else {
+			setClauses = append(setClauses, "role = ?")
+			setArgs = append(setArgs, *fields.Role)
+		}
+	}
+	if fields.Tags != nil {
+		if len(*fields.Tags) == 0 {
+			setClauses = append(setClauses, "tags_json = NULL")
+		} else {
+			data, err := json.Marshal(*fields.Tags)
+			if err != nil {
+				return 0, errors.NewInternal(err)
+			}
+			setClauses = append(setClauses, "tags_json = ?")
+			setArgs = append(setArgs, string(data))
+		}
+	}
+
+	// Always include updated_at
+	setClauses = append(setClauses, "updated_at = ?")
+	setArgs = append(setArgs, now)
+
+	// Build WHERE clause from filters
+	conditions := []string{"deleted_at IS NULL"}
+	var filterArgs []any
+
+	if filters.Workspace != nil {
+		conditions = append(conditions, "workspace_norm = ?")
+		filterArgs = append(filterArgs, *filters.Workspace)
+	}
+	if filters.Tag != nil {
+		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(tags_json) WHERE value = ?)")
+		filterArgs = append(filterArgs, *filters.Tag)
+	}
+	if filters.NamePrefix != nil {
+		conditions = append(conditions, "name_norm LIKE ? ESCAPE '\\'")
+		filterArgs = append(filterArgs, escapeLikePattern(*filters.NamePrefix)+"%")
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "run_id = ?")
+		filterArgs = append(filterArgs, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "phase = ?")
+		filterArgs = append(filterArgs, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "role = ?")
+		filterArgs = append(filterArgs, *filters.Role)
+	}
+
+	query := "UPDATE capsules SET " + strings.Join(setClauses, ", ") + " WHERE " + strings.Join(conditions, " AND ")
+	args := append(setArgs, filterArgs...)
+
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, errors.NewInternal(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.NewInternal(err)
+	}
+
+	return int(rowsAffected), nil
+}

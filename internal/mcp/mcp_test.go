@@ -1166,6 +1166,98 @@ func TestHandleBulkDelete_NoFilters(t *testing.T) {
 	}
 }
 
+// TestHandleBulkUpdate tests the bulk_update handler happy path.
+func TestHandleBulkUpdate(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	h := NewHandlers(database, cfg)
+	ctx := context.Background()
+
+	// Store two capsules in target workspace
+	for i := 0; i < 2; i++ {
+		storeReq := makeRequest(map[string]any{
+			"capsule_text": validCapsuleText(),
+			"workspace":    "target",
+		})
+		if _, err := h.HandleStore(ctx, storeReq); err != nil {
+			t.Fatalf("setup store failed: %v", err)
+		}
+	}
+
+	// Bulk update target workspace
+	req := makeRequest(map[string]any{
+		"workspace": "target",
+		"set_phase": "archived",
+	})
+	result, err := h.HandleBulkUpdate(ctx, req)
+	if err != nil {
+		t.Fatalf("bulk_update handler returned error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("bulk_update failed: %v", extractErrorMessage(result))
+	}
+
+	// Verify response JSON shape
+	var output map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &output); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	updated, ok := output["updated"].(float64)
+	if !ok || updated != 2 {
+		t.Errorf("updated = %v, want 2", output["updated"])
+	}
+	message, ok := output["message"].(string)
+	if !ok || message == "" {
+		t.Error("message should be a non-empty string")
+	}
+}
+
+// TestHandleBulkUpdate_NoFilters tests that empty filters return INVALID_REQUEST.
+func TestHandleBulkUpdate_NoFilters(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	h := NewHandlers(database, cfg)
+	ctx := context.Background()
+
+	req := makeRequest(map[string]any{
+		"set_phase": "archived",
+	})
+	result, err := h.HandleBulkUpdate(ctx, req)
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result for no filters")
+	}
+
+	assertErrorCode(t, result, "INVALID_REQUEST")
+}
+
+// TestHandleBulkUpdate_NoUpdates tests that empty update fields return INVALID_REQUEST.
+func TestHandleBulkUpdate_NoUpdates(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	h := NewHandlers(database, cfg)
+	ctx := context.Background()
+
+	req := makeRequest(map[string]any{
+		"workspace": "test",
+	})
+	result, err := h.HandleBulkUpdate(ctx, req)
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result for no updates")
+	}
+
+	assertErrorCode(t, result, "INVALID_REQUEST")
+}
+
 func TestServerRegistration(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
@@ -1189,6 +1281,7 @@ func TestServerRegistration(t *testing.T) {
 		"import",
 		"purge",
 		"bulk_delete",
+		"bulk_update",
 		"compose",
 	}
 

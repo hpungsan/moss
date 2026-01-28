@@ -2,7 +2,7 @@ package mcp
 
 import "github.com/mark3labs/mcp-go/mcp"
 
-// Tool definitions for all 13 Moss MCP tools.
+// Tool definitions for all 14 Moss MCP tools.
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
@@ -289,6 +289,42 @@ var bulkDeleteToolDef = mcp.NewTool("bulk_delete",
 	),
 	mcp.WithString("role",
 		mcp.Description("Filter by agent role"),
+	),
+)
+
+var bulkUpdateToolDef = mcp.NewTool("bulk_update",
+	mcp.WithDescription("Update metadata on multiple capsules matching filters. Requires at least one filter and one update field. Only targets active capsules."),
+	mcp.WithReadOnlyHintAnnotation(false),
+	mcp.WithDestructiveHintAnnotation(true),
+	// Filter params
+	mcp.WithString("workspace",
+		mcp.Description("Filter by workspace"),
+	),
+	mcp.WithString("tag",
+		mcp.Description("Filter by tag"),
+	),
+	mcp.WithString("name_prefix",
+		mcp.Description("Filter by name prefix (normalized)"),
+	),
+	mcp.WithString("run_id",
+		mcp.Description("Filter by orchestration run ID"),
+	),
+	mcp.WithString("phase",
+		mcp.Description("Filter by workflow phase"),
+	),
+	mcp.WithString("role",
+		mcp.Description("Filter by agent role"),
+	),
+	// Update params (set_ prefix to distinguish from filter fields)
+	mcp.WithString("set_phase",
+		mcp.Description("New workflow phase (empty string clears the field)"),
+	),
+	mcp.WithString("set_role",
+		mcp.Description("New agent role (empty string clears the field)"),
+	),
+	mcp.WithArray("set_tags",
+		mcp.Description("New tags (replaces existing; empty array clears tags)"),
+		mcp.WithStringItems(),
 	),
 )
 

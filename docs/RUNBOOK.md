@@ -134,6 +134,7 @@ This allows all Moss MCP tools without prompting. For finer control:
 | `import` | Import capsules from JSONL file |
 | `purge` | Permanently delete soft-deleted capsules |
 | `bulk_delete` | Soft-delete multiple capsules by filter |
+| `bulk_update` | Update metadata on multiple capsules |
 | `compose` | Assemble multiple capsules into bundle |
 
 ---
@@ -245,7 +246,7 @@ Files are named: `<workspace>-<timestamp>.jsonl` or `all-<timestamp>.jsonl`
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./moss
 ```
 
-Expected: JSON response listing 13 tools.
+Expected: JSON response listing 14 tools.
 
 ### 2. Inventory (Empty Store)
 
@@ -397,6 +398,46 @@ At least one filter is required. Calling with no filters returns an error:
 
 ```
 bulk_delete {}
+```
+
+Expected: `isError: true` with `code: "INVALID_REQUEST"`
+
+### Bulk Update by Filter
+
+```
+bulk_update { "workspace": "myproject", "set_phase": "archived" }
+```
+
+Expected:
+```json
+{
+  "updated": 5,
+  "message": "Updated 5 capsules matching workspace=\"myproject\"; set phase=\"archived\""
+}
+```
+
+Multiple filters and updates:
+
+```
+bulk_update {
+  "workspace": "myproject",
+  "tag": "completed",
+  "set_phase": "archived",
+  "set_role": "done"
+}
+```
+
+Clear a field with empty string:
+
+```
+bulk_update { "workspace": "scratch", "set_phase": "" }
+```
+
+At least one filter AND one update field is required:
+
+```
+bulk_update { "workspace": "test" }  // Error: no update fields
+bulk_update { "set_phase": "done" }  // Error: no filters
 ```
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`

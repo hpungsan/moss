@@ -13,7 +13,7 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 - **Orchestration**: `run_id`, `phase`, `role` for multi-agent workflow scoping
 
 ## MCP Tools
-`store` `fetch` `fetch_many` `update` `delete` `list` `inventory` `latest` `export` `import` `purge` `bulk_delete` `compose`
+`store` `fetch` `fetch_many` `update` `delete` `list` `inventory` `latest` `export` `import` `purge` `bulk_delete` `bulk_update` `compose`
 
 ## Guidelines
 - MCP-first (CLI is secondary)
