@@ -1,6 +1,9 @@
 package errors
 
-import "fmt"
+import (
+	stderrors "errors"
+	"fmt"
+)
 
 // ErrorCode represents a Moss error code.
 type ErrorCode string
@@ -143,9 +146,10 @@ func NewInternal(err error) *MossError {
 	}
 }
 
-// Is checks if an error is a MossError with the given code.
+// Is checks if an error (or any wrapped error in its chain) is a MossError with the given code.
 func Is(err error, code ErrorCode) bool {
-	if mErr, ok := err.(*MossError); ok {
+	var mErr *MossError
+	if stderrors.As(err, &mErr) {
 		return mErr.Code == code
 	}
 	return false

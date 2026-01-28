@@ -254,7 +254,7 @@ Batch fetch multiple capsules in a single call. Useful for fan-in patterns where
     {
       "ref": { "workspace": "default", "name": "missing" },
       "code": "NOT_FOUND",
-      "message": "capsule not found: missing"
+      "message": "capsule not found: default/missing"
     }
   ]
 }

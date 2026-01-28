@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -410,7 +411,8 @@ func outputJSON(v any) error {
 
 // outputError formats error for CLI.
 func outputError(err error) error {
-	if mossErr, ok := err.(*errors.MossError); ok {
+	var mossErr *errors.MossError
+	if stderrors.As(err, &mossErr) {
 		return cli.Exit(fmt.Sprintf("[%s] %s", mossErr.Code, mossErr.Message), 1)
 	}
 	return cli.Exit(err.Error(), 1)

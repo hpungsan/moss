@@ -761,7 +761,7 @@ func TestCompose_DuplicateReferences(t *testing.T) {
 	}
 }
 
-func TestCompose_SnapshotConsistency(t *testing.T) {
+func TestCompose_ReadTransaction(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
 	if err != nil {

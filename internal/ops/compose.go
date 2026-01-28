@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -82,8 +83,8 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		return nil, errors.NewInvalidRequest("cannot use format:\"json\" with store_as; JSON output is not a valid capsule structure")
 	}
 
-	// Open a transaction so all reads share a single point-in-time snapshot.
-	tx, err := database.Begin()
+	// Open a read-only transaction so all reads share a single point-in-time snapshot.
+	tx, err := database.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}
@@ -107,11 +108,7 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 			c, err = db.GetByName(tx, addr.Workspace, addr.Name, false)
 		}
 		if err != nil {
-			// Return error with context about which item failed
-			if mossErr, ok := err.(*errors.MossError); ok {
-				return nil, mossErr
-			}
-			return nil, err
+			return nil, fmt.Errorf("items[%d]: %w", i, err)
 		}
 
 		// Early size check (conservative estimate without formatting overhead)

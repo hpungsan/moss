@@ -1,7 +1,9 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
+	stderrors "errors"
 	"fmt"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -73,8 +75,8 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 		includeText = *input.IncludeText
 	}
 
-	// Open a transaction so all reads share a single point-in-time snapshot.
-	tx, err := database.Begin()
+	// Open a read-only transaction so all reads share a single point-in-time snapshot.
+	tx, err := database.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}
@@ -130,12 +132,13 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 func refToError(ref FetchManyRef, err error) FetchManyError {
 	var code, message string
 
-	// Extract code and message from MossError
-	if mossErr, ok := err.(*errors.MossError); ok {
+	// Extract code and message from MossError (supports wrapped errors)
+	var mossErr *errors.MossError
+	if stderrors.As(err, &mossErr) {
 		code = string(mossErr.Code)
 		message = mossErr.Message
 	} else {
-		code = "INTERNAL_ERROR"
+		code = string(errors.ErrInternal)
 		message = err.Error()
 	}
 

@@ -207,4 +207,15 @@ func TestIs(t *testing.T) {
 			t.Error("Is() = true, want false for non-MossError")
 		}
 	})
+
+	t.Run("wrapped MossError", func(t *testing.T) {
+		inner := NewNotFound("test")
+		wrapped := fmt.Errorf("items[0]: %w", inner)
+		if !Is(wrapped, ErrNotFound) {
+			t.Error("Is() = false, want true for wrapped MossError")
+		}
+		if Is(wrapped, ErrConflict) {
+			t.Error("Is() = true, want false for wrong code on wrapped MossError")
+		}
+	})
 }
