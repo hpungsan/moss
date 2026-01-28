@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/db"
@@ -20,7 +21,7 @@ type DeleteOutput struct {
 }
 
 // Delete soft-deletes a capsule.
-func Delete(database *sql.DB, input DeleteInput) (*DeleteOutput, error) {
+func Delete(ctx context.Context, database *sql.DB, input DeleteInput) (*DeleteOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
 	if err != nil {

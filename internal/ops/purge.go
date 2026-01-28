@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -20,7 +21,7 @@ type PurgeOutput struct {
 }
 
 // Purge permanently deletes soft-deleted capsules.
-func Purge(database *sql.DB, input PurgeInput) (*PurgeOutput, error) {
+func Purge(ctx context.Context, database *sql.DB, input PurgeInput) (*PurgeOutput, error) {
 	count, err := db.PurgeDeleted(database, input.Workspace, input.OlderThanDays)
 	if err != nil {
 		return nil, err

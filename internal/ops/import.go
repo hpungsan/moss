@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
@@ -56,7 +57,7 @@ type ImportError struct {
 }
 
 // Import imports capsules from a JSONL export file.
-func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
+func Import(ctx context.Context, database *sql.DB, input ImportInput) (*ImportOutput, error) {
 	// Validate input
 	if input.Path == "" {
 		return nil, errors.NewInvalidRequest("path is required")
@@ -109,11 +110,11 @@ func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
 	// Process records based on mode
 	switch input.Mode {
 	case ImportModeError:
-		return importModeError(database, records)
+		return importModeError(ctx, database, records)
 	case ImportModeReplace:
-		return importModeReplace(database, records, parseErrors)
+		return importModeReplace(ctx, database, records, parseErrors)
 	case ImportModeRename:
-		return importModeRename(database, records, parseErrors)
+		return importModeRename(ctx, database, records, parseErrors)
 	default:
 		return nil, errors.NewInvalidRequest("invalid mode")
 	}
@@ -196,8 +197,8 @@ func parseExportFile(file *os.File) ([]capsule.ExportRecord, []ImportError) {
 }
 
 // importModeError imports all records atomically, rolling back on any collision.
-func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportOutput, error) {
-	tx, err := database.Begin()
+func importModeError(ctx context.Context, database *sql.DB, records []capsule.ExportRecord) (*ImportOutput, error) {
+	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}
@@ -275,8 +276,8 @@ func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportO
 // Atomic: all records succeed or none. If any errors occur (parse errors or
 // ambiguous collisions), the entire transaction is rolled back and all errors
 // are returned so the user can fix their export file and retry.
-func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
-	tx, err := database.Begin()
+func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
+	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}
@@ -371,8 +372,8 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 // Atomic: all records succeed or none. If any errors occur (parse errors,
 // rename failures, or insert failures), the entire transaction is rolled back
 // and all errors are returned so the user can fix their export file and retry.
-func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
-	tx, err := database.Begin()
+func importModeRename(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
+	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}

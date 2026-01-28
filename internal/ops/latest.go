@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -30,7 +31,7 @@ type LatestItem struct {
 }
 
 // Latest retrieves the most recent capsule in a workspace.
-func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
+func Latest(ctx context.Context, database *sql.DB, input LatestInput) (*LatestOutput, error) {
 	// Normalize workspace
 	workspace := capsule.Normalize(input.Workspace)
 	if workspace == "" {

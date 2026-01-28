@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -92,7 +93,7 @@ func TestImport_HappyPath_ModeError(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -146,7 +147,7 @@ func TestImport_SkipsHeader(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{Path: exportPath})
+	output, err := Import(context.Background(), database, ImportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}
@@ -183,7 +184,7 @@ func TestImport_RecomputesNorms(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	_, err = Import(database, ImportInput{Path: exportPath})
+	_, err = Import(context.Background(), database, ImportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}
@@ -239,7 +240,7 @@ func TestImport_ModeError_RollsBackOnIDCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -296,7 +297,7 @@ func TestImport_ModeError_RollsBackOnNameCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -340,7 +341,7 @@ func TestImport_ModeReplace_UpdatesOnIDCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -393,7 +394,7 @@ func TestImport_ModeReplace_UpdatesOnNameCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -456,7 +457,7 @@ func TestImport_ModeReplace_IgnoresDeletedNameCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -534,7 +535,7 @@ func TestImport_ModeReplace_ErrorsOnAmbiguousCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -602,7 +603,7 @@ func TestImport_ModeReplace_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -678,7 +679,7 @@ func TestImport_ModeRename_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeRename,
 	})
@@ -735,7 +736,7 @@ func TestImport_ModeRename_AutoSuffixesName(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeRename,
 	})
@@ -790,7 +791,7 @@ func TestImport_ModeRename_GeneratesNewIDOnCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeRename,
 	})
@@ -844,7 +845,7 @@ func TestImport_FileNotFound(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Import(database, ImportInput{
+	_, err = Import(context.Background(), database, ImportInput{
 		Path: filepath.Join(tmpDir, "nonexistent.jsonl"),
 	})
 	if !errors.Is(err, errors.ErrNotFound) {
@@ -874,7 +875,7 @@ func TestImport_MalformedJSON_ModeError(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -913,7 +914,7 @@ func TestImport_MissingWorkspaceRaw_ModeError(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -960,7 +961,7 @@ func TestImport_EmptyCapsuleText_ModeError(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -1015,7 +1016,7 @@ func TestImport_RoundTrip(t *testing.T) {
 
 	// Export
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	exportOut, err := Export(database, ExportInput{Path: exportPath})
+	exportOut, err := Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -1044,7 +1045,7 @@ func TestImport_RoundTrip(t *testing.T) {
 	}
 
 	// Import
-	importOut, err := Import(database, ImportInput{Path: exportPath})
+	importOut, err := Import(context.Background(), database, ImportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}
@@ -1114,7 +1115,7 @@ func TestImport_DefaultsToModeError(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		// Mode not specified, should default to error
 	})
@@ -1139,7 +1140,7 @@ func TestImport_InvalidMode(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Import(database, ImportInput{
+	_, err = Import(context.Background(), database, ImportInput{
 		Path: filepath.Join(tmpDir, "any.jsonl"),
 		Mode: "invalid",
 	})
@@ -1156,7 +1157,7 @@ func TestImport_PathRequired(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Import(database, ImportInput{})
+	_, err = Import(context.Background(), database, ImportInput{})
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("Import should return ErrInvalidRequest, got: %v", err)
 	}
@@ -1181,7 +1182,7 @@ func TestImport_PathTraversalRejected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Import(database, ImportInput{Path: tt.path})
+			_, err := Import(context.Background(), database, ImportInput{Path: tt.path})
 			if !errors.Is(err, errors.ErrInvalidRequest) {
 				t.Errorf("Import(%q) should return ErrInvalidRequest for traversal, got: %v", tt.path, err)
 			}
@@ -1208,7 +1209,7 @@ func TestImport_RequiresJSONLExtension(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Import(database, ImportInput{Path: tt.path})
+			_, err := Import(context.Background(), database, ImportInput{Path: tt.path})
 			if !errors.Is(err, errors.ErrInvalidRequest) {
 				t.Errorf("Import(%q) should return ErrInvalidRequest for non-.jsonl, got: %v", tt.path, err)
 			}

@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -35,7 +36,7 @@ type UpdateOutput struct {
 }
 
 // Update modifies an existing capsule.
-func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOutput, error) {
+func Update(ctx context.Context, database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
 	if err != nil {

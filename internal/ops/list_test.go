@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -19,7 +20,7 @@ func TestList_HappyPath(t *testing.T) {
 
 	// Store 3 capsules
 	for _, name := range []string{"cap1", "cap2", "cap3"} {
-		_, err := Store(database, cfg, StoreInput{
+		_, err := Store(context.Background(), database, cfg, StoreInput{
 			Workspace:   "default",
 			Name:        stringPtr(name),
 			CapsuleText: validCapsuleText,
@@ -30,7 +31,7 @@ func TestList_HappyPath(t *testing.T) {
 	}
 
 	// List
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -62,7 +63,7 @@ func TestList_DefaultWorkspace(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store in default workspace
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
@@ -70,7 +71,7 @@ func TestList_DefaultWorkspace(t *testing.T) {
 	}
 
 	// List with empty workspace (should default to "default")
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace: "",
 	})
 	if err != nil {
@@ -94,7 +95,7 @@ func TestList_Pagination(t *testing.T) {
 
 	// Store 5 capsules
 	for i := 0; i < 5; i++ {
-		_, err := Store(database, cfg, StoreInput{
+		_, err := Store(context.Background(), database, cfg, StoreInput{
 			Workspace:   "default",
 			CapsuleText: validCapsuleText,
 		})
@@ -104,7 +105,7 @@ func TestList_Pagination(t *testing.T) {
 	}
 
 	// Get first page
-	page1, err := List(database, ListInput{
+	page1, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 		Limit:     2,
 		Offset:    0,
@@ -130,7 +131,7 @@ func TestList_Pagination(t *testing.T) {
 	}
 
 	// Get second page
-	page2, err := List(database, ListInput{
+	page2, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 		Limit:     2,
 		Offset:    2,
@@ -147,7 +148,7 @@ func TestList_Pagination(t *testing.T) {
 	}
 
 	// Get third page
-	page3, err := List(database, ListInput{
+	page3, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 		Limit:     2,
 		Offset:    4,
@@ -173,7 +174,7 @@ func TestList_LimitBounds(t *testing.T) {
 	defer database.Close()
 
 	// Test default limit (when 0 or negative)
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 		Limit:     0,
 	})
@@ -185,7 +186,7 @@ func TestList_LimitBounds(t *testing.T) {
 	}
 
 	// Test max limit (when exceeds max)
-	output, err = List(database, ListInput{
+	output, err = List(context.Background(), database, ListInput{
 		Workspace: "default",
 		Limit:     1000,
 	})
@@ -205,7 +206,7 @@ func TestList_EmptyWorkspace(t *testing.T) {
 	}
 	defer database.Close()
 
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace: "empty",
 	})
 	if err != nil {
@@ -238,7 +239,7 @@ func TestList_ReturnsSummaries(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
@@ -249,7 +250,7 @@ func TestList_ReturnsSummaries(t *testing.T) {
 	}
 
 	// List and verify summary fields
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -289,7 +290,7 @@ func TestList_IncludeDeleted(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store and delete a capsule
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -301,7 +302,7 @@ func TestList_IncludeDeleted(t *testing.T) {
 	}
 
 	// Store active capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -310,7 +311,7 @@ func TestList_IncludeDeleted(t *testing.T) {
 	}
 
 	// Without includeDeleted
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace:      "default",
 		IncludeDeleted: false,
 	})
@@ -322,7 +323,7 @@ func TestList_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted
-	output, err = List(database, ListInput{
+	output, err = List(context.Background(), database, ListInput{
 		Workspace:      "default",
 		IncludeDeleted: true,
 	})
@@ -343,7 +344,7 @@ func TestList_NegativeOffset(t *testing.T) {
 	defer database.Close()
 
 	// Negative offset should be treated as 0
-	output, err := List(database, ListInput{
+	output, err := List(context.Background(), database, ListInput{
 		Workspace: "default",
 		Offset:    -10,
 	})

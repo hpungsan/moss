@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ func TestPurge_AllDeleted(t *testing.T) {
 	}
 
 	// Purge all deleted
-	output, err := Purge(database, PurgeInput{})
+	output, err := Purge(context.Background(), database, PurgeInput{})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestPurge_WorkspaceFilter(t *testing.T) {
 
 	// Purge only target workspace
 	ws := "target"
-	output, err := Purge(database, PurgeInput{Workspace: &ws})
+	output, err := Purge(context.Background(), database, PurgeInput{Workspace: &ws})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestPurge_OlderThanDays(t *testing.T) {
 
 	// Purge capsules deleted more than 7 days ago
 	days := 7
-	output, err := Purge(database, PurgeInput{OlderThanDays: &days})
+	output, err := Purge(context.Background(), database, PurgeInput{OlderThanDays: &days})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -190,7 +191,7 @@ func TestPurge_CombinedFilters(t *testing.T) {
 	// Purge only ws1, older than 7 days
 	ws := "ws1"
 	days := 7
-	output, err := Purge(database, PurgeInput{Workspace: &ws, OlderThanDays: &days})
+	output, err := Purge(context.Background(), database, PurgeInput{Workspace: &ws, OlderThanDays: &days})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -226,7 +227,7 @@ func TestPurge_NoDeleted(t *testing.T) {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	output, err := Purge(database, PurgeInput{})
+	output, err := Purge(context.Background(), database, PurgeInput{})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -255,7 +256,7 @@ func TestPurge_DoesNotAffectActive(t *testing.T) {
 		}
 	}
 
-	output, err := Purge(database, PurgeInput{})
+	output, err := Purge(context.Background(), database, PurgeInput{})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -282,7 +283,7 @@ func TestPurge_NegativeOlderThanDays(t *testing.T) {
 	defer database.Close()
 
 	negativeDays := -1
-	_, err = Purge(database, PurgeInput{
+	_, err = Purge(context.Background(), database, PurgeInput{
 		OlderThanDays: &negativeDays,
 	})
 	if err == nil {

@@ -59,7 +59,7 @@ type ComposeBundle struct {
 
 // Compose assembles multiple capsules into a single bundle.
 // All-or-nothing: fails if any capsule is missing.
-func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*ComposeOutput, error) {
+func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input ComposeInput) (*ComposeOutput, error) {
 	// Validate items count
 	if len(input.Items) == 0 {
 		return nil, errors.NewInvalidRequest("items is required and must not be empty")
@@ -84,7 +84,7 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 	}
 
 	// Open a read-only transaction so all reads share a single point-in-time snapshot.
-	tx, err := database.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	tx, err := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}
@@ -176,7 +176,7 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 			return nil, errors.NewInvalidRequest("store_as.name is required")
 		}
 
-		storeResult, err := Store(database, cfg, StoreInput{
+		storeResult, err := Store(ctx, database, cfg, StoreInput{
 			Workspace:   input.StoreAs.Workspace,
 			Name:        &input.StoreAs.Name,
 			CapsuleText: bundleText,

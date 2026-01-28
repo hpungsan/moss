@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -19,7 +20,7 @@ func TestFetch_ByID(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule first
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
@@ -31,7 +32,7 @@ func TestFetch_ByID(t *testing.T) {
 
 	// Fetch by ID
 	includeText := true
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		ID:          storeOutput.ID,
 		IncludeText: &includeText,
 	})
@@ -61,7 +62,7 @@ func TestFetch_ByName(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule first
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "myworkspace",
 		Name:        stringPtr("auth"),
 		CapsuleText: validCapsuleText,
@@ -72,7 +73,7 @@ func TestFetch_ByName(t *testing.T) {
 
 	// Fetch by name
 	includeText := true
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		Workspace:   "myworkspace",
 		Name:        "auth",
 		IncludeText: &includeText,
@@ -100,7 +101,7 @@ func TestFetch_ByName_DefaultWorkspace(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store in default workspace
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -110,7 +111,7 @@ func TestFetch_ByName_DefaultWorkspace(t *testing.T) {
 
 	// Fetch without specifying workspace
 	includeText := true
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		Name:        "test",
 		IncludeText: &includeText,
 	})
@@ -131,7 +132,7 @@ func TestFetch_NotFound_ByID(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Fetch(database, FetchInput{
+	_, err = Fetch(context.Background(), database, FetchInput{
 		ID: "nonexistent",
 	})
 	if !errors.Is(err, errors.ErrNotFound) {
@@ -147,7 +148,7 @@ func TestFetch_NotFound_ByName(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Fetch(database, FetchInput{
+	_, err = Fetch(context.Background(), database, FetchInput{
 		Workspace: "default",
 		Name:      "nonexistent",
 	})
@@ -164,7 +165,7 @@ func TestFetch_AmbiguousAddressing(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Fetch(database, FetchInput{
+	_, err = Fetch(context.Background(), database, FetchInput{
 		ID:   "some-id",
 		Name: "some-name",
 	})
@@ -184,7 +185,7 @@ func TestFetch_IncludeText_False(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -194,7 +195,7 @@ func TestFetch_IncludeText_False(t *testing.T) {
 
 	// Fetch without text
 	includeText := false
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		ID:          storeOutput.ID,
 		IncludeText: &includeText,
 	})
@@ -225,7 +226,7 @@ func TestFetch_IncludeDeleted(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store and delete a capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("deleted-test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -238,7 +239,7 @@ func TestFetch_IncludeDeleted(t *testing.T) {
 	}
 
 	// Fetch without include_deleted should fail
-	_, err = Fetch(database, FetchInput{
+	_, err = Fetch(context.Background(), database, FetchInput{
 		ID:             storeOutput.ID,
 		IncludeDeleted: false,
 	})
@@ -247,7 +248,7 @@ func TestFetch_IncludeDeleted(t *testing.T) {
 	}
 
 	// Fetch with include_deleted should succeed
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		ID:             storeOutput.ID,
 		IncludeDeleted: true,
 	})
@@ -273,7 +274,7 @@ func TestFetch_UnnamedCapsule_FetchKey(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store unnamed capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
@@ -282,7 +283,7 @@ func TestFetch_UnnamedCapsule_FetchKey(t *testing.T) {
 
 	// Fetch
 	includeText := true
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		ID:          storeOutput.ID,
 		IncludeText: &includeText,
 	})
@@ -310,7 +311,7 @@ func TestFetch_DefaultsToIncludeText(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule first
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -319,7 +320,7 @@ func TestFetch_DefaultsToIncludeText(t *testing.T) {
 	}
 
 	// Fetch without IncludeText set should include text by default
-	output, err := Fetch(database, FetchInput{
+	output, err := Fetch(context.Background(), database, FetchInput{
 		ID: storeOutput.ID,
 	})
 	if err != nil {

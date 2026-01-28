@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -19,7 +20,7 @@ func TestDelete_ByID(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -28,7 +29,7 @@ func TestDelete_ByID(t *testing.T) {
 	}
 
 	// Delete by ID
-	output, err := Delete(database, DeleteInput{
+	output, err := Delete(context.Background(), database, DeleteInput{
 		ID: storeOutput.ID,
 	})
 	if err != nil {
@@ -43,7 +44,7 @@ func TestDelete_ByID(t *testing.T) {
 	}
 
 	// Verify capsule is no longer accessible
-	_, err = Fetch(database, FetchInput{ID: storeOutput.ID, IncludeDeleted: false})
+	_, err = Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeDeleted: false})
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("Fetch after delete should return ErrNotFound, got: %v", err)
 	}
@@ -60,7 +61,7 @@ func TestDelete_ByName(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "myworkspace",
 		Name:        stringPtr("auth"),
 		CapsuleText: validCapsuleText,
@@ -70,7 +71,7 @@ func TestDelete_ByName(t *testing.T) {
 	}
 
 	// Delete by name
-	output, err := Delete(database, DeleteInput{
+	output, err := Delete(context.Background(), database, DeleteInput{
 		Workspace: "myworkspace",
 		Name:      "auth",
 	})
@@ -94,7 +95,7 @@ func TestDelete_NotFound_ByID(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Delete(database, DeleteInput{
+	_, err = Delete(context.Background(), database, DeleteInput{
 		ID: "nonexistent",
 	})
 	if !errors.Is(err, errors.ErrNotFound) {
@@ -110,7 +111,7 @@ func TestDelete_NotFound_ByName(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Delete(database, DeleteInput{
+	_, err = Delete(context.Background(), database, DeleteInput{
 		Workspace: "default",
 		Name:      "nonexistent",
 	})
@@ -127,7 +128,7 @@ func TestDelete_AmbiguousAddressing(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Delete(database, DeleteInput{
+	_, err = Delete(context.Background(), database, DeleteInput{
 		ID:   "some-id",
 		Name: "some-name",
 	})
@@ -147,20 +148,20 @@ func TestDelete_AlreadyDeleted(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store and delete
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	_, err = Delete(database, DeleteInput{ID: storeOutput.ID})
+	_, err = Delete(context.Background(), database, DeleteInput{ID: storeOutput.ID})
 	if err != nil {
 		t.Fatalf("First Delete failed: %v", err)
 	}
 
 	// Try to delete again
-	_, err = Delete(database, DeleteInput{ID: storeOutput.ID})
+	_, err = Delete(context.Background(), database, DeleteInput{ID: storeOutput.ID})
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("Second Delete should return ErrNotFound, got: %v", err)
 	}
@@ -177,7 +178,7 @@ func TestDelete_NameSlotFreed(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store with name
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("reusable"),
 		CapsuleText: validCapsuleText,
 	})
@@ -186,13 +187,13 @@ func TestDelete_NameSlotFreed(t *testing.T) {
 	}
 
 	// Delete
-	_, err = Delete(database, DeleteInput{ID: storeOutput.ID})
+	_, err = Delete(context.Background(), database, DeleteInput{ID: storeOutput.ID})
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
 	// Store with same name should succeed
-	storeOutput2, err := Store(database, cfg, StoreInput{
+	storeOutput2, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("reusable"),
 		CapsuleText: validCapsuleText,
 	})
@@ -217,7 +218,7 @@ func TestDelete_DefaultWorkspace(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store in default workspace
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -226,7 +227,7 @@ func TestDelete_DefaultWorkspace(t *testing.T) {
 	}
 
 	// Delete without specifying workspace (should default to "default")
-	output, err := Delete(database, DeleteInput{
+	output, err := Delete(context.Background(), database, DeleteInput{
 		Name: "test",
 	})
 	if err != nil {

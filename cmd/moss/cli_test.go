@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"os"
@@ -243,7 +244,7 @@ func TestCLIFetch(t *testing.T) {
 
 	// Store a capsule first
 	name := "fetch-test"
-	storeOutput, err := ops.Store(database, cfg, ops.StoreInput{
+	storeOutput, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 		Workspace:   "default",
 		Name:        &name,
 		CapsuleText: validCapsuleText(),
@@ -316,7 +317,7 @@ func TestCLIList(t *testing.T) {
 	// Store some capsules
 	for i := range 3 {
 		name := "list-test-" + string(rune('a'+i))
-		_, err := ops.Store(database, cfg, ops.StoreInput{
+		_, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 			Workspace:   "default",
 			Name:        &name,
 			CapsuleText: validCapsuleText(),
@@ -364,7 +365,7 @@ func TestCLIDelete(t *testing.T) {
 
 	// Store a capsule first
 	name := "delete-test"
-	storeOutput, err := ops.Store(database, cfg, ops.StoreInput{
+	storeOutput, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 		Workspace:   "default",
 		Name:        &name,
 		CapsuleText: validCapsuleText(),
@@ -411,7 +412,7 @@ func TestCLILatest(t *testing.T) {
 
 	// Store a capsule
 	name := "latest-test"
-	_, err := ops.Store(database, cfg, ops.StoreInput{
+	_, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 		Workspace:   "default",
 		Name:        &name,
 		CapsuleText: validCapsuleText(),
@@ -459,7 +460,7 @@ func TestCLIExportImport(t *testing.T) {
 	// Store some capsules
 	for i := range 2 {
 		name := "export-test-" + string(rune('a'+i))
-		_, err := ops.Store(database, cfg, ops.StoreInput{
+		_, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 			Workspace:   "default",
 			Name:        &name,
 			CapsuleText: validCapsuleText(),
@@ -543,7 +544,7 @@ func TestCLIPurge(t *testing.T) {
 
 	// Store and delete a capsule
 	name := "purge-test"
-	storeOutput, err := ops.Store(database, cfg, ops.StoreInput{
+	storeOutput, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 		Workspace:   "default",
 		Name:        &name,
 		CapsuleText: validCapsuleText(),
@@ -552,7 +553,7 @@ func TestCLIPurge(t *testing.T) {
 		t.Fatalf("failed to store test capsule: %v", err)
 	}
 
-	_, err = ops.Delete(database, ops.DeleteInput{ID: storeOutput.ID})
+	_, err = ops.Delete(context.Background(), database, ops.DeleteInput{ID: storeOutput.ID})
 	if err != nil {
 		t.Fatalf("failed to delete test capsule: %v", err)
 	}
@@ -595,7 +596,7 @@ func TestCLIInventory(t *testing.T) {
 	workspaces := []string{"ws1", "ws2"}
 	for _, ws := range workspaces {
 		name := "inv-" + ws
-		_, err := ops.Store(database, cfg, ops.StoreInput{
+		_, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 			Workspace:   ws,
 			Name:        &name,
 			CapsuleText: validCapsuleText(),
@@ -668,7 +669,7 @@ func TestCLIUpdate(t *testing.T) {
 
 	// Store a capsule first
 	name := "update-test"
-	storeOutput, err := ops.Store(database, cfg, ops.StoreInput{
+	storeOutput, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 		Workspace:   "default",
 		Name:        &name,
 		CapsuleText: validCapsuleText(),
@@ -704,7 +705,7 @@ func TestCLIUpdate(t *testing.T) {
 	}
 
 	// Verify the update
-	fetchOutput, err := ops.Fetch(database, ops.FetchInput{ID: storeOutput.ID})
+	fetchOutput, err := ops.Fetch(context.Background(), database, ops.FetchInput{ID: storeOutput.ID})
 	if err != nil {
 		t.Fatalf("failed to fetch updated capsule: %v", err)
 	}
@@ -722,7 +723,7 @@ func TestCLIUpdateWithStdin(t *testing.T) {
 	// Store a capsule first
 	name := "stdin-update-test"
 	originalText := validCapsuleText()
-	storeOutput, err := ops.Store(database, cfg, ops.StoreInput{
+	storeOutput, err := ops.Store(context.Background(), database, cfg, ops.StoreInput{
 		Workspace:   "default",
 		Name:        &name,
 		CapsuleText: originalText,
@@ -789,7 +790,7 @@ None remaining`
 	}
 
 	// Verify the capsule content was updated
-	fetchOutput, err := ops.Fetch(database, ops.FetchInput{ID: storeOutput.ID})
+	fetchOutput, err := ops.Fetch(context.Background(), database, ops.FetchInput{ID: storeOutput.ID})
 	if err != nil {
 		t.Fatalf("failed to fetch updated capsule: %v", err)
 	}

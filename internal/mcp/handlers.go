@@ -175,7 +175,7 @@ func (h *Handlers) HandleStore(ctx context.Context, req mcp.CallToolRequest) (*m
 		mode = ops.StoreModeReplace
 	}
 
-	result, err := ops.Store(h.db, h.cfg, ops.StoreInput{
+	result, err := ops.Store(ctx, h.db, h.cfg, ops.StoreInput{
 		Workspace:   input.Workspace,
 		Name:        input.Name,
 		Title:       input.Title,
@@ -202,7 +202,7 @@ func (h *Handlers) HandleFetch(ctx context.Context, req mcp.CallToolRequest) (*m
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Fetch(h.db, ops.FetchInput{
+	result, err := ops.Fetch(ctx, h.db, ops.FetchInput{
 		ID:             input.ID,
 		Workspace:      input.Workspace,
 		Name:           input.Name,
@@ -233,7 +233,7 @@ func (h *Handlers) HandleFetchMany(ctx context.Context, req mcp.CallToolRequest)
 		}
 	}
 
-	result, err := ops.FetchMany(h.db, ops.FetchManyInput{
+	result, err := ops.FetchMany(ctx, h.db, ops.FetchManyInput{
 		Items:          refs,
 		IncludeText:    input.IncludeText,
 		IncludeDeleted: input.IncludeDeleted,
@@ -252,7 +252,7 @@ func (h *Handlers) HandleUpdate(ctx context.Context, req mcp.CallToolRequest) (*
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Update(h.db, h.cfg, ops.UpdateInput{
+	result, err := ops.Update(ctx, h.db, h.cfg, ops.UpdateInput{
 		ID:          input.ID,
 		Workspace:   input.Workspace,
 		Name:        input.Name,
@@ -279,7 +279,7 @@ func (h *Handlers) HandleDelete(ctx context.Context, req mcp.CallToolRequest) (*
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Delete(h.db, ops.DeleteInput{
+	result, err := ops.Delete(ctx, h.db, ops.DeleteInput{
 		ID:        input.ID,
 		Workspace: input.Workspace,
 		Name:      input.Name,
@@ -298,7 +298,7 @@ func (h *Handlers) HandleLatest(ctx context.Context, req mcp.CallToolRequest) (*
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Latest(h.db, ops.LatestInput{
+	result, err := ops.Latest(ctx, h.db, ops.LatestInput{
 		Workspace:      input.Workspace,
 		RunID:          input.RunID,
 		Phase:          input.Phase,
@@ -320,7 +320,7 @@ func (h *Handlers) HandleList(ctx context.Context, req mcp.CallToolRequest) (*mc
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.List(h.db, ops.ListInput{
+	result, err := ops.List(ctx, h.db, ops.ListInput{
 		Workspace:      input.Workspace,
 		RunID:          input.RunID,
 		Phase:          input.Phase,
@@ -343,7 +343,7 @@ func (h *Handlers) HandleInventory(ctx context.Context, req mcp.CallToolRequest)
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Inventory(h.db, ops.InventoryInput{
+	result, err := ops.Inventory(ctx, h.db, ops.InventoryInput{
 		Workspace:      input.Workspace,
 		Tag:            input.Tag,
 		NamePrefix:     input.NamePrefix,
@@ -368,7 +368,7 @@ func (h *Handlers) HandleExport(ctx context.Context, req mcp.CallToolRequest) (*
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Export(h.db, ops.ExportInput{
+	result, err := ops.Export(ctx, h.db, ops.ExportInput{
 		Path:           input.Path,
 		Workspace:      input.Workspace,
 		IncludeDeleted: input.IncludeDeleted,
@@ -396,7 +396,7 @@ func (h *Handlers) HandleImport(ctx context.Context, req mcp.CallToolRequest) (*
 		mode = ops.ImportModeRename
 	}
 
-	result, err := ops.Import(h.db, ops.ImportInput{
+	result, err := ops.Import(ctx, h.db, ops.ImportInput{
 		Path: input.Path,
 		Mode: mode,
 	})
@@ -414,7 +414,7 @@ func (h *Handlers) HandlePurge(ctx context.Context, req mcp.CallToolRequest) (*m
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Purge(h.db, ops.PurgeInput{
+	result, err := ops.Purge(ctx, h.db, ops.PurgeInput{
 		Workspace:     input.Workspace,
 		OlderThanDays: input.OlderThanDays,
 	})
@@ -460,7 +460,7 @@ func (h *Handlers) HandleCompose(ctx context.Context, req mcp.CallToolRequest) (
 		}
 	}
 
-	result, err := ops.Compose(h.db, h.cfg, opsInput)
+	result, err := ops.Compose(ctx, h.db, h.cfg, opsInput)
 	if err != nil {
 		return errorResult(err), nil
 	}

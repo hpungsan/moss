@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -51,7 +52,7 @@ func TestStore_HappyPath_Named(t *testing.T) {
 		Source:      stringPtr("test"),
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -84,7 +85,7 @@ func TestStore_HappyPath_Unnamed(t *testing.T) {
 		CapsuleText: validCapsuleText,
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestStore_DefaultWorkspace(t *testing.T) {
 		CapsuleText: validCapsuleText,
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -142,7 +143,7 @@ func TestStore_CapsuleTextRequired(t *testing.T) {
 		// CapsuleText missing
 	}
 
-	_, err = Store(database, cfg, input)
+	_, err = Store(context.Background(), database, cfg, input)
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("Store should return ErrInvalidRequest, got: %v", err)
 	}
@@ -165,7 +166,7 @@ func TestStore_TooLarge(t *testing.T) {
 		AllowThin:   true, // Bypass section check to isolate size check
 	}
 
-	_, err = Store(database, cfg, input)
+	_, err = Store(context.Background(), database, cfg, input)
 	if !errors.Is(err, errors.ErrCapsuleTooLarge) {
 		t.Errorf("Store should return ErrCapsuleTooLarge, got: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestStore_TooThin(t *testing.T) {
 		AllowThin:   false,
 	}
 
-	_, err = Store(database, cfg, input)
+	_, err = Store(context.Background(), database, cfg, input)
 	if !errors.Is(err, errors.ErrCapsuleTooThin) {
 		t.Errorf("Store should return ErrCapsuleTooThin, got: %v", err)
 	}
@@ -209,7 +210,7 @@ func TestStore_AllowThin(t *testing.T) {
 		AllowThin:   true,
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store with AllowThin should succeed: %v", err)
 	}
@@ -236,13 +237,13 @@ func TestStore_NameCollision_ModeError(t *testing.T) {
 		Mode:        StoreModeError,
 	}
 
-	_, err = Store(database, cfg, input)
+	_, err = Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("First Store failed: %v", err)
 	}
 
 	// Second store with same name
-	_, err = Store(database, cfg, input)
+	_, err = Store(context.Background(), database, cfg, input)
 	if !errors.Is(err, errors.ErrNameAlreadyExists) {
 		t.Errorf("Store should return ErrNameAlreadyExists, got: %v", err)
 	}
@@ -266,7 +267,7 @@ func TestStore_NameCollision_ModeReplace(t *testing.T) {
 		Tags:        []string{"v1"},
 	}
 
-	output1, err := Store(database, cfg, input)
+	output1, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("First Store failed: %v", err)
 	}
@@ -276,7 +277,7 @@ func TestStore_NameCollision_ModeReplace(t *testing.T) {
 	input.Tags = []string{"v2"}
 	input.Mode = StoreModeReplace
 
-	output2, err := Store(database, cfg, input)
+	output2, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Second Store with mode:replace failed: %v", err)
 	}
@@ -324,7 +325,7 @@ func TestStore_NameCollision_ModeReplace_Concurrent(t *testing.T) {
 				Tags:        []string{"concurrent"},
 				Mode:        StoreModeReplace,
 			}
-			output, err := Store(database, cfg, input)
+			output, err := Store(context.Background(), database, cfg, input)
 			if err != nil {
 				errChan <- err
 				return
@@ -388,7 +389,7 @@ func TestStore_TitleDefaultsToName(t *testing.T) {
 		// Title not provided
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -419,7 +420,7 @@ func TestStore_ExplicitTitle(t *testing.T) {
 		CapsuleText: validCapsuleText,
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -450,7 +451,7 @@ func TestStore_NormalizesWorkspaceAndName(t *testing.T) {
 		CapsuleText: validCapsuleText,
 	}
 
-	output, err := Store(database, cfg, input)
+	output, err := Store(context.Background(), database, cfg, input)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}

@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 
@@ -29,7 +30,7 @@ type InventoryOutput struct {
 }
 
 // Inventory retrieves capsule summaries across all workspaces with optional filters.
-func Inventory(database *sql.DB, input InventoryInput) (*InventoryOutput, error) {
+func Inventory(ctx context.Context, database *sql.DB, input InventoryInput) (*InventoryOutput, error) {
 	// Normalize filters if present
 	var filters db.InventoryFilters
 	if input.Workspace != nil {

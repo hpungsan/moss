@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -18,7 +19,7 @@ func TestLatest_HappyPath(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
@@ -28,7 +29,7 @@ func TestLatest_HappyPath(t *testing.T) {
 	}
 
 	// Latest
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -54,7 +55,7 @@ func TestLatest_DefaultWorkspace(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store in default workspace
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
@@ -62,7 +63,7 @@ func TestLatest_DefaultWorkspace(t *testing.T) {
 	}
 
 	// Latest with empty workspace
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "",
 	})
 	if err != nil {
@@ -88,7 +89,7 @@ func TestLatest_ReturnsSummaryByDefault(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
@@ -99,7 +100,7 @@ func TestLatest_ReturnsSummaryByDefault(t *testing.T) {
 	}
 
 	// Latest without include_text (default: false)
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -139,7 +140,7 @@ func TestLatest_IncludeText(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -149,7 +150,7 @@ func TestLatest_IncludeText(t *testing.T) {
 
 	// Latest with include_text=true
 	includeText := true
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace:   "default",
 		IncludeText: &includeText,
 	})
@@ -176,7 +177,7 @@ func TestLatest_IncludeTextFalse(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -186,7 +187,7 @@ func TestLatest_IncludeTextFalse(t *testing.T) {
 
 	// Latest with include_text=false
 	includeText := false
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace:   "default",
 		IncludeText: &includeText,
 	})
@@ -211,7 +212,7 @@ func TestLatest_EmptyWorkspace(t *testing.T) {
 	defer database.Close()
 
 	// Latest on empty workspace
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "empty",
 	})
 	if err != nil {
@@ -236,7 +237,7 @@ func TestLatest_ReturnsMostRecent(t *testing.T) {
 	// Store 3 capsules and track their IDs
 	storedIDs := make(map[string]bool)
 	for _, name := range []string{"first", "second", "third"} {
-		stored, err := Store(database, cfg, StoreInput{
+		stored, err := Store(context.Background(), database, cfg, StoreInput{
 			Workspace:   "default",
 			Name:        stringPtr(name),
 			CapsuleText: validCapsuleText,
@@ -248,7 +249,7 @@ func TestLatest_ReturnsMostRecent(t *testing.T) {
 	}
 
 	// Latest should return one of the stored capsules (the most recent by updated_at, id)
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -263,7 +264,7 @@ func TestLatest_ReturnsMostRecent(t *testing.T) {
 	}
 
 	// Call Latest again to verify deterministic ordering
-	output2, err := Latest(database, LatestInput{
+	output2, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -285,7 +286,7 @@ func TestLatest_FetchKey_Named(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store named capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "myworkspace",
 		Name:        stringPtr("auth"),
 		CapsuleText: validCapsuleText,
@@ -294,7 +295,7 @@ func TestLatest_FetchKey_Named(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "myworkspace",
 	})
 	if err != nil {
@@ -320,7 +321,7 @@ func TestLatest_FetchKey_Unnamed(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store unnamed capsule
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -328,7 +329,7 @@ func TestLatest_FetchKey_Unnamed(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace: "default",
 	})
 	if err != nil {
@@ -354,7 +355,7 @@ func TestLatest_IncludeDeleted(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store older active capsule
-	older, err := Store(database, cfg, StoreInput{
+	older, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("older"),
 		CapsuleText: validCapsuleText,
@@ -370,7 +371,7 @@ func TestLatest_IncludeDeleted(t *testing.T) {
 	}
 
 	// Store and delete newer capsule
-	newer, err := Store(database, cfg, StoreInput{
+	newer, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("newer"),
 		CapsuleText: validCapsuleText,
@@ -390,7 +391,7 @@ func TestLatest_IncludeDeleted(t *testing.T) {
 	}
 
 	// Without includeDeleted - should return older active capsule
-	output, err := Latest(database, LatestInput{
+	output, err := Latest(context.Background(), database, LatestInput{
 		Workspace:      "default",
 		IncludeDeleted: false,
 	})
@@ -405,7 +406,7 @@ func TestLatest_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted - should return deleted but more recent
-	output, err = Latest(database, LatestInput{
+	output, err = Latest(context.Background(), database, LatestInput{
 		Workspace:      "default",
 		IncludeDeleted: true,
 	})

@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"strings"
@@ -44,7 +45,7 @@ type StoreOutput struct {
 }
 
 // Store creates or replaces a capsule.
-func Store(database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput, error) {
+func Store(ctx context.Context, database *sql.DB, cfg *config.Config, input StoreInput) (*StoreOutput, error) {
 	// Validate required fields
 	if input.CapsuleText == "" {
 		return nil, errors.NewInvalidRequest("capsule_text is required")

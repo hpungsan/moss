@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func TestExport_HappyPath(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	output, err := Export(database, ExportInput{Path: exportPath})
+	output, err := Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -92,7 +93,7 @@ func TestExport_HeaderLine(t *testing.T) {
 	defer database.Close()
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	output, err := Export(database, ExportInput{Path: exportPath})
+	output, err := Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestExport_JSONLFormat(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	_, err = Export(database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -201,7 +202,7 @@ func TestExport_WorkspaceFilter(t *testing.T) {
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	ws := "target"
-	output, err := Export(database, ExportInput{
+	output, err := Export(context.Background(), database, ExportInput{
 		Path:      exportPath,
 		Workspace: &ws,
 	})
@@ -236,7 +237,7 @@ func TestExport_IncludeDeleted(t *testing.T) {
 
 	// Without includeDeleted
 	exportPath1 := filepath.Join(tmpDir, "export1.jsonl")
-	output1, err := Export(database, ExportInput{
+	output1, err := Export(context.Background(), database, ExportInput{
 		Path:           exportPath1,
 		IncludeDeleted: false,
 	})
@@ -249,7 +250,7 @@ func TestExport_IncludeDeleted(t *testing.T) {
 
 	// With includeDeleted
 	exportPath2 := filepath.Join(tmpDir, "export2.jsonl")
-	output2, err := Export(database, ExportInput{
+	output2, err := Export(context.Background(), database, ExportInput{
 		Path:           exportPath2,
 		IncludeDeleted: true,
 	})
@@ -270,7 +271,7 @@ func TestExport_Empty(t *testing.T) {
 	defer database.Close()
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	output, err := Export(database, ExportInput{Path: exportPath})
+	output, err := Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -305,7 +306,7 @@ func TestExport_FilePermissions(t *testing.T) {
 	defer database.Close()
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	_, err = Export(database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -334,7 +335,7 @@ func TestExport_DefaultPath(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", oldHome)
 
-	output, err := Export(database, ExportInput{})
+	output, err := Export(context.Background(), database, ExportInput{})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -370,7 +371,7 @@ func TestExport_DefaultPathWithWorkspace(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	ws := "MyWorkspace"
-	output, err := Export(database, ExportInput{Workspace: &ws})
+	output, err := Export(context.Background(), database, ExportInput{Workspace: &ws})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -391,7 +392,7 @@ func TestExport_CreatesDirectory(t *testing.T) {
 
 	// Export to a nested path that doesn't exist
 	exportPath := filepath.Join(tmpDir, "nested", "dir", "export.jsonl")
-	_, err = Export(database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -426,7 +427,7 @@ func TestExport_PreservesOrder(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	_, err = Export(database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -475,7 +476,7 @@ func TestExport_PathTraversalRejected(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Export(database, ExportInput{Path: tc.path})
+			_, err := Export(context.Background(), database, ExportInput{Path: tc.path})
 			if err == nil {
 				t.Error("Expected error for path traversal, got nil")
 			}
@@ -494,7 +495,7 @@ func TestExport_RequiresJSONLExtension(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Export(database, ExportInput{Path: filepath.Join(tmpDir, "export.txt")})
+	_, err = Export(context.Background(), database, ExportInput{Path: filepath.Join(tmpDir, "export.txt")})
 	if err == nil {
 		t.Error("Expected error for non-.jsonl extension, got nil")
 	}

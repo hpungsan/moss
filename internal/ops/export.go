@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -36,7 +37,7 @@ type ExportHeader struct {
 }
 
 // Export exports capsules to a JSONL file.
-func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
+func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOutput, error) {
 	now := time.Now()
 	exportedAt := now.Unix()
 

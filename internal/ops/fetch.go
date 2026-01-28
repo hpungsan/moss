@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -39,7 +40,7 @@ type FetchOutput struct {
 }
 
 // Fetch retrieves a capsule by ID or name.
-func Fetch(database *sql.DB, input FetchInput) (*FetchOutput, error) {
+func Fetch(ctx context.Context, database *sql.DB, input FetchInput) (*FetchOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
 	if err != nil {

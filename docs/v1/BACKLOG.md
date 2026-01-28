@@ -323,11 +323,13 @@ Optional snippets/transcript refs with "expand" semantics:
 
 ## Minor Improvements
 
-### Context Propagation to Ops Layer
+### Context-Aware DB Calls and Loop Cancellation
 
-Pass `context.Context` through MCP handlers to ops functions. Currently handlers accept context but don't pass it to the ops layer, preventing cancellation of long-running operations (e.g., large imports).
+`context.Context` is threaded through the ops layer to `BeginTx`, but individual DB calls still use non-context methods (`Query`, `Exec`, `QueryRow`) and loops in long-running operations don't check `ctx.Done()`.
 
-**Scope:** Modify all 12 ops functions to accept `context.Context` as first parameter, propagate to db layer.
+**Remaining work:**
+- Update `internal/db` `Querier` interface to use `QueryContext`, `ExecContext`, `QueryRowContext`
+- Add `ctx.Done()` checks in loops: `import.go`, `export.go`, `fetch_many.go`, `compose.go`
 
 ### MCP Server Graceful Shutdown (HTTP Transport)
 

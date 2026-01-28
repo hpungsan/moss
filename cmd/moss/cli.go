@@ -85,7 +85,7 @@ func storeCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 				input.Tags = parseTags(tags)
 			}
 
-			output, err := ops.Store(db, cfg, input)
+			output, err := ops.Store(c.Context, db, cfg, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -123,7 +123,7 @@ func fetchCmd(db *sql.DB, _ *config.Config) *cli.Command {
 				input.IncludeText = &includeText
 			}
 
-			output, err := ops.Fetch(db, input)
+			output, err := ops.Fetch(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -176,7 +176,7 @@ func updateCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 				input.Tags = &tags
 			}
 
-			output, err := ops.Update(db, cfg, input)
+			output, err := ops.Update(c.Context, db, cfg, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -205,7 +205,7 @@ func deleteCmd(db *sql.DB) *cli.Command {
 				Name:      addr.Name,
 			}
 
-			output, err := ops.Delete(db, input)
+			output, err := ops.Delete(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -238,7 +238,7 @@ func listCmd(db *sql.DB) *cli.Command {
 				IncludeDeleted: c.Bool("include-deleted"),
 			}
 
-			output, err := ops.List(db, input)
+			output, err := ops.List(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -275,7 +275,7 @@ func inventoryCmd(db *sql.DB) *cli.Command {
 				NamePrefix:     optionalString(c, "name-prefix"),
 			}
 
-			output, err := ops.Inventory(db, input)
+			output, err := ops.Inventory(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -306,7 +306,7 @@ func latestCmd(db *sql.DB) *cli.Command {
 				input.IncludeText = &includeText
 			}
 
-			output, err := ops.Latest(db, input)
+			output, err := ops.Latest(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -333,7 +333,7 @@ func exportCmd(db *sql.DB) *cli.Command {
 				Workspace:      optionalString(c, "workspace"),
 			}
 
-			output, err := ops.Export(db, input)
+			output, err := ops.Export(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -358,7 +358,7 @@ func importCmd(db *sql.DB) *cli.Command {
 				Mode: ops.ImportMode(c.String("mode")),
 			}
 
-			output, err := ops.Import(db, input)
+			output, err := ops.Import(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -390,7 +390,7 @@ func purgeCmd(db *sql.DB) *cli.Command {
 				input.OlderThanDays = &days
 			}
 
-			output, err := ops.Purge(db, input)
+			output, err := ops.Purge(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
 			}
