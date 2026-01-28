@@ -1075,6 +1075,97 @@ func TestHandlePurge(t *testing.T) {
 	}
 }
 
+// TestHandleBulkDelete tests the bulk_delete handler happy path.
+func TestHandleBulkDelete(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	h := NewHandlers(database, cfg)
+	ctx := context.Background()
+
+	// Store two capsules in target workspace and one in other
+	for _, ws := range []string{"target", "target", "other"} {
+		storeReq := makeRequest(map[string]any{
+			"capsule_text": validCapsuleText(),
+			"workspace":    ws,
+		})
+		if _, err := h.HandleStore(ctx, storeReq); err != nil {
+			t.Fatalf("setup store failed: %v", err)
+		}
+	}
+
+	// Bulk delete target workspace
+	req := makeRequest(map[string]any{
+		"workspace": "target",
+	})
+	result, err := h.HandleBulkDelete(ctx, req)
+	if err != nil {
+		t.Fatalf("bulk_delete handler returned error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("bulk_delete failed: %v", extractErrorMessage(result))
+	}
+
+	// Verify response JSON shape
+	var output map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &output); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	deleted, ok := output["deleted"].(float64)
+	if !ok || deleted != 2 {
+		t.Errorf("deleted = %v, want 2", output["deleted"])
+	}
+	message, ok := output["message"].(string)
+	if !ok || message == "" {
+		t.Error("message should be a non-empty string")
+	}
+
+	// Verify other workspace capsule still active
+	fetchReq := makeRequest(map[string]any{
+		"workspace": "other",
+	})
+	listResult, err := h.HandleList(ctx, fetchReq)
+	if err != nil {
+		t.Fatalf("list handler returned error: %v", err)
+	}
+	var listOutput map[string]any
+	if err := json.Unmarshal([]byte(listResult.Content[0].(mcp.TextContent).Text), &listOutput); err != nil {
+		t.Fatalf("failed to unmarshal list response: %v", err)
+	}
+	pagination := listOutput["pagination"].(map[string]any)
+	if total := pagination["total"].(float64); total != 1 {
+		t.Errorf("other workspace total = %v, want 1", total)
+	}
+}
+
+// TestHandleBulkDelete_NoFilters tests that empty arguments return INVALID_REQUEST.
+func TestHandleBulkDelete_NoFilters(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	h := NewHandlers(database, cfg)
+	ctx := context.Background()
+
+	req := makeRequest(map[string]any{})
+	result, err := h.HandleBulkDelete(ctx, req)
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result for no filters")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &payload); err != nil {
+		t.Fatalf("failed to unmarshal error payload: %v", err)
+	}
+	errObj := payload["error"].(map[string]any)
+	if errObj["code"] != "INVALID_REQUEST" {
+		t.Errorf("error code = %v, want INVALID_REQUEST", errObj["code"])
+	}
+}
+
 func TestServerRegistration(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
@@ -1097,6 +1188,7 @@ func TestServerRegistration(t *testing.T) {
 		"export",
 		"import",
 		"purge",
+		"bulk_delete",
 		"compose",
 	}
 

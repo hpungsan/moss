@@ -2,7 +2,7 @@ package mcp
 
 import "github.com/mark3labs/mcp-go/mcp"
 
-// Tool definitions for all 12 Moss MCP tools.
+// Tool definitions for all 13 Moss MCP tools.
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
@@ -265,6 +265,30 @@ var purgeToolDef = mcp.NewTool("purge",
 	),
 	mcp.WithNumber("older_than_days",
 		mcp.Description("Only purge capsules deleted more than N days ago"),
+	),
+)
+
+var bulkDeleteToolDef = mcp.NewTool("bulk_delete",
+	mcp.WithDescription("Soft-delete multiple capsules matching filters. Requires at least one filter. Only targets active capsules."),
+	mcp.WithReadOnlyHintAnnotation(false),
+	mcp.WithDestructiveHintAnnotation(true),
+	mcp.WithString("workspace",
+		mcp.Description("Filter by workspace"),
+	),
+	mcp.WithString("tag",
+		mcp.Description("Filter by tag"),
+	),
+	mcp.WithString("name_prefix",
+		mcp.Description("Filter by name prefix (normalized)"),
+	),
+	mcp.WithString("run_id",
+		mcp.Description("Filter by orchestration run ID"),
+	),
+	mcp.WithString("phase",
+		mcp.Description("Filter by workflow phase"),
+	),
+	mcp.WithString("role",
+		mcp.Description("Filter by agent role"),
 	),
 )
 

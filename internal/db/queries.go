@@ -939,3 +939,54 @@ func PurgeDeleted(ctx context.Context, db *sql.DB, workspace *string, olderThanD
 func GetByIDIncludeDeleted(ctx context.Context, q Querier, id string) (*capsule.Capsule, error) {
 	return GetByID(ctx, q, id, true)
 }
+
+// BulkSoftDelete sets deleted_at on all active capsules matching the given filters.
+// Only targets active capsules (deleted_at IS NULL is hardcoded).
+// Filter validation is the caller's responsibility.
+func BulkSoftDelete(ctx context.Context, db *sql.DB, filters InventoryFilters) (int, error) {
+	now := time.Now().Unix()
+
+	conditions := []string{"deleted_at IS NULL"}
+	var args []any
+
+	if filters.Workspace != nil {
+		conditions = append(conditions, "workspace_norm = ?")
+		args = append(args, *filters.Workspace)
+	}
+	if filters.Tag != nil {
+		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(tags_json) WHERE value = ?)")
+		args = append(args, *filters.Tag)
+	}
+	if filters.NamePrefix != nil {
+		conditions = append(conditions, "name_norm LIKE ? ESCAPE '\\'")
+		args = append(args, escapeLikePattern(*filters.NamePrefix)+"%")
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "role = ?")
+		args = append(args, *filters.Role)
+	}
+
+	query := "UPDATE capsules SET deleted_at = ? WHERE " + strings.Join(conditions, " AND ")
+	// Prepend deleted_at value to args
+	args = append([]any{now}, args...)
+
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, errors.NewInternal(err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.NewInternal(err)
+	}
+
+	return int(rowsAffected), nil
+}

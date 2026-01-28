@@ -139,6 +139,16 @@ type PurgeRequest struct {
 	OlderThanDays *int    `json:"older_than_days,omitempty"`
 }
 
+// BulkDeleteRequest represents the arguments for bulk_delete.
+type BulkDeleteRequest struct {
+	Workspace  *string `json:"workspace,omitempty"`
+	Tag        *string `json:"tag,omitempty"`
+	NamePrefix *string `json:"name_prefix,omitempty"`
+	RunID      *string `json:"run_id,omitempty"`
+	Phase      *string `json:"phase,omitempty"`
+	Role       *string `json:"role,omitempty"`
+}
+
 // ComposeRequest represents the arguments for compose.
 type ComposeRequest struct {
 	Items   []ComposeRef    `json:"items"`
@@ -417,6 +427,28 @@ func (h *Handlers) HandlePurge(ctx context.Context, req mcp.CallToolRequest) (*m
 	result, err := ops.Purge(ctx, h.db, ops.PurgeInput{
 		Workspace:     input.Workspace,
 		OlderThanDays: input.OlderThanDays,
+	})
+	if err != nil {
+		return errorResult(err), nil
+	}
+
+	return successResult(result)
+}
+
+// HandleBulkDelete handles the bulk_delete tool call.
+func (h *Handlers) HandleBulkDelete(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input, err := decode[BulkDeleteRequest](req)
+	if err != nil {
+		return errorResult(errors.NewInvalidRequest(err.Error())), nil
+	}
+
+	result, err := ops.BulkDelete(ctx, h.db, ops.BulkDeleteInput{
+		Workspace:  input.Workspace,
+		Tag:        input.Tag,
+		NamePrefix: input.NamePrefix,
+		RunID:      input.RunID,
+		Phase:      input.Phase,
+		Role:       input.Role,
 	})
 	if err != nil {
 		return errorResult(err), nil
