@@ -105,7 +105,7 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 	for rows.Next() {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("export cancelled: %w", ctx.Err())
+			return nil, errors.NewCancelled("export")
 		default:
 		}
 

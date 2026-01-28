@@ -210,7 +210,7 @@ func importModeError(ctx context.Context, database *sql.DB, records []capsule.Ex
 	for _, record := range records {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("import cancelled: %w", ctx.Err())
+			return nil, errors.NewCancelled("import")
 		default:
 		}
 
@@ -298,7 +298,7 @@ func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.
 	for _, record := range records {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("import cancelled: %w", ctx.Err())
+			return nil, errors.NewCancelled("import")
 		default:
 		}
 
@@ -400,7 +400,7 @@ func importModeRename(ctx context.Context, database *sql.DB, records []capsule.E
 	for _, record := range records {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("import cancelled: %w", ctx.Err())
+			return nil, errors.NewCancelled("import")
 		default:
 		}
 

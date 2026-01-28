@@ -96,7 +96,7 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 	for i, ref := range input.Items {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("compose cancelled: %w", ctx.Err())
+			return nil, errors.NewCancelled("compose")
 		default:
 		}
 

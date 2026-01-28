@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -864,7 +863,7 @@ func FindUniqueName(ctx context.Context, q Querier, workspaceNorm, baseName stri
 	for i := 1; i <= 1000; i++ {
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("find unique name cancelled: %w", ctx.Err())
+			return "", errors.NewCancelled("find unique name")
 		default:
 		}
 		candidate := baseName + "-" + itoa(i)

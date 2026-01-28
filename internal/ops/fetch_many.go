@@ -88,7 +88,7 @@ func FetchMany(ctx context.Context, database *sql.DB, input FetchManyInput) (*Fe
 	for _, ref := range input.Items {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("fetch_many cancelled: %w", ctx.Err())
+			return nil, errors.NewCancelled("fetch_many")
 		default:
 		}
 
