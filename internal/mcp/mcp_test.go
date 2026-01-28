@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -43,6 +44,64 @@ func makeRequest(args map[string]any) mcp.CallToolRequest {
 			Arguments: args,
 		},
 	}
+}
+
+type cancelAfterDoneCallsCtx struct {
+	context.Context
+	cancelAfter int
+
+	mu    sync.Mutex
+	calls int
+	err   error
+
+	done chan struct{}
+	once sync.Once
+}
+
+func newCancelAfterDoneCallsCtx(ctx context.Context, cancelAfter int) *cancelAfterDoneCallsCtx {
+	c := &cancelAfterDoneCallsCtx{
+		Context:     ctx,
+		cancelAfter: cancelAfter,
+		done:        make(chan struct{}),
+	}
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.cancel(ctx.Err())
+		case <-c.done:
+		}
+	}()
+	return c
+}
+
+func (c *cancelAfterDoneCallsCtx) cancel(err error) {
+	c.once.Do(func() {
+		c.mu.Lock()
+		c.err = err
+		c.mu.Unlock()
+		close(c.done)
+	})
+}
+
+func (c *cancelAfterDoneCallsCtx) Done() <-chan struct{} {
+	c.mu.Lock()
+	c.calls++
+	shouldCancel := c.cancelAfter > 0 && c.calls >= c.cancelAfter
+	c.mu.Unlock()
+
+	if shouldCancel {
+		c.cancel(context.Canceled)
+	}
+	return c.done
+}
+
+func (c *cancelAfterDoneCallsCtx) Err() error {
+	if err := c.Context.Err(); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.err
 }
 
 // validCapsuleText returns a capsule text with all required sections.
@@ -362,6 +421,61 @@ func TestHandleFetchMany(t *testing.T) {
 				t.Errorf("got %d errors, want %d", len(errors), tt.wantErrors)
 			}
 		})
+	}
+}
+
+func TestHandleFetchMany_CancelledContextReturnsCancelled(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	h := NewHandlers(database, cfg)
+	setupCtx := context.Background()
+
+	// Store enough capsules so fetch_many has time to observe cancellation mid-loop.
+	const n = 50
+	for i := 0; i < n; i++ {
+		name := fmt.Sprintf("cancel-%02d", i)
+		req := makeRequest(map[string]any{
+			"capsule_text": validCapsuleText(),
+			"workspace":    "test",
+			"name":         name,
+		})
+		result, err := h.HandleStore(setupCtx, req)
+		if err != nil {
+			t.Fatalf("setup store handler returned error: %v", err)
+		}
+		if result.IsError {
+			t.Fatalf("setup store failed: %v", extractErrorMessage(result))
+		}
+	}
+
+	items := make([]any, 0, n)
+	for i := 0; i < n; i++ {
+		name := fmt.Sprintf("cancel-%02d", i)
+		items = append(items, map[string]any{"workspace": "test", "name": name})
+	}
+	req := makeRequest(map[string]any{"items": items})
+
+	// Cancel after a small number of ctx.Done() checks so cancellation happens mid-loop.
+	ctx := newCancelAfterDoneCallsCtx(context.Background(), 10)
+
+	result, err := h.HandleFetchMany(ctx, req)
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatalf("expected error result, got success: %v", result.Content)
+	}
+
+	assertErrorCode(t, result, "CANCELLED")
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &payload); err != nil {
+		t.Fatalf("failed to unmarshal error payload: %v", err)
+	}
+	errObj := payload["error"].(map[string]any)
+	if msg, _ := errObj["message"].(string); msg != "fetch_many cancelled" {
+		t.Fatalf("message=%q, want %q", msg, "fetch_many cancelled")
 	}
 }
 

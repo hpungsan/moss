@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestUpdate_ByID(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 		Tags:        []string{"v1"},
@@ -32,7 +33,7 @@ func TestUpdate_ByID(t *testing.T) {
 	// Update by ID
 	newText := validCapsuleText + "\nUpdated content."
 	newTags := []string{"v2", "updated"}
-	output, err := Update(database, cfg, UpdateInput{
+	output, err := Update(context.Background(), database, cfg, UpdateInput{
 		ID:          storeOutput.ID,
 		CapsuleText: &newText,
 		Tags:        &newTags,
@@ -47,7 +48,7 @@ func TestUpdate_ByID(t *testing.T) {
 
 	// Verify changes
 	includeText := true
-	fetched, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -71,7 +72,7 @@ func TestUpdate_ByName(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "myworkspace",
 		Name:        stringPtr("auth"),
 		CapsuleText: validCapsuleText,
@@ -82,7 +83,7 @@ func TestUpdate_ByName(t *testing.T) {
 
 	// Update by name
 	newTitle := "Updated Auth System"
-	output, err := Update(database, cfg, UpdateInput{
+	output, err := Update(context.Background(), database, cfg, UpdateInput{
 		Workspace: "myworkspace",
 		Name:      "auth",
 		Title:     &newTitle,
@@ -97,7 +98,7 @@ func TestUpdate_ByName(t *testing.T) {
 
 	// Verify changes
 	includeText := true
-	fetched, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -117,7 +118,7 @@ func TestUpdate_NoFieldsProvided(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID: "some-id",
 		// No fields to update
 	})
@@ -137,7 +138,7 @@ func TestUpdate_NotFound(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	newTitle := "test"
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:    "nonexistent",
 		Title: &newTitle,
 	})
@@ -157,7 +158,7 @@ func TestUpdate_CapsuleText_TooLarge(t *testing.T) {
 	cfg := &config.Config{CapsuleMaxChars: 100}
 
 	// Store with small limit but allow_thin
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: "Small text",
 		AllowThin:   true,
 	})
@@ -167,7 +168,7 @@ func TestUpdate_CapsuleText_TooLarge(t *testing.T) {
 
 	// Try to update with large text
 	largeText := strings.Repeat("x", 150)
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:          storeOutput.ID,
 		CapsuleText: &largeText,
 		AllowThin:   true,
@@ -188,7 +189,7 @@ func TestUpdate_CapsuleText_TooThin(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store with valid content
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
@@ -197,7 +198,7 @@ func TestUpdate_CapsuleText_TooThin(t *testing.T) {
 
 	// Try to update with thin content
 	thinText := "## Objective\nOnly one section."
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:          storeOutput.ID,
 		CapsuleText: &thinText,
 		AllowThin:   false,
@@ -218,7 +219,7 @@ func TestUpdate_CapsuleText_AllowThin(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store with valid content
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
@@ -227,7 +228,7 @@ func TestUpdate_CapsuleText_AllowThin(t *testing.T) {
 
 	// Update with thin content but allow_thin=true
 	thinText := "## Objective\nOnly one section."
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:          storeOutput.ID,
 		CapsuleText: &thinText,
 		AllowThin:   true,
@@ -238,7 +239,7 @@ func TestUpdate_CapsuleText_AllowThin(t *testing.T) {
 
 	// Verify
 	includeText := true
-	fetched, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -258,7 +259,7 @@ func TestUpdate_PartialUpdate(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store with all fields
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		Title:       stringPtr("Original Title"),
 		CapsuleText: validCapsuleText,
@@ -271,7 +272,7 @@ func TestUpdate_PartialUpdate(t *testing.T) {
 
 	// Update only tags
 	newTags := []string{"updated"}
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:   storeOutput.ID,
 		Tags: &newTags,
 	})
@@ -281,7 +282,7 @@ func TestUpdate_PartialUpdate(t *testing.T) {
 
 	// Verify other fields are unchanged
 	includeText := true
-	fetched, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -308,7 +309,7 @@ func TestUpdate_UpdatedAtChanges(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 	})
 	if err != nil {
@@ -317,7 +318,7 @@ func TestUpdate_UpdatedAtChanges(t *testing.T) {
 
 	// Get original updated_at
 	includeText := true
-	fetched1, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched1, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -325,7 +326,7 @@ func TestUpdate_UpdatedAtChanges(t *testing.T) {
 
 	// Update
 	newSource := "updated"
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:     storeOutput.ID,
 		Source: &newSource,
 	})
@@ -334,7 +335,7 @@ func TestUpdate_UpdatedAtChanges(t *testing.T) {
 	}
 
 	// Verify updated_at changed
-	fetched2, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched2, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -355,7 +356,7 @@ func TestUpdate_AmbiguousAddressing(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	newTitle := "test"
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:    "some-id",
 		Name:  "some-name",
 		Title: &newTitle,
@@ -376,7 +377,7 @@ func TestUpdate_ClearSource(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store with source
-	storeOutput, err := Store(database, cfg, StoreInput{
+	storeOutput, err := Store(context.Background(), database, cfg, StoreInput{
 		CapsuleText: validCapsuleText,
 		Source:      stringPtr("original"),
 	})
@@ -386,7 +387,7 @@ func TestUpdate_ClearSource(t *testing.T) {
 
 	// Update to clear source (set to empty string)
 	emptySource := ""
-	_, err = Update(database, cfg, UpdateInput{
+	_, err = Update(context.Background(), database, cfg, UpdateInput{
 		ID:     storeOutput.ID,
 		Source: &emptySource,
 	})
@@ -396,7 +397,7 @@ func TestUpdate_ClearSource(t *testing.T) {
 
 	// Verify source is updated to empty
 	includeText := true
-	fetched, err := Fetch(database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
+	fetched, err := Fetch(context.Background(), database, FetchInput{ID: storeOutput.ID, IncludeText: &includeText})
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}

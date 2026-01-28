@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -23,7 +24,7 @@ func TestFullWorkflow(t *testing.T) {
 	name := "lifecycle"
 
 	// 1. Store
-	storeOut, err := Store(database, cfg, StoreInput{
+	storeOut, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   ws,
 		Name:        stringPtr(name),
 		CapsuleText: validCapsuleText,
@@ -33,51 +34,51 @@ func TestFullWorkflow(t *testing.T) {
 	id := storeOut.ID
 
 	// 2. Fetch by name
-	fetchOut, err := Fetch(database, FetchInput{Workspace: ws, Name: name})
+	fetchOut, err := Fetch(context.Background(), database, FetchInput{Workspace: ws, Name: name})
 	require.NoError(t, err)
 	require.Equal(t, id, fetchOut.ID)
 	require.Contains(t, fetchOut.CapsuleText, "## Objective")
 
 	// 3. Update title
 	newTitle := "Updated Lifecycle Test"
-	updateOut, err := Update(database, cfg, UpdateInput{ID: id, Title: &newTitle})
+	updateOut, err := Update(context.Background(), database, cfg, UpdateInput{ID: id, Title: &newTitle})
 	require.NoError(t, err)
 	require.Equal(t, id, updateOut.ID)
 
 	// Verify title was updated
-	fetchOut, err = Fetch(database, FetchInput{ID: id})
+	fetchOut, err = Fetch(context.Background(), database, FetchInput{ID: id})
 	require.NoError(t, err)
 	require.NotNil(t, fetchOut.Title)
 	require.Equal(t, newTitle, *fetchOut.Title)
 
 	// 4. List - verify capsule appears
-	listOut, err := List(database, ListInput{Workspace: ws})
+	listOut, err := List(context.Background(), database, ListInput{Workspace: ws})
 	require.NoError(t, err)
 	require.Len(t, listOut.Items, 1)
 	require.Equal(t, id, listOut.Items[0].ID)
 
 	// 5. Delete (soft)
-	deleteOut, err := Delete(database, DeleteInput{ID: id})
+	deleteOut, err := Delete(context.Background(), database, DeleteInput{ID: id})
 	require.NoError(t, err)
 	require.Equal(t, id, deleteOut.ID)
 
 	// 6. List - verify excluded from default listing
-	listOut, err = List(database, ListInput{Workspace: ws})
+	listOut, err = List(context.Background(), database, ListInput{Workspace: ws})
 	require.NoError(t, err)
 	require.Len(t, listOut.Items, 0)
 
 	// Verify still accessible with include_deleted
-	listOut, err = List(database, ListInput{Workspace: ws, IncludeDeleted: true})
+	listOut, err = List(context.Background(), database, ListInput{Workspace: ws, IncludeDeleted: true})
 	require.NoError(t, err)
 	require.Len(t, listOut.Items, 1)
 
 	// 7. Purge
-	purgeOut, err := Purge(database, PurgeInput{Workspace: &ws})
+	purgeOut, err := Purge(context.Background(), database, PurgeInput{Workspace: &ws})
 	require.NoError(t, err)
 	require.Equal(t, 1, purgeOut.Purged)
 
 	// 8. Fetch - verify 404 (even with include_deleted, purged = gone)
-	_, err = Fetch(database, FetchInput{ID: id, IncludeDeleted: true})
+	_, err = Fetch(context.Background(), database, FetchInput{ID: id, IncludeDeleted: true})
 	require.Error(t, err)
 	var mossErr *errors.MossError
 	require.ErrorAs(t, err, &mossErr)

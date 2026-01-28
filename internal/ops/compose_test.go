@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestCompose_Markdown_MultipleCapsules(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store two capsules
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		Title:       stringPtr("Capsule One"),
@@ -30,7 +31,7 @@ func TestCompose_Markdown_MultipleCapsules(t *testing.T) {
 		t.Fatalf("Store cap1 failed: %v", err)
 	}
 
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap2"),
 		Title:       stringPtr("Capsule Two"),
@@ -41,7 +42,7 @@ func TestCompose_Markdown_MultipleCapsules(t *testing.T) {
 	}
 
 	// Compose them
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 			{Workspace: "default", Name: "cap2"},
@@ -83,7 +84,7 @@ func TestCompose_JSON_Format(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store two capsules
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -92,7 +93,7 @@ func TestCompose_JSON_Format(t *testing.T) {
 		t.Fatalf("Store cap1 failed: %v", err)
 	}
 
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap2"),
 		CapsuleText: validCapsuleText,
@@ -102,7 +103,7 @@ func TestCompose_JSON_Format(t *testing.T) {
 	}
 
 	// Compose them in JSON format
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 			{Workspace: "default", Name: "cap2"},
@@ -138,7 +139,7 @@ func TestCompose_ByID(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -147,7 +148,7 @@ func TestCompose_ByID(t *testing.T) {
 	}
 
 	// Compose by ID
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{ID: stored.ID},
 		},
@@ -176,7 +177,7 @@ func TestCompose_MissingCapsule_AllOrNothing(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store only one capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("exists"),
 		CapsuleText: validCapsuleText,
@@ -186,7 +187,7 @@ func TestCompose_MissingCapsule_AllOrNothing(t *testing.T) {
 	}
 
 	// Try to compose with one existing and one missing
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "exists"},
 			{Workspace: "default", Name: "missing"},
@@ -211,7 +212,7 @@ func TestCompose_EmptyItems(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Try to compose with empty items
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{},
 	})
 	if err == nil {
@@ -238,7 +239,7 @@ func TestCompose_TooManyItems(t *testing.T) {
 		refs[i] = ComposeRef{ID: "some-id"}
 	}
 
-	_, err = Compose(database, cfg, ComposeInput{Items: refs})
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{Items: refs})
 	if err == nil {
 		t.Fatal("Compose should fail with too many items")
 	}
@@ -259,7 +260,7 @@ func TestCompose_SizeLimitExceeded(t *testing.T) {
 	storeCfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, storeCfg, StoreInput{
+	_, err = Store(context.Background(), database, storeCfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -272,7 +273,7 @@ func TestCompose_SizeLimitExceeded(t *testing.T) {
 	composeCfg := &config.Config{CapsuleMaxChars: 100}
 
 	// Try to compose - should exceed size limit
-	_, err = Compose(database, composeCfg, ComposeInput{
+	_, err = Compose(context.Background(), database, composeCfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -296,7 +297,7 @@ func TestCompose_WithStoreAs(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store two capsules
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -305,7 +306,7 @@ func TestCompose_WithStoreAs(t *testing.T) {
 		t.Fatalf("Store cap1 failed: %v", err)
 	}
 
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap2"),
 		CapsuleText: validCapsuleText,
@@ -315,7 +316,7 @@ func TestCompose_WithStoreAs(t *testing.T) {
 	}
 
 	// Compose and store
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 			{Workspace: "default", Name: "cap2"},
@@ -344,7 +345,7 @@ func TestCompose_WithStoreAs(t *testing.T) {
 	}
 
 	// Verify the stored capsule exists
-	fetched, err := Fetch(database, FetchInput{
+	fetched, err := Fetch(context.Background(), database, FetchInput{
 		Workspace: "composed",
 		Name:      "bundle",
 	})
@@ -367,7 +368,7 @@ func TestCompose_StoreAs_ModeReplace(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -377,7 +378,7 @@ func TestCompose_StoreAs_ModeReplace(t *testing.T) {
 	}
 
 	// First compose and store
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -391,7 +392,7 @@ func TestCompose_StoreAs_ModeReplace(t *testing.T) {
 	}
 
 	// Second compose with replace mode - should succeed
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -420,7 +421,7 @@ func TestCompose_StoreAs_NameCollision_ModeError(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -430,7 +431,7 @@ func TestCompose_StoreAs_NameCollision_ModeError(t *testing.T) {
 	}
 
 	// First compose and store
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -444,7 +445,7 @@ func TestCompose_StoreAs_NameCollision_ModeError(t *testing.T) {
 	}
 
 	// Second compose with error mode (default) - should fail
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -473,7 +474,7 @@ func TestCompose_DisplayNamePriority(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Case 1: Title takes priority
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap-with-title"),
 		Title:       stringPtr("My Custom Title"),
@@ -484,7 +485,7 @@ func TestCompose_DisplayNamePriority(t *testing.T) {
 	}
 
 	// Case 2: Name when no title
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap-name-only"),
 		CapsuleText: validCapsuleText,
@@ -494,7 +495,7 @@ func TestCompose_DisplayNamePriority(t *testing.T) {
 	}
 
 	// Case 3: ID when no name or title
-	idOnly, err := Store(database, cfg, StoreInput{
+	idOnly, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -503,7 +504,7 @@ func TestCompose_DisplayNamePriority(t *testing.T) {
 	}
 
 	// Compose all three
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap-with-title"},
 			{Workspace: "default", Name: "cap-name-only"},
@@ -537,7 +538,7 @@ func TestCompose_InvalidFormat(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -547,7 +548,7 @@ func TestCompose_InvalidFormat(t *testing.T) {
 	}
 
 	// Try to compose with invalid format
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -572,7 +573,7 @@ func TestCompose_JSON_WithStoreAs_Rejected(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -582,7 +583,7 @@ func TestCompose_JSON_WithStoreAs_Rejected(t *testing.T) {
 	}
 
 	// Try to compose with JSON format and store_as - should be rejected
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -614,7 +615,7 @@ func TestCompose_DefaultFormat(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -624,7 +625,7 @@ func TestCompose_DefaultFormat(t *testing.T) {
 	}
 
 	// Compose without specifying format - should default to markdown
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -650,7 +651,7 @@ func TestCompose_StoreAs_RequiresName(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		CapsuleText: validCapsuleText,
@@ -660,7 +661,7 @@ func TestCompose_StoreAs_RequiresName(t *testing.T) {
 	}
 
 	// Try to compose with store_as but no name
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 		},
@@ -689,7 +690,7 @@ func TestCompose_StoreAs_LintFailure(t *testing.T) {
 
 	// Store a thin capsule (allow_thin)
 	thinCapsuleText := "Just some text without sections"
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("thin-cap"),
 		CapsuleText: thinCapsuleText,
@@ -700,7 +701,7 @@ func TestCompose_StoreAs_LintFailure(t *testing.T) {
 	}
 
 	// Try to compose and store - should fail lint
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "thin-cap"},
 		},
@@ -728,7 +729,7 @@ func TestCompose_DuplicateReferences(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store a capsule
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("cap1"),
 		Title:       stringPtr("Capsule One"),
@@ -739,7 +740,7 @@ func TestCompose_DuplicateReferences(t *testing.T) {
 	}
 
 	// Compose with the same capsule referenced twice
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "cap1"},
 			{Workspace: "default", Name: "cap1"},
@@ -774,7 +775,7 @@ func TestCompose_ReadTransaction(t *testing.T) {
 	// Store 3 capsules
 	names := []string{"snap-a", "snap-b", "snap-c"}
 	for _, name := range names {
-		_, err := Store(database, cfg, StoreInput{
+		_, err := Store(context.Background(), database, cfg, StoreInput{
 			Workspace:   "default",
 			Name:        stringPtr(name),
 			Title:       stringPtr("Title " + name),
@@ -786,7 +787,7 @@ func TestCompose_ReadTransaction(t *testing.T) {
 	}
 
 	// Compose all three — verifies the transactional read path works
-	output, err := Compose(database, cfg, ComposeInput{
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{Workspace: "default", Name: "snap-a"},
 			{Workspace: "default", Name: "snap-b"},
@@ -821,7 +822,7 @@ func TestCompose_AmbiguousAddressing(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Try to compose with ambiguous ref (both ID and name)
-	_, err = Compose(database, cfg, ComposeInput{
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
 		Items: []ComposeRef{
 			{ID: "some-id", Name: "some-name"},
 		},

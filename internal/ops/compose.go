@@ -59,7 +59,7 @@ type ComposeBundle struct {
 
 // Compose assembles multiple capsules into a single bundle.
 // All-or-nothing: fails if any capsule is missing.
-func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*ComposeOutput, error) {
+func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input ComposeInput) (*ComposeOutput, error) {
 	// Validate items count
 	if len(input.Items) == 0 {
 		return nil, errors.NewInvalidRequest("items is required and must not be empty")
@@ -84,8 +84,11 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 	}
 
 	// Open a read-only transaction so all reads share a single point-in-time snapshot.
-	tx, err := database.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	tx, err := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("compose")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -94,6 +97,12 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 	parts := make([]ComposePart, 0, len(input.Items))
 	estimatedChars := 0
 	for i, ref := range input.Items {
+		select {
+		case <-ctx.Done():
+			return nil, errors.NewCancelled("compose")
+		default:
+		}
+
 		// Validate addressing for this ref
 		addr, err := ValidateAddress(ref.ID, ref.Workspace, ref.Name)
 		if err != nil {
@@ -103,9 +112,9 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(tx, addr.ID, false)
+			c, err = db.GetByID(ctx, tx, addr.ID, false)
 		} else {
-			c, err = db.GetByName(tx, addr.Workspace, addr.Name, false)
+			c, err = db.GetByName(ctx, tx, addr.Workspace, addr.Name, false)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("items[%d]: %w", i, err)
@@ -176,7 +185,7 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 			return nil, errors.NewInvalidRequest("store_as.name is required")
 		}
 
-		storeResult, err := Store(database, cfg, StoreInput{
+		storeResult, err := Store(ctx, database, cfg, StoreInput{
 			Workspace:   input.StoreAs.Workspace,
 			Name:        &input.StoreAs.Name,
 			CapsuleText: bundleText,

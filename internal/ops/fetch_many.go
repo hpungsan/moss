@@ -62,7 +62,7 @@ type FetchManyError struct {
 
 // FetchMany retrieves multiple capsules by ID or name.
 // Returns partial success with items and errors arrays.
-func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error) {
+func FetchMany(ctx context.Context, database *sql.DB, input FetchManyInput) (*FetchManyOutput, error) {
 	// Validate input size
 	if len(input.Items) > MaxFetchManyItems {
 		return nil, errors.NewInvalidRequest(
@@ -76,8 +76,11 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 	}
 
 	// Open a read-only transaction so all reads share a single point-in-time snapshot.
-	tx, err := database.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	tx, err := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("fetch_many")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -86,6 +89,12 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 	var errs []FetchManyError
 
 	for _, ref := range input.Items {
+		select {
+		case <-ctx.Done():
+			return nil, errors.NewCancelled("fetch_many")
+		default:
+		}
+
 		// Validate addressing for this ref
 		addr, err := ValidateAddress(ref.ID, ref.Workspace, ref.Name)
 		if err != nil {
@@ -96,9 +105,9 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(tx, addr.ID, input.IncludeDeleted)
+			c, err = db.GetByID(ctx, tx, addr.ID, input.IncludeDeleted)
 		} else {
-			c, err = db.GetByName(tx, addr.Workspace, addr.Name, input.IncludeDeleted)
+			c, err = db.GetByName(ctx, tx, addr.Workspace, addr.Name, input.IncludeDeleted)
 		}
 		if err != nil {
 			errs = append(errs, refToError(ref, err))

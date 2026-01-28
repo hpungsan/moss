@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -36,7 +37,7 @@ type ExportHeader struct {
 }
 
 // Export exports capsules to a JSONL file.
-func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
+func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOutput, error) {
 	now := time.Now()
 	exportedAt := now.Unix()
 
@@ -94,7 +95,7 @@ func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
 	}
 
 	// Stream capsules and write to file
-	rows, err := db.StreamForExport(database, input.Workspace, input.IncludeDeleted)
+	rows, err := db.StreamForExport(ctx, database, input.Workspace, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +103,12 @@ func Export(database *sql.DB, input ExportInput) (*ExportOutput, error) {
 
 	count := 0
 	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return nil, errors.NewCancelled("export")
+		default:
+		}
+
 		c, err := db.ScanCapsuleFromRows(rows)
 		if err != nil {
 			return nil, errors.NewInternal(err)

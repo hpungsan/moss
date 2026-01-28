@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
@@ -56,7 +57,7 @@ type ImportError struct {
 }
 
 // Import imports capsules from a JSONL export file.
-func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
+func Import(ctx context.Context, database *sql.DB, input ImportInput) (*ImportOutput, error) {
 	// Validate input
 	if input.Path == "" {
 		return nil, errors.NewInvalidRequest("path is required")
@@ -109,11 +110,11 @@ func Import(database *sql.DB, input ImportInput) (*ImportOutput, error) {
 	// Process records based on mode
 	switch input.Mode {
 	case ImportModeError:
-		return importModeError(database, records)
+		return importModeError(ctx, database, records)
 	case ImportModeReplace:
-		return importModeReplace(database, records, parseErrors)
+		return importModeReplace(ctx, database, records, parseErrors)
 	case ImportModeRename:
-		return importModeRename(database, records, parseErrors)
+		return importModeRename(ctx, database, records, parseErrors)
 	default:
 		return nil, errors.NewInvalidRequest("invalid mode")
 	}
@@ -196,9 +197,12 @@ func parseExportFile(file *os.File) ([]capsule.ExportRecord, []ImportError) {
 }
 
 // importModeError imports all records atomically, rolling back on any collision.
-func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportOutput, error) {
-	tx, err := database.Begin()
+func importModeError(ctx context.Context, database *sql.DB, records []capsule.ExportRecord) (*ImportOutput, error) {
+	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("import")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -207,8 +211,14 @@ func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportO
 	var importErrors []ImportError
 
 	for _, record := range records {
+		select {
+		case <-ctx.Done():
+			return nil, errors.NewCancelled("import")
+		default:
+		}
+
 		// Check for ID collision (within transaction to prevent TOCTOU)
-		existing, err := db.GetByID(tx, record.ID, true)
+		existing, err := db.GetByID(ctx, tx, record.ID, true)
 		if err != nil && !errors.Is(err, errors.ErrNotFound) {
 			return nil, err
 		}
@@ -229,7 +239,7 @@ func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportO
 		// Check for name collision (if named, within transaction to prevent TOCTOU)
 		c := record.ToCapsule()
 		if c.NameNorm != nil {
-			exists, err := db.CheckNameExists(tx, c.WorkspaceNorm, *c.NameNorm)
+			exists, err := db.CheckNameExists(ctx, tx, c.WorkspaceNorm, *c.NameNorm)
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +264,7 @@ func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportO
 		}
 
 		// Insert capsule (within transaction)
-		if err := db.Insert(tx, c); err != nil {
+		if err := db.Insert(ctx, tx, c); err != nil {
 			return nil, err
 		}
 		imported++
@@ -275,9 +285,12 @@ func importModeError(database *sql.DB, records []capsule.ExportRecord) (*ImportO
 // Atomic: all records succeed or none. If any errors occur (parse errors or
 // ambiguous collisions), the entire transaction is rolled back and all errors
 // are returned so the user can fix their export file and retry.
-func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
-	tx, err := database.Begin()
+func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
+	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("import")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -289,10 +302,16 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 	importErrors = append(importErrors, parseErrors...)
 
 	for _, record := range records {
+		select {
+		case <-ctx.Done():
+			return nil, errors.NewCancelled("import")
+		default:
+		}
+
 		c := record.ToCapsule()
 
 		// Check for ID collision
-		existingByID, err := db.GetByID(tx, record.ID, true)
+		existingByID, err := db.GetByID(ctx, tx, record.ID, true)
 		if err != nil && !errors.Is(err, errors.ErrNotFound) {
 			return nil, err
 		}
@@ -301,7 +320,7 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 		var existingByName *capsule.Capsule
 		if c.NameNorm != nil {
 			// Name collisions should only consider active capsules (deleted_at IS NULL).
-			existingByName, err = db.GetByName(tx, c.WorkspaceNorm, *c.NameNorm, false)
+			existingByName, err = db.GetByName(ctx, tx, c.WorkspaceNorm, *c.NameNorm, false)
 			if err != nil && !errors.Is(err, errors.ErrNotFound) {
 				return nil, err
 			}
@@ -326,20 +345,20 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 		// Decide action based on collisions
 		if existingByID != nil {
 			// ID collision: update by ID
-			if err := db.UpdateFull(tx, c); err != nil {
+			if err := db.UpdateFull(ctx, tx, c); err != nil {
 				return nil, err
 			}
 			imported++
 		} else if existingByName != nil {
 			// Name collision (different ID): update by existing ID, keep new data
 			c.ID = existingByName.ID
-			if err := db.UpdateFull(tx, c); err != nil {
+			if err := db.UpdateFull(ctx, tx, c); err != nil {
 				return nil, err
 			}
 			imported++
 		} else {
 			// No collision: insert new
-			if err := db.Insert(tx, c); err != nil {
+			if err := db.Insert(ctx, tx, c); err != nil {
 				return nil, err
 			}
 			imported++
@@ -371,9 +390,12 @@ func importModeReplace(database *sql.DB, records []capsule.ExportRecord, parseEr
 // Atomic: all records succeed or none. If any errors occur (parse errors,
 // rename failures, or insert failures), the entire transaction is rolled back
 // and all errors are returned so the user can fix their export file and retry.
-func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
-	tx, err := database.Begin()
+func importModeRename(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
+	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("import")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -385,10 +407,16 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 	importErrors = append(importErrors, parseErrors...)
 
 	for _, record := range records {
+		select {
+		case <-ctx.Done():
+			return nil, errors.NewCancelled("import")
+		default:
+		}
+
 		c := record.ToCapsule()
 
 		// Check for ID collision
-		existingByID, err := db.GetByID(tx, record.ID, true)
+		existingByID, err := db.GetByID(ctx, tx, record.ID, true)
 		if err != nil && !errors.Is(err, errors.ErrNotFound) {
 			return nil, err
 		}
@@ -404,14 +432,14 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 
 		// Check for name collision (if named)
 		if c.NameNorm != nil {
-			exists, err := db.CheckNameExists(tx, c.WorkspaceNorm, *c.NameNorm)
+			exists, err := db.CheckNameExists(ctx, tx, c.WorkspaceNorm, *c.NameNorm)
 			if err != nil {
 				return nil, err
 			}
 			if exists {
 				// Find unique name
 				baseName := *c.NameNorm
-				newName, err := db.FindUniqueName(tx, c.WorkspaceNorm, baseName)
+				newName, err := db.FindUniqueName(ctx, tx, c.WorkspaceNorm, baseName)
 				if err != nil {
 					name := ""
 					if record.NameRaw != nil {
@@ -433,7 +461,7 @@ func importModeRename(database *sql.DB, records []capsule.ExportRecord, parseErr
 		}
 
 		// Insert capsule
-		if err := db.Insert(tx, c); err != nil {
+		if err := db.Insert(ctx, tx, c); err != nil {
 			name := ""
 			if c.NameRaw != nil {
 				name = *c.NameRaw

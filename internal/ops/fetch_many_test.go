@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/config"
@@ -21,7 +22,7 @@ func TestFetchMany_AllFound_ByID(t *testing.T) {
 	// Store 3 capsules
 	var ids []string
 	for _, name := range []string{"cap1", "cap2", "cap3"} {
-		stored, err := Store(database, cfg, StoreInput{
+		stored, err := Store(context.Background(), database, cfg, StoreInput{
 			Workspace:   "default",
 			Name:        stringPtr(name),
 			CapsuleText: validCapsuleText,
@@ -33,7 +34,7 @@ func TestFetchMany_AllFound_ByID(t *testing.T) {
 	}
 
 	// FetchMany by ID
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: ids[0]},
 			{ID: ids[1]},
@@ -63,7 +64,7 @@ func TestFetchMany_AllFound_ByName(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store capsules
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "ws1",
 		Name:        stringPtr("auth"),
 		CapsuleText: validCapsuleText,
@@ -71,7 +72,7 @@ func TestFetchMany_AllFound_ByName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "ws2",
 		Name:        stringPtr("config"),
 		CapsuleText: validCapsuleText,
@@ -81,7 +82,7 @@ func TestFetchMany_AllFound_ByName(t *testing.T) {
 	}
 
 	// FetchMany by name
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{Workspace: "ws1", Name: "auth"},
 			{Workspace: "ws2", Name: "config"},
@@ -110,7 +111,7 @@ func TestFetchMany_PartialSuccess(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store one capsule
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("exists"),
 		CapsuleText: validCapsuleText,
@@ -120,7 +121,7 @@ func TestFetchMany_PartialSuccess(t *testing.T) {
 	}
 
 	// FetchMany - one exists, one doesn't
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: stored.ID},
 			{ID: "nonexistent"},
@@ -150,7 +151,7 @@ func TestFetchMany_AllNotFound(t *testing.T) {
 	defer database.Close()
 
 	// FetchMany - none exist
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: "nonexistent1"},
 			{ID: "nonexistent2"},
@@ -182,7 +183,7 @@ func TestFetchMany_IncludeText_True(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -191,7 +192,7 @@ func TestFetchMany_IncludeText_True(t *testing.T) {
 	}
 
 	// FetchMany with include_text=true (default)
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{{ID: stored.ID}},
 	})
 	if err != nil {
@@ -216,7 +217,7 @@ func TestFetchMany_IncludeText_False(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -226,7 +227,7 @@ func TestFetchMany_IncludeText_False(t *testing.T) {
 
 	// FetchMany with include_text=false
 	includeText := false
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items:       []FetchManyRef{{ID: stored.ID}},
 		IncludeText: &includeText,
 	})
@@ -260,7 +261,7 @@ func TestFetchMany_MixedAddressing(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store named capsule
-	named, err := Store(database, cfg, StoreInput{
+	named, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("named"),
 		CapsuleText: validCapsuleText,
@@ -270,7 +271,7 @@ func TestFetchMany_MixedAddressing(t *testing.T) {
 	}
 
 	// Store unnamed capsule
-	unnamed, err := Store(database, cfg, StoreInput{
+	unnamed, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -279,7 +280,7 @@ func TestFetchMany_MixedAddressing(t *testing.T) {
 	}
 
 	// FetchMany with mixed addressing
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: named.ID},                        // by ID
 			{Workspace: "default", Name: "named"}, // by name
@@ -308,7 +309,7 @@ func TestFetchMany_AmbiguousAddressing(t *testing.T) {
 	defer database.Close()
 
 	// FetchMany with ambiguous ref (both ID and name)
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: "some-id", Name: "some-name"},
 		},
@@ -337,7 +338,7 @@ func TestFetchMany_InvalidRef(t *testing.T) {
 	defer database.Close()
 
 	// FetchMany with empty ref (neither ID nor name)
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{}, // empty
 		},
@@ -366,7 +367,7 @@ func TestFetchMany_EmptyInput(t *testing.T) {
 	defer database.Close()
 
 	// FetchMany with empty items
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{},
 	})
 	if err != nil {
@@ -396,7 +397,7 @@ func TestFetchMany_NilInput(t *testing.T) {
 	defer database.Close()
 
 	// FetchMany with nil items (not explicitly set)
-	output, err := FetchMany(database, FetchManyInput{})
+	output, err := FetchMany(context.Background(), database, FetchManyInput{})
 	if err != nil {
 		t.Fatalf("FetchMany failed: %v", err)
 	}
@@ -426,7 +427,7 @@ func TestFetchMany_FetchKey(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store named capsule
-	named, err := Store(database, cfg, StoreInput{
+	named, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "myworkspace",
 		Name:        stringPtr("auth"),
 		CapsuleText: validCapsuleText,
@@ -436,7 +437,7 @@ func TestFetchMany_FetchKey(t *testing.T) {
 	}
 
 	// Store unnamed capsule
-	unnamed, err := Store(database, cfg, StoreInput{
+	unnamed, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		CapsuleText: validCapsuleText,
 	})
@@ -444,7 +445,7 @@ func TestFetchMany_FetchKey(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: named.ID},
 			{ID: unnamed.ID},
@@ -503,7 +504,7 @@ func TestFetchMany_DefaultWorkspace(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store in default workspace
-	_, err = Store(database, cfg, StoreInput{
+	_, err = Store(context.Background(), database, cfg, StoreInput{
 		Name:        stringPtr("test"),
 		CapsuleText: validCapsuleText,
 	})
@@ -512,7 +513,7 @@ func TestFetchMany_DefaultWorkspace(t *testing.T) {
 	}
 
 	// FetchMany without workspace (should default to "default")
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{Name: "test"},
 		},
@@ -540,7 +541,7 @@ func TestFetchMany_TooManyItems(t *testing.T) {
 		refs[i] = FetchManyRef{ID: "some-id"}
 	}
 
-	_, err = FetchMany(database, FetchManyInput{Items: refs})
+	_, err = FetchMany(context.Background(), database, FetchManyInput{Items: refs})
 	if err == nil {
 		t.Fatal("FetchMany should return error for too many items")
 	}
@@ -558,7 +559,7 @@ func TestFetchMany_ErrorPreservesRef(t *testing.T) {
 	defer database.Close()
 
 	// FetchMany with non-existent refs
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: "id-not-found"},
 			{Workspace: "ws", Name: "name-not-found"},
@@ -598,7 +599,7 @@ func TestFetchMany_ReadTransaction(t *testing.T) {
 	names := []string{"snap-a", "snap-b", "snap-c"}
 	var ids []string
 	for _, name := range names {
-		stored, err := Store(database, cfg, StoreInput{
+		stored, err := Store(context.Background(), database, cfg, StoreInput{
 			Workspace:   "default",
 			Name:        stringPtr(name),
 			CapsuleText: validCapsuleText,
@@ -610,7 +611,7 @@ func TestFetchMany_ReadTransaction(t *testing.T) {
 	}
 
 	// FetchMany all three — verifies the transactional read path works
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: ids[0]},
 			{Workspace: "default", Name: "snap-b"},
@@ -651,7 +652,7 @@ func TestFetchMany_IncludeDeleted(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// Store and delete a capsule
-	stored, err := Store(database, cfg, StoreInput{
+	stored, err := Store(context.Background(), database, cfg, StoreInput{
 		Workspace:   "default",
 		Name:        stringPtr("deleted-cap"),
 		CapsuleText: validCapsuleText,
@@ -659,12 +660,12 @@ func TestFetchMany_IncludeDeleted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
-	if err := db.SoftDelete(database, stored.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, stored.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Without IncludeDeleted - should NOT find deleted capsule
-	output, err := FetchMany(database, FetchManyInput{
+	output, err := FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: stored.ID},
 		},
@@ -684,7 +685,7 @@ func TestFetchMany_IncludeDeleted(t *testing.T) {
 	}
 
 	// With IncludeDeleted - should find deleted capsule
-	output, err = FetchMany(database, FetchManyInput{
+	output, err = FetchMany(context.Background(), database, FetchManyInput{
 		Items: []FetchManyRef{
 			{ID: stored.ID},
 		},

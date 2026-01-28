@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -92,7 +93,7 @@ func TestImport_HappyPath_ModeError(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -108,7 +109,7 @@ func TestImport_HappyPath_ModeError(t *testing.T) {
 	}
 
 	// Verify capsules exist
-	c1, err := db.GetByID(database, "01IMP001", false)
+	c1, err := db.GetByID(context.Background(), database, "01IMP001", false)
 	if err != nil {
 		t.Errorf("Capsule 1 should exist: %v", err)
 	}
@@ -116,7 +117,7 @@ func TestImport_HappyPath_ModeError(t *testing.T) {
 		t.Errorf("CapsuleText = %q, want 'Content 1'", c1.CapsuleText)
 	}
 
-	c2, err := db.GetByName(database, "default", "named", false)
+	c2, err := db.GetByName(context.Background(), database, "default", "named", false)
 	if err != nil {
 		t.Errorf("Capsule 2 should exist by name: %v", err)
 	}
@@ -146,7 +147,7 @@ func TestImport_SkipsHeader(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{Path: exportPath})
+	output, err := Import(context.Background(), database, ImportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}
@@ -183,12 +184,12 @@ func TestImport_RecomputesNorms(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	_, err = Import(database, ImportInput{Path: exportPath})
+	_, err = Import(context.Background(), database, ImportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}
 
-	c, err := db.GetByID(database, "01IMP004", false)
+	c, err := db.GetByID(context.Background(), database, "01IMP004", false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -214,7 +215,7 @@ func TestImport_ModeError_RollsBackOnIDCollision(t *testing.T) {
 
 	// Pre-insert a capsule
 	existing := newTestCapsuleForImport("01IMP005", "default", "Existing")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -239,7 +240,7 @@ func TestImport_ModeError_RollsBackOnIDCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -259,7 +260,7 @@ func TestImport_ModeError_RollsBackOnIDCollision(t *testing.T) {
 	}
 
 	// First capsule should NOT have been inserted (atomic rollback)
-	_, err = db.GetByID(database, "01IMP006", false)
+	_, err = db.GetByID(context.Background(), database, "01IMP006", false)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("First capsule should not exist (rolled back): %v", err)
 	}
@@ -277,7 +278,7 @@ func TestImport_ModeError_RollsBackOnNameCollision(t *testing.T) {
 	existing := newTestCapsuleForImport("01IMP007", "default", "Existing")
 	existing.NameRaw = stringPtr("taken")
 	existing.NameNorm = stringPtr("taken")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -296,7 +297,7 @@ func TestImport_ModeError_RollsBackOnNameCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -322,7 +323,7 @@ func TestImport_ModeReplace_UpdatesOnIDCollision(t *testing.T) {
 
 	// Pre-insert a capsule
 	existing := newTestCapsuleForImport("01IMP009", "default", "Old content")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -340,7 +341,7 @@ func TestImport_ModeReplace_UpdatesOnIDCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -353,7 +354,7 @@ func TestImport_ModeReplace_UpdatesOnIDCollision(t *testing.T) {
 	}
 
 	// Verify content was updated
-	c, err := db.GetByID(database, "01IMP009", false)
+	c, err := db.GetByID(context.Background(), database, "01IMP009", false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -374,7 +375,7 @@ func TestImport_ModeReplace_UpdatesOnNameCollision(t *testing.T) {
 	existing := newTestCapsuleForImport("01IMP010", "default", "Old content")
 	existing.NameRaw = stringPtr("myname")
 	existing.NameNorm = stringPtr("myname")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -393,7 +394,7 @@ func TestImport_ModeReplace_UpdatesOnNameCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -406,7 +407,7 @@ func TestImport_ModeReplace_UpdatesOnNameCollision(t *testing.T) {
 	}
 
 	// Verify existing capsule was updated (ID preserved)
-	c, err := db.GetByID(database, "01IMP010", false)
+	c, err := db.GetByID(context.Background(), database, "01IMP010", false)
 	if err != nil {
 		t.Fatalf("Original ID should still exist: %v", err)
 	}
@@ -415,7 +416,7 @@ func TestImport_ModeReplace_UpdatesOnNameCollision(t *testing.T) {
 	}
 
 	// New ID should NOT exist
-	_, err = db.GetByID(database, "01IMP011", false)
+	_, err = db.GetByID(context.Background(), database, "01IMP011", false)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("New ID should not exist: %v", err)
 	}
@@ -433,10 +434,10 @@ func TestImport_ModeReplace_IgnoresDeletedNameCollision(t *testing.T) {
 	deleted := newTestCapsuleForImport("01IMP0D1", "default", "Old deleted content")
 	deleted.NameRaw = stringPtr("myname")
 	deleted.NameNorm = stringPtr("myname")
-	if err := db.Insert(database, deleted); err != nil {
+	if err := db.Insert(context.Background(), database, deleted); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := db.SoftDelete(database, deleted.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, deleted.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
@@ -456,7 +457,7 @@ func TestImport_ModeReplace_IgnoresDeletedNameCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -472,7 +473,7 @@ func TestImport_ModeReplace_IgnoresDeletedNameCollision(t *testing.T) {
 	}
 
 	// Deleted capsule should remain deleted.
-	cDel, err := db.GetByID(database, "01IMP0D1", true)
+	cDel, err := db.GetByID(context.Background(), database, "01IMP0D1", true)
 	if err != nil {
 		t.Fatalf("GetByID(deleted) failed: %v", err)
 	}
@@ -484,7 +485,7 @@ func TestImport_ModeReplace_IgnoresDeletedNameCollision(t *testing.T) {
 	}
 
 	// New capsule ID should exist and be active.
-	cNew, err := db.GetByID(database, "01IMP0D2", false)
+	cNew, err := db.GetByID(context.Background(), database, "01IMP0D2", false)
 	if err != nil {
 		t.Fatalf("New ID should exist: %v", err)
 	}
@@ -508,14 +509,14 @@ func TestImport_ModeReplace_ErrorsOnAmbiguousCollision(t *testing.T) {
 	c1 := newTestCapsuleForImport("01IMP012", "default", "Content 1")
 	c1.NameRaw = stringPtr("name1")
 	c1.NameNorm = stringPtr("name1")
-	if err := db.Insert(database, c1); err != nil {
+	if err := db.Insert(context.Background(), database, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c2 := newTestCapsuleForImport("01IMP013", "default", "Content 2")
 	c2.NameRaw = stringPtr("name2")
 	c2.NameNorm = stringPtr("name2")
-	if err := db.Insert(database, c2); err != nil {
+	if err := db.Insert(context.Background(), database, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -534,7 +535,7 @@ func TestImport_ModeReplace_ErrorsOnAmbiguousCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -566,14 +567,14 @@ func TestImport_ModeReplace_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	c1 := newTestCapsuleForImport("01EXISTING1", "default", "Existing 1")
 	c1.NameRaw = stringPtr("existing-name1")
 	c1.NameNorm = stringPtr("existing-name1")
-	if err := db.Insert(database, c1); err != nil {
+	if err := db.Insert(context.Background(), database, c1); err != nil {
 		t.Fatalf("Insert c1 failed: %v", err)
 	}
 
 	c2 := newTestCapsuleForImport("01EXISTING2", "default", "Existing 2")
 	c2.NameRaw = stringPtr("existing-name2")
 	c2.NameNorm = stringPtr("existing-name2")
-	if err := db.Insert(database, c2); err != nil {
+	if err := db.Insert(context.Background(), database, c2); err != nil {
 		t.Fatalf("Insert c2 failed: %v", err)
 	}
 
@@ -602,7 +603,7 @@ func TestImport_ModeReplace_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeReplace,
 	})
@@ -619,7 +620,7 @@ func TestImport_ModeReplace_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	}
 
 	// CRITICAL: Verify the first record was NOT persisted (rollback worked)
-	_, err = db.GetByID(database, "01NEWCAPSULE", false)
+	_, err = db.GetByID(context.Background(), database, "01NEWCAPSULE", false)
 	if err == nil {
 		t.Error("First record should NOT exist - transaction should have rolled back")
 	}
@@ -628,7 +629,7 @@ func TestImport_ModeReplace_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	}
 
 	// Verify original capsules are unchanged
-	original1, err := db.GetByID(database, "01EXISTING1", false)
+	original1, err := db.GetByID(context.Background(), database, "01EXISTING1", false)
 	if err != nil {
 		t.Fatalf("GetByID c1 failed: %v", err)
 	}
@@ -649,7 +650,7 @@ func TestImport_ModeRename_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	existing := newTestCapsuleForImport("01EXISTING", "default", "Existing content")
 	existing.NameRaw = stringPtr("taken")
 	existing.NameNorm = stringPtr("taken")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -678,7 +679,7 @@ func TestImport_ModeRename_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeRename,
 	})
@@ -695,7 +696,7 @@ func TestImport_ModeRename_AtomicRollbackOnPartialSuccess(t *testing.T) {
 	}
 
 	// CRITICAL: Verify the valid record was NOT persisted (rollback worked)
-	_, err = db.GetByID(database, "01NEWRECORD", false)
+	_, err = db.GetByID(context.Background(), database, "01NEWRECORD", false)
 	if err == nil {
 		t.Error("Valid record should NOT exist - transaction should have rolled back due to parse error")
 	}
@@ -716,7 +717,7 @@ func TestImport_ModeRename_AutoSuffixesName(t *testing.T) {
 	existing := newTestCapsuleForImport("01IMP014", "default", "Existing")
 	existing.NameRaw = stringPtr("auth")
 	existing.NameNorm = stringPtr("auth")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -735,7 +736,7 @@ func TestImport_ModeRename_AutoSuffixesName(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeRename,
 	})
@@ -748,12 +749,12 @@ func TestImport_ModeRename_AutoSuffixesName(t *testing.T) {
 	}
 
 	// Both capsules should exist
-	_, err = db.GetByName(database, "default", "auth", false)
+	_, err = db.GetByName(context.Background(), database, "default", "auth", false)
 	if err != nil {
 		t.Errorf("Original 'auth' should exist: %v", err)
 	}
 
-	renamed, err := db.GetByName(database, "default", "auth-1", false)
+	renamed, err := db.GetByName(context.Background(), database, "default", "auth-1", false)
 	if err != nil {
 		t.Errorf("Renamed 'auth-1' should exist: %v", err)
 	}
@@ -772,7 +773,7 @@ func TestImport_ModeRename_GeneratesNewIDOnCollision(t *testing.T) {
 
 	// Pre-insert a capsule
 	existing := newTestCapsuleForImport("01IMP016", "default", "Existing")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -790,7 +791,7 @@ func TestImport_ModeRename_GeneratesNewIDOnCollision(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeRename,
 	})
@@ -803,7 +804,7 @@ func TestImport_ModeRename_GeneratesNewIDOnCollision(t *testing.T) {
 	}
 
 	// Original should still exist with old content
-	original, err := db.GetByID(database, "01IMP016", false)
+	original, err := db.GetByID(context.Background(), database, "01IMP016", false)
 	if err != nil {
 		t.Fatalf("Original should exist: %v", err)
 	}
@@ -812,7 +813,7 @@ func TestImport_ModeRename_GeneratesNewIDOnCollision(t *testing.T) {
 	}
 
 	// There should now be 2 capsules
-	summaries, total, err := db.ListByWorkspace(database, "default", db.ListFilters{}, 10, 0, false)
+	summaries, total, err := db.ListByWorkspace(context.Background(), database, "default", db.ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -844,7 +845,7 @@ func TestImport_FileNotFound(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Import(database, ImportInput{
+	_, err = Import(context.Background(), database, ImportInput{
 		Path: filepath.Join(tmpDir, "nonexistent.jsonl"),
 	})
 	if !errors.Is(err, errors.ErrNotFound) {
@@ -874,7 +875,7 @@ func TestImport_MalformedJSON_ModeError(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -913,7 +914,7 @@ func TestImport_MissingWorkspaceRaw_ModeError(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -960,7 +961,7 @@ func TestImport_EmptyCapsuleText_ModeError(t *testing.T) {
 	}
 	file.Close()
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		Mode: ImportModeError,
 	})
@@ -1008,14 +1009,14 @@ func TestImport_RoundTrip(t *testing.T) {
 	c2.UpdatedAt = 4000
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Export
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	exportOut, err := Export(database, ExportInput{Path: exportPath})
+	exportOut, err := Export(context.Background(), database, ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -1024,27 +1025,27 @@ func TestImport_RoundTrip(t *testing.T) {
 	}
 
 	// Delete original capsules
-	if err := db.SoftDelete(database, c1.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c1.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
-	if err := db.SoftDelete(database, c2.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c2.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Purge to remove completely
-	_, err = db.PurgeDeleted(database, nil, nil)
+	_, err = db.PurgeDeleted(context.Background(), database, nil, nil)
 	if err != nil {
 		t.Fatalf("PurgeDeleted failed: %v", err)
 	}
 
 	// Verify capsules are gone
-	_, err = db.GetByID(database, c1.ID, true)
+	_, err = db.GetByID(context.Background(), database, c1.ID, true)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("Capsule should be purged: %v", err)
 	}
 
 	// Import
-	importOut, err := Import(database, ImportInput{Path: exportPath})
+	importOut, err := Import(context.Background(), database, ImportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Import failed: %v", err)
 	}
@@ -1053,7 +1054,7 @@ func TestImport_RoundTrip(t *testing.T) {
 	}
 
 	// Verify capsules are restored with correct data
-	restored1, err := db.GetByID(database, c1.ID, false)
+	restored1, err := db.GetByID(context.Background(), database, c1.ID, false)
 	if err != nil {
 		t.Fatalf("Capsule 1 should be restored: %v", err)
 	}
@@ -1077,7 +1078,7 @@ func TestImport_RoundTrip(t *testing.T) {
 		t.Errorf("UpdatedAt = %d, want 2000", restored1.UpdatedAt)
 	}
 
-	restored2, err := db.GetByID(database, c2.ID, false)
+	restored2, err := db.GetByID(context.Background(), database, c2.ID, false)
 	if err != nil {
 		t.Fatalf("Capsule 2 should be restored: %v", err)
 	}
@@ -1096,7 +1097,7 @@ func TestImport_DefaultsToModeError(t *testing.T) {
 
 	// Pre-insert a capsule
 	existing := newTestCapsuleForImport("01IMP017", "default", "Existing")
-	if err := db.Insert(database, existing); err != nil {
+	if err := db.Insert(context.Background(), database, existing); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -1114,7 +1115,7 @@ func TestImport_DefaultsToModeError(t *testing.T) {
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	writeExportFile(t, exportPath, records)
 
-	output, err := Import(database, ImportInput{
+	output, err := Import(context.Background(), database, ImportInput{
 		Path: exportPath,
 		// Mode not specified, should default to error
 	})
@@ -1139,7 +1140,7 @@ func TestImport_InvalidMode(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Import(database, ImportInput{
+	_, err = Import(context.Background(), database, ImportInput{
 		Path: filepath.Join(tmpDir, "any.jsonl"),
 		Mode: "invalid",
 	})
@@ -1156,7 +1157,7 @@ func TestImport_PathRequired(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Import(database, ImportInput{})
+	_, err = Import(context.Background(), database, ImportInput{})
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("Import should return ErrInvalidRequest, got: %v", err)
 	}
@@ -1181,7 +1182,7 @@ func TestImport_PathTraversalRejected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Import(database, ImportInput{Path: tt.path})
+			_, err := Import(context.Background(), database, ImportInput{Path: tt.path})
 			if !errors.Is(err, errors.ErrInvalidRequest) {
 				t.Errorf("Import(%q) should return ErrInvalidRequest for traversal, got: %v", tt.path, err)
 			}
@@ -1208,7 +1209,7 @@ func TestImport_RequiresJSONLExtension(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Import(database, ImportInput{Path: tt.path})
+			_, err := Import(context.Background(), database, ImportInput{Path: tt.path})
 			if !errors.Is(err, errors.ErrInvalidRequest) {
 				t.Errorf("Import(%q) should return ErrInvalidRequest for non-.jsonl, got: %v", tt.path, err)
 			}

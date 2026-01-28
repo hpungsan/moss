@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -36,12 +37,12 @@ func TestInsert_WithOrchestrationFields(t *testing.T) {
 		UpdatedAt:      1000,
 	}
 
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Verify fields were stored
-	got, err := GetByID(db, c.ID, false)
+	got, err := GetByID(context.Background(), db, c.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -77,13 +78,13 @@ func TestListByWorkspace_FilterByRunID(t *testing.T) {
 	c3.RunID = &runID2
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Filter by run_id
-	summaries, total, err := ListByWorkspace(db, "default", ListFilters{RunID: &runID1}, 10, 0, false)
+	summaries, total, err := ListByWorkspace(context.Background(), db, "default", ListFilters{RunID: &runID1}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -126,19 +127,19 @@ func TestListByWorkspace_FilterByPhaseAndRole(t *testing.T) {
 	c3.Role = &reviewerRole
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Filter by phase only
-	_, total, _ := ListByWorkspace(db, "default", ListFilters{Phase: &designPhase}, 10, 0, false)
+	_, total, _ := ListByWorkspace(context.Background(), db, "default", ListFilters{Phase: &designPhase}, 10, 0, false)
 	if total != 2 {
 		t.Errorf("filter by phase: total = %d, want 2", total)
 	}
 
 	// Filter by phase AND role
-	summaries, total, _ := ListByWorkspace(db, "default", ListFilters{Phase: &designPhase, Role: &designerRole}, 10, 0, false)
+	summaries, total, _ := ListByWorkspace(context.Background(), db, "default", ListFilters{Phase: &designPhase, Role: &designerRole}, 10, 0, false)
 	if total != 1 {
 		t.Errorf("filter by phase+role: total = %d, want 1", total)
 	}
@@ -171,19 +172,19 @@ func TestGetLatestSummary_FilterByRunID(t *testing.T) {
 	c3.UpdatedAt = 1500
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Latest without filter - should get most recent overall
-	summary, _ := GetLatestSummary(db, "default", LatestFilters{}, false)
+	summary, _ := GetLatestSummary(context.Background(), db, "default", LatestFilters{}, false)
 	if summary.ID != "01ORCH302" {
 		t.Errorf("latest overall = %q, want 01ORCH302", summary.ID)
 	}
 
 	// Latest for run-001 only
-	summary, _ = GetLatestSummary(db, "default", LatestFilters{RunID: &runID1}, false)
+	summary, _ = GetLatestSummary(context.Background(), db, "default", LatestFilters{RunID: &runID1}, false)
 	if summary.ID != "01ORCH303" {
 		t.Errorf("latest for run-001 = %q, want 01ORCH303", summary.ID)
 	}
@@ -210,19 +211,19 @@ func TestInventory_FilterByOrchestrationFields(t *testing.T) {
 	c3 := newTestCapsule("01ORCH403", "ws1", "Content")
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Filter by run_id across all workspaces
-	_, total, _ := ListAll(db, InventoryFilters{RunID: &runID}, 10, 0, false)
+	_, total, _ := ListAll(context.Background(), db, InventoryFilters{RunID: &runID}, 10, 0, false)
 	if total != 2 {
 		t.Errorf("filter by run_id: total = %d, want 2", total)
 	}
 
 	// Filter by run_id + phase
-	summaries, total, _ := ListAll(db, InventoryFilters{RunID: &runID, Phase: &phase}, 10, 0, false)
+	summaries, total, _ := ListAll(context.Background(), db, InventoryFilters{RunID: &runID, Phase: &phase}, 10, 0, false)
 	if total != 1 {
 		t.Errorf("filter by run_id+phase: total = %d, want 1", total)
 	}
@@ -240,7 +241,7 @@ func TestUpdateByID_OrchestrationFields(t *testing.T) {
 	defer db.Close()
 
 	c := newTestCapsule("01ORCH501", "default", "Content")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -252,12 +253,12 @@ func TestUpdateByID_OrchestrationFields(t *testing.T) {
 	c.Phase = &phase
 	c.Role = &role
 
-	if err := UpdateByID(db, c); err != nil {
+	if err := UpdateByID(context.Background(), db, c); err != nil {
 		t.Fatalf("UpdateByID failed: %v", err)
 	}
 
 	// Verify update
-	got, _ := GetByID(db, c.ID, false)
+	got, _ := GetByID(context.Background(), db, c.ID, false)
 	if got.RunID == nil || *got.RunID != runID {
 		t.Errorf("RunID = %v, want %q", got.RunID, runID)
 	}
@@ -286,11 +287,11 @@ func TestCapsuleSummary_IncludesOrchestrationFields(t *testing.T) {
 	c.Phase = &phase
 	c.Role = &role
 
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	summaries, _, _ := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
+	summaries, _, _ := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 10, 0, false)
 	if len(summaries) == 0 {
 		t.Fatal("expected at least one summary")
 	}

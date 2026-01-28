@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -30,7 +31,7 @@ type LatestItem struct {
 }
 
 // Latest retrieves the most recent capsule in a workspace.
-func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
+func Latest(ctx context.Context, database *sql.DB, input LatestInput) (*LatestOutput, error) {
 	// Normalize workspace
 	workspace := capsule.Normalize(input.Workspace)
 	if workspace == "" {
@@ -53,7 +54,7 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 	// Query database based on include_text
 	if includeText {
 		// Fetch full capsule with text
-		c, err := db.GetLatestFull(database, workspace, filters, input.IncludeDeleted)
+		c, err := db.GetLatestFull(ctx, database, workspace, filters, input.IncludeDeleted)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +78,7 @@ func Latest(database *sql.DB, input LatestInput) (*LatestOutput, error) {
 	}
 
 	// Fetch summary only (no text)
-	s, err := db.GetLatestSummary(database, workspace, filters, input.IncludeDeleted)
+	s, err := db.GetLatestSummary(ctx, database, workspace, filters, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

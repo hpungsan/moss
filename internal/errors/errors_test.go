@@ -208,6 +208,22 @@ func TestIs(t *testing.T) {
 		}
 	})
 
+	t.Run("cancelled MossError", func(t *testing.T) {
+		err := NewCancelled("import")
+		if err.Code != ErrCancelled {
+			t.Errorf("Code = %q, want %q", err.Code, ErrCancelled)
+		}
+		if err.Status != 499 {
+			t.Errorf("Status = %d, want 499", err.Status)
+		}
+		if err.Message != "import cancelled" {
+			t.Errorf("Message = %q, want %q", err.Message, "import cancelled")
+		}
+		if !Is(err, ErrCancelled) {
+			t.Error("Is() = false, want true for ErrCancelled")
+		}
+	})
+
 	t.Run("wrapped MossError", func(t *testing.T) {
 		inner := NewNotFound("test")
 		wrapped := fmt.Errorf("items[0]: %w", inner)

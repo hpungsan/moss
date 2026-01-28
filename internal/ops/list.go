@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -26,7 +27,7 @@ type ListOutput struct {
 }
 
 // List retrieves capsule summaries for a workspace with pagination.
-func List(database *sql.DB, input ListInput) (*ListOutput, error) {
+func List(ctx context.Context, database *sql.DB, input ListInput) (*ListOutput, error) {
 	// Normalize workspace
 	workspace := capsule.Normalize(input.Workspace)
 	if workspace == "" {
@@ -53,7 +54,7 @@ func List(database *sql.DB, input ListInput) (*ListOutput, error) {
 	}
 
 	// Query database
-	summaries, total, err := db.ListByWorkspace(database, workspace, filters, limit, offset, input.IncludeDeleted)
+	summaries, total, err := db.ListByWorkspace(ctx, database, workspace, filters, limit, offset, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

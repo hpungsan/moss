@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -36,20 +37,20 @@ func TestPurge_AllDeleted(t *testing.T) {
 	c3 := newTestCapsuleForPurge("01PURGE3", "default", "Active")
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
-	if err := db.SoftDelete(database, c1.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c1.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
-	if err := db.SoftDelete(database, c2.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c2.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Purge all deleted
-	output, err := Purge(database, PurgeInput{})
+	output, err := Purge(context.Background(), database, PurgeInput{})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -62,7 +63,7 @@ func TestPurge_AllDeleted(t *testing.T) {
 	}
 
 	// Verify active capsule still exists
-	_, err = db.GetByID(database, c3.ID, false)
+	_, err = db.GetByID(context.Background(), database, c3.ID, false)
 	if err != nil {
 		t.Errorf("Active capsule should still exist: %v", err)
 	}
@@ -81,17 +82,17 @@ func TestPurge_WorkspaceFilter(t *testing.T) {
 	c2 := newTestCapsuleForPurge("01PURGE5", "other", "Deleted in other")
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
-		if err := db.SoftDelete(database, c.ID); err != nil {
+		if err := db.SoftDelete(context.Background(), database, c.ID); err != nil {
 			t.Fatalf("SoftDelete failed: %v", err)
 		}
 	}
 
 	// Purge only target workspace
 	ws := "target"
-	output, err := Purge(database, PurgeInput{Workspace: &ws})
+	output, err := Purge(context.Background(), database, PurgeInput{Workspace: &ws})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestPurge_WorkspaceFilter(t *testing.T) {
 	}
 
 	// Verify other workspace capsule still exists
-	_, err = db.GetByID(database, c2.ID, true)
+	_, err = db.GetByID(context.Background(), database, c2.ID, true)
 	if err != nil {
 		t.Errorf("Other workspace capsule should still exist: %v", err)
 	}
@@ -119,13 +120,13 @@ func TestPurge_OlderThanDays(t *testing.T) {
 	c2 := newTestCapsuleForPurge("01PURGE7", "default", "Old")
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Soft-delete c1 (recent)
-	if err := db.SoftDelete(database, c1.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c1.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
@@ -138,7 +139,7 @@ func TestPurge_OlderThanDays(t *testing.T) {
 
 	// Purge capsules deleted more than 7 days ago
 	days := 7
-	output, err := Purge(database, PurgeInput{OlderThanDays: &days})
+	output, err := Purge(context.Background(), database, PurgeInput{OlderThanDays: &days})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestPurge_OlderThanDays(t *testing.T) {
 	}
 
 	// Recent deleted capsule should still exist
-	_, err = db.GetByID(database, c1.ID, true)
+	_, err = db.GetByID(context.Background(), database, c1.ID, true)
 	if err != nil {
 		t.Errorf("Recent deleted capsule should still exist: %v", err)
 	}
@@ -168,13 +169,13 @@ func TestPurge_CombinedFilters(t *testing.T) {
 	c3 := newTestCapsuleForPurge("01PURGEA", "ws2", "ws2 old")
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Soft-delete c2 (recent)
-	if err := db.SoftDelete(database, c2.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c2.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
@@ -190,7 +191,7 @@ func TestPurge_CombinedFilters(t *testing.T) {
 	// Purge only ws1, older than 7 days
 	ws := "ws1"
 	days := 7
-	output, err := Purge(database, PurgeInput{Workspace: &ws, OlderThanDays: &days})
+	output, err := Purge(context.Background(), database, PurgeInput{Workspace: &ws, OlderThanDays: &days})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -200,13 +201,13 @@ func TestPurge_CombinedFilters(t *testing.T) {
 	}
 
 	// ws1 recent should still exist
-	_, err = db.GetByID(database, c2.ID, true)
+	_, err = db.GetByID(context.Background(), database, c2.ID, true)
 	if err != nil {
 		t.Errorf("ws1 recent should still exist: %v", err)
 	}
 
 	// ws2 old should still exist (different workspace)
-	_, err = db.GetByID(database, c3.ID, true)
+	_, err = db.GetByID(context.Background(), database, c3.ID, true)
 	if err != nil {
 		t.Errorf("ws2 old should still exist: %v", err)
 	}
@@ -222,11 +223,11 @@ func TestPurge_NoDeleted(t *testing.T) {
 
 	// Insert only active capsule
 	c := newTestCapsuleForPurge("01PURGEB", "default", "Active")
-	if err := db.Insert(database, c); err != nil {
+	if err := db.Insert(context.Background(), database, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	output, err := Purge(database, PurgeInput{})
+	output, err := Purge(context.Background(), database, PurgeInput{})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -250,12 +251,12 @@ func TestPurge_DoesNotAffectActive(t *testing.T) {
 	// Create multiple active capsules
 	for i := range 5 {
 		c := newTestCapsuleForPurge("01PURGEC"+string(rune('0'+i)), "default", "Active")
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
-	output, err := Purge(database, PurgeInput{})
+	output, err := Purge(context.Background(), database, PurgeInput{})
 	if err != nil {
 		t.Fatalf("Purge failed: %v", err)
 	}
@@ -266,7 +267,7 @@ func TestPurge_DoesNotAffectActive(t *testing.T) {
 
 	// Verify all active capsules still exist
 	for i := range 5 {
-		_, err := db.GetByID(database, "01PURGEC"+string(rune('0'+i)), false)
+		_, err := db.GetByID(context.Background(), database, "01PURGEC"+string(rune('0'+i)), false)
 		if err != nil {
 			t.Errorf("Active capsule %d should still exist: %v", i, err)
 		}
@@ -282,7 +283,7 @@ func TestPurge_NegativeOlderThanDays(t *testing.T) {
 	defer database.Close()
 
 	negativeDays := -1
-	_, err = Purge(database, PurgeInput{
+	_, err = Purge(context.Background(), database, PurgeInput{
 		OlderThanDays: &negativeDays,
 	})
 	if err == nil {

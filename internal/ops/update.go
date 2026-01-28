@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -35,7 +36,7 @@ type UpdateOutput struct {
 }
 
 // Update modifies an existing capsule.
-func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOutput, error) {
+func Update(ctx context.Context, database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
 	if err != nil {
@@ -51,9 +52,9 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 	// Fetch existing capsule (active only)
 	var c *capsule.Capsule
 	if addr.ByID {
-		c, err = db.GetByID(database, addr.ID, false)
+		c, err = db.GetByID(ctx, database, addr.ID, false)
 	} else {
-		c, err = db.GetByName(database, addr.Workspace, addr.Name, false)
+		c, err = db.GetByName(ctx, database, addr.Workspace, addr.Name, false)
 	}
 	if err != nil {
 		return nil, err
@@ -106,7 +107,7 @@ func Update(database *sql.DB, cfg *config.Config, input UpdateInput) (*UpdateOut
 	}
 
 	// Persist update
-	if err := db.UpdateByID(database, c); err != nil {
+	if err := db.UpdateByID(ctx, database, c); err != nil {
 		return nil, err
 	}
 

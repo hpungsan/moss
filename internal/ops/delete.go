@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/db"
@@ -20,7 +21,7 @@ type DeleteOutput struct {
 }
 
 // Delete soft-deletes a capsule.
-func Delete(database *sql.DB, input DeleteInput) (*DeleteOutput, error) {
+func Delete(ctx context.Context, database *sql.DB, input DeleteInput) (*DeleteOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
 	if err != nil {
@@ -32,12 +33,12 @@ func Delete(database *sql.DB, input DeleteInput) (*DeleteOutput, error) {
 	if addr.ByID {
 		capsuleID = addr.ID
 		// Verify it exists (GetByID will return ErrNotFound if not)
-		_, err = db.GetByID(database, addr.ID, false)
+		_, err = db.GetByID(ctx, database, addr.ID, false)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		c, err := db.GetByName(database, addr.Workspace, addr.Name, false)
+		c, err := db.GetByName(ctx, database, addr.Workspace, addr.Name, false)
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +46,7 @@ func Delete(database *sql.DB, input DeleteInput) (*DeleteOutput, error) {
 	}
 
 	// Soft delete
-	if err := db.SoftDelete(database, capsuleID); err != nil {
+	if err := db.SoftDelete(ctx, database, capsuleID); err != nil {
 		return nil, err
 	}
 

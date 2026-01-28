@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -39,7 +40,7 @@ type FetchOutput struct {
 }
 
 // Fetch retrieves a capsule by ID or name.
-func Fetch(database *sql.DB, input FetchInput) (*FetchOutput, error) {
+func Fetch(ctx context.Context, database *sql.DB, input FetchInput) (*FetchOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
 	if err != nil {
@@ -49,9 +50,9 @@ func Fetch(database *sql.DB, input FetchInput) (*FetchOutput, error) {
 	// Fetch capsule
 	var c *capsule.Capsule
 	if addr.ByID {
-		c, err = db.GetByID(database, addr.ID, input.IncludeDeleted)
+		c, err = db.GetByID(ctx, database, addr.ID, input.IncludeDeleted)
 	} else {
-		c, err = db.GetByName(database, addr.Workspace, addr.Name, input.IncludeDeleted)
+		c, err = db.GetByName(ctx, database, addr.Workspace, addr.Name, input.IncludeDeleted)
 	}
 	if err != nil {
 		return nil, err

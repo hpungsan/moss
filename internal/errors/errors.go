@@ -18,6 +18,7 @@ const (
 	ErrFileTooLarge        ErrorCode = "FILE_TOO_LARGE"       // 413
 	ErrComposeTooLarge     ErrorCode = "COMPOSE_TOO_LARGE"    // 413
 	ErrCapsuleTooThin      ErrorCode = "CAPSULE_TOO_THIN"     // 422
+	ErrCancelled           ErrorCode = "CANCELLED"            // 499
 	ErrInternal            ErrorCode = "INTERNAL"             // 500
 )
 
@@ -128,6 +129,15 @@ func NewCapsuleTooThin(missing []string) *MossError {
 		Status:  422,
 		Message: fmt.Sprintf("capsule missing required sections: %v", missing),
 		Details: map[string]any{"missing_sections": missing},
+	}
+}
+
+// NewCancelled creates a 499 error for context cancellation.
+func NewCancelled(operation string) *MossError {
+	return &MossError{
+		Code:    ErrCancelled,
+		Status:  499,
+		Message: fmt.Sprintf("%s cancelled", operation),
 	}
 }
 
