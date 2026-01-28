@@ -2,7 +2,7 @@
 
 How Moss Capsules integrate with Claude Code for context persistence across sessions, tasks, and swarms.
 
-> **For full swarm orchestration reference:** See [`dev/swarm/SKILL.md`](../../dev/swarm/SKILL.md) for Teams, Teammates, Inboxes, Backends, and orchestration patterns.
+> **For full swarm orchestration reference:** See [`dev/vault/skillVault/swarm/SKILL.md`](../../dev/vault/skillVault/swarm/SKILL.md) for Teams, Teammates, Inboxes, Backends, and orchestration patterns.
 
 ## The Two Primitives
 
@@ -48,7 +48,7 @@ For swarm orchestration, Claude Code uses Inbox messages for inter-agent communi
 
 ## Moss in Swarm Patterns
 
-The orchestration patterns in [`dev/swarm/SKILL.md`](../../dev/swarm/SKILL.md) use Inbox messages for worker coordination. Here's where Moss Capsules provide better context sharing:
+The orchestration patterns in [`dev/vault/skillVault/swarm/SKILL.md`](../../dev/vault/skillVault/swarm/SKILL.md) use Inbox messages for worker coordination. Here's where Moss Capsules provide better context sharing:
 
 ### Pattern 1: Parallel Specialists
 
@@ -443,4 +443,4 @@ Moss responses include `fetch_key` for direct Task metadata linking:
 | Filter by agent role | `role` filter |
 | Link task to context | `fetch_key` in metadata |
 | Query prior art across runs | `inventory` with `phase`/`tag` filters |
-| Transient agent messages | Inbox (see [`dev/swarm/SKILL.md`](../../dev/swarm/SKILL.md)) |
+| Transient agent messages | Inbox (see [`dev/vault/skillVault/swarm/SKILL.md`](../../dev/vault/skillVault/swarm/SKILL.md)) |

@@ -16,7 +16,7 @@ This is a template showing capsule structure. Replace with your actual status.
 
 ## Key locations
 - `examples/capsule.md` - this file
-- `docs/moss/v1/DESIGN.md` - full specification
+- `docs/v1/DESIGN.md` - full specification
 
 ## Open questions
 - None for this example

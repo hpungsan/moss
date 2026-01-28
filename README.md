@@ -44,19 +44,7 @@ go build ./cmd/moss
 
 ### Claude Code Integration
 
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "moss": {
-      "command": "/path/to/moss"
-    }
-  }
-}
-```
-
-Replace `/path/to/moss` with your actual binary path.
+See [Claude Code Setup](docs/setup/claude-code.md) for full setup including skills and subagents.
 
 ## Capsule Structure
 
@@ -158,10 +146,9 @@ Run `moss --help` for all commands.
 
 ## Documentation
 
-- [Overview & Use Cases](docs/moss/OVERVIEW.md)
-- [Design Spec](docs/moss/v1/DESIGN.md)
-- [Runbook](docs/moss/v1/RUNBOOK.md) — Installation, configuration, troubleshooting
-- [Moss + Claude Code](docs/agents/MOSS_CC.md)
+- [Overview & Use Cases](docs/OVERVIEW.md)
+- [Design Spec](docs/v1/DESIGN.md)
+- [Runbook](docs/RUNBOOK.md) — Installation, configuration, troubleshooting
 
 ## License
 

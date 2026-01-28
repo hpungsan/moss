@@ -45,15 +45,17 @@ moss/
 │       ├── purge.go               # Purge soft-deleted capsules
 │       └── compose.go             # Compose multiple capsules into bundle
 ├── docs/
-│   ├── moss/
-│   │   ├── OVERVIEW.md            # Concepts, use cases
-│   │   └── v1/
-│   │       ├── DESIGN.md          # API spec + implementation details
-│   │       ├── RUNBOOK.md         # Build, configure, run, troubleshoot
-│   │       └── BACKLOG.md         # Post-v1 features
-│   └── agents/
-│       ├── CODEMAP.md             # This file
-│       └── MOSS_CC.md             # Claude Code integration
+│   ├── OVERVIEW.md                # Concepts, use cases
+│   ├── RUNBOOK.md                 # Build, configure, run, troubleshoot
+│   ├── v1/
+│   │   ├── DESIGN.md              # API spec + implementation details
+│   │   └── BACKLOG.md             # Post-v1 features
+│   ├── agents/
+│   │   ├── CODEMAP.md             # This file
+│   │   ├── MOSS_CC.md             # Claude Code integration
+│   │   └── upgrade.md             # Agent upgrade notes
+│   └── setup/
+│       └── claude-code.md         # Claude Code setup guide
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # CI pipeline
@@ -75,7 +77,7 @@ moss/
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/500) |
 | `internal/mcp/` | MCP server exposing 12 tools via stdio transport |
 | `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge, Compose |
-| `docs/moss/v1/DESIGN.md` | Full v1 spec |
+| `docs/v1/DESIGN.md` | Full v1 spec |
 
 ## Notes
 

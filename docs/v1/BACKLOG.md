@@ -151,6 +151,44 @@ clone {
 
 **Use case:** New workflow run that builds on prior research. Preserves lineage, avoids manual copy-paste.
 
+### Real-Time Capsule Awareness (`watch`)
+
+Long-poll tool that blocks until new capsules match a filter:
+
+```json
+watch {
+  "workspace": "default",
+  "run_id": "pr-123",
+  "timeout_ms": 30000
+}
+```
+
+**Returns** when:
+- New capsule stored matching filter
+- Existing capsule updated matching filter
+- Timeout reached (returns empty)
+
+**Output:**
+```json
+{
+  "event": "created",  // or "updated", "timeout"
+  "capsule": { /* summary if event != timeout */ }
+}
+```
+
+**Use case:** Swarm workers waiting for dependencies without polling. Leader waiting for worker outputs. Pipeline stages waiting for upstream completion.
+
+**Alternatives considered:**
+- SSE/WebSocket (requires HTTP transport, more complex)
+- Polling with `list` (works, but wasteful for long waits)
+
+**Implementation:** SQLite doesn't support LISTEN/NOTIFY. Options:
+1. Poll internally with backoff, return on change detection
+2. File watcher on DB (platform-specific)
+3. In-memory subscription registry (process-local only)
+
+> **Decision:** Defer until polling proves insufficient. Most swarm patterns don't need sub-second awareness.
+
 ### `stats` Tool
 
 Quick overview of capsule distribution without fetching content:

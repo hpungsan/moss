@@ -41,7 +41,7 @@ moss inventory                     # List all
 moss --help                        # All commands
 ```
 
-Also: `Makefile` (human convenience), `docs/moss/v1/RUNBOOK.md` (operational guide).
+Also: `Makefile` (human convenience), `docs/RUNBOOK.md` (operational guide).
 
 ## Package Structure
 ```
@@ -64,10 +64,10 @@ internal/
 
 | Doc | Purpose |
 |-----|---------|
-| `docs/moss/OVERVIEW.md` | Concepts, use cases |
-| `docs/moss/v1/DESIGN.md` | API spec + implementation details (v1) |
-| `docs/moss/v1/RUNBOOK.md` | Build, configure, run, troubleshoot |
-| `docs/moss/v1/BACKLOG.md` | Post-v1 features |
+| `docs/OVERVIEW.md` | Concepts, use cases |
+| `docs/v1/DESIGN.md` | API spec + implementation details (v1) |
+| `docs/RUNBOOK.md` | Build, configure, run, troubleshoot |
+| `docs/v1/BACKLOG.md` | Post-v1 features |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/MOSS_CC.md` | Claude Code integration |
 

@@ -148,3 +148,55 @@ else:
 ```
 
 Gets audit trails where they matter most without overhead for simple fixes.
+
+---
+
+## featurev3: Feedback Loops + Moss Checkpoints
+
+Evolution of featurev2. Two changes: targeted feedback loops between steps, and Moss checkpoints to track loop state.
+
+### Current featurev2 flow (single-pass)
+
+```
+Parse → Context → Design Review → Adjust (once) → Implement → Verify → Store → Report
+```
+
+Single-pass: design reviewer flags concerns, you note them and move on. Verifier finds issues, you discuss with user. No automated retry.
+
+### featurev3 flow (loops)
+
+```
+Parse → Context → [Design Review ⇄ Adjust] → Checkpoint → [Implement ⇄ Verify] → Store → Report
+```
+
+Two loops:
+
+1. **Design review loop (Steps 3-4):** design-verifierv2 flags concerns → adjust plan → re-review → repeat until APPROVE. Exit: verdict is APPROVE, or max iterations reached (escalate to user).
+
+2. **Implement-verify loop (Steps 5-6):** implement → impl-verifierv2 evaluates → if PARTIAL/NOT_VERIFIED, fix flagged issues → re-verify → repeat until VERIFIED. Exit: verdict is VERIFIED, or max iterations reached (escalate to user).
+
+### Moss checkpoint
+
+Store a capsule **after design review loop exits** (between the two loops). This captures the "reviewed and ready" state: finalized plan + design feedback + adjustments.
+
+Why here:
+- Implementation is the longest step and most likely to be interrupted
+- If session dies mid-implementation, resume from a reviewed plan, not a best-effort WIP snapshot
+- Each implement-verify iteration can update the capsule with what was tried and what failed
+- Discoverable later: "what was the reviewed plan for feature X?"
+
+### Why not Ralph Loop
+
+Ralph Loop is brute-force: same prompt repeated, no memory, context comes only from file state. It works for well-defined tasks but iterations are blind.
+
+featurev3 loops are targeted:
+- **Feedback-driven:** verifier says "issue X at file:line" → fix X specifically
+- **Structured state:** orchestrator knows which iteration, what was flagged, what was attempted
+- **Separate loop boundaries:** design and implementation loops have distinct entry/exit criteria
+- **Escalation:** after N iterations, stop and ask the user instead of grinding
+
+### Open questions
+
+- Max iterations per loop before escalating to user? (2-3 seems right)
+- Should implement-verify loop update the Moss checkpoint each iteration, or only on interruption?
+- Should design review loop also get a Moss checkpoint, or is it short enough to not need one?

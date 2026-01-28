@@ -67,7 +67,7 @@ Moss bridges the isolation gap—sub-agents share structured context without pol
 
 Claude Code Tasks handle **coordination** (what to do, dependencies, status). Moss Capsules handle **context** (why, decisions, key locations). They're complementary—Tasks are ephemeral work items, Capsules are durable knowledge artifacts.
 
-See [MOSS_CC.md](../agents/MOSS_CC.md) for details on integration patterns.
+See [MOSS_CC.md](agents/MOSS_CC.md) for details on integration patterns.
 
 ## Design Principles
 
