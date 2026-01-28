@@ -211,7 +211,7 @@ func GetByName(q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (
 	row := q.QueryRow(query, workspaceNorm, nameNorm)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
-		return nil, errors.NewNotFound(nameNorm)
+		return nil, errors.NewNotFound(workspaceNorm + "/" + nameNorm)
 	}
 	if err != nil {
 		return nil, errors.NewInternal(err)

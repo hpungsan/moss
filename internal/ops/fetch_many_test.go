@@ -584,6 +584,62 @@ func TestFetchMany_ErrorPreservesRef(t *testing.T) {
 	}
 }
 
+func TestFetchMany_ReadTransaction(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Store 3 capsules with different names
+	names := []string{"snap-a", "snap-b", "snap-c"}
+	var ids []string
+	for _, name := range names {
+		stored, err := Store(database, cfg, StoreInput{
+			Workspace:   "default",
+			Name:        stringPtr(name),
+			CapsuleText: validCapsuleText,
+		})
+		if err != nil {
+			t.Fatalf("Store %s failed: %v", name, err)
+		}
+		ids = append(ids, stored.ID)
+	}
+
+	// FetchMany all three — verifies the transactional read path works
+	output, err := FetchMany(database, FetchManyInput{
+		Items: []FetchManyRef{
+			{ID: ids[0]},
+			{Workspace: "default", Name: "snap-b"},
+			{ID: ids[2]},
+		},
+	})
+	if err != nil {
+		t.Fatalf("FetchMany failed: %v", err)
+	}
+
+	if len(output.Items) != 3 {
+		t.Fatalf("len(Items) = %d, want 3", len(output.Items))
+	}
+	if len(output.Errors) != 0 {
+		t.Errorf("len(Errors) = %d, want 0", len(output.Errors))
+	}
+
+	// All capsules were stored in the same batch, so they should all be present
+	foundIDs := map[string]bool{}
+	for _, item := range output.Items {
+		foundIDs[item.ID] = true
+	}
+	for _, id := range ids {
+		if !foundIDs[id] {
+			t.Errorf("expected capsule %s in results", id)
+		}
+	}
+}
+
 func TestFetchMany_IncludeDeleted(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

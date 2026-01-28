@@ -761,6 +761,55 @@ func TestCompose_DuplicateReferences(t *testing.T) {
 	}
 }
 
+func TestCompose_ReadTransaction(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Store 3 capsules
+	names := []string{"snap-a", "snap-b", "snap-c"}
+	for _, name := range names {
+		_, err := Store(database, cfg, StoreInput{
+			Workspace:   "default",
+			Name:        stringPtr(name),
+			Title:       stringPtr("Title " + name),
+			CapsuleText: validCapsuleText,
+		})
+		if err != nil {
+			t.Fatalf("Store %s failed: %v", name, err)
+		}
+	}
+
+	// Compose all three — verifies the transactional read path works
+	output, err := Compose(database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "snap-a"},
+			{Workspace: "default", Name: "snap-b"},
+			{Workspace: "default", Name: "snap-c"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if output.PartsCount != 3 {
+		t.Errorf("PartsCount = %d, want 3", output.PartsCount)
+	}
+
+	// All three titles should appear in the bundle
+	for _, name := range names {
+		expected := "## Title " + name
+		if !strings.Contains(output.BundleText, expected) {
+			t.Errorf("BundleText should contain %q", expected)
+		}
+	}
+}
+
 func TestCompose_AmbiguousAddressing(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

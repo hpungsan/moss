@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -82,6 +83,13 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		return nil, errors.NewInvalidRequest("cannot use format:\"json\" with store_as; JSON output is not a valid capsule structure")
 	}
 
+	// Open a read-only transaction so all reads share a single point-in-time snapshot.
+	tx, err := database.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
 	// Fetch all capsules (all-or-nothing)
 	parts := make([]ComposePart, 0, len(input.Items))
 	estimatedChars := 0
@@ -95,16 +103,12 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(database, addr.ID, false)
+			c, err = db.GetByID(tx, addr.ID, false)
 		} else {
-			c, err = db.GetByName(database, addr.Workspace, addr.Name, false)
+			c, err = db.GetByName(tx, addr.Workspace, addr.Name, false)
 		}
 		if err != nil {
-			// Return error with context about which item failed
-			if mossErr, ok := err.(*errors.MossError); ok {
-				return nil, mossErr
-			}
-			return nil, err
+			return nil, fmt.Errorf("items[%d]: %w", i, err)
 		}
 
 		// Early size check (conservative estimate without formatting overhead)
@@ -135,6 +139,10 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 			Text:        c.CapsuleText,
 			Chars:       c.CapsuleChars,
 		})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.NewInternal(err)
 	}
 
 	// Assemble bundle based on format
