@@ -395,6 +395,30 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 
 No workers, queues, vector DB.
 
+## 7.1 Context propagation and cancellation
+
+All 12 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
+
+```
+MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
+```
+
+**Cancellable operations:** Four loop-based operations check `ctx.Done()` on each iteration, enabling early abort for long-running batches:
+
+| Operation | Cancellation point |
+|-----------|-------------------|
+| `fetch_many` | Before each item fetch |
+| `compose` | Before each item fetch |
+| `export` | Before each row write |
+| `import` | Before each record insert (all 3 modes) |
+
+**On cancellation:**
+- The loop exits immediately and returns a **499 CANCELLED** error with the operation name (e.g., `"import cancelled"`)
+- `import` runs within a transaction — cancellation triggers rollback with no partial writes
+- `export` cleans up the partial output file on failure
+
+**Single-item operations** (`store`, `fetch`, `update`, `delete`, `list`, `latest`, `inventory`, `purge`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
+
 ---
 
 # 8) Runtime configuration
@@ -494,6 +518,7 @@ See section 3.2 for lint rules, section 4.2 for normalization.
 | FILE_TOO_LARGE | 413 | Import file exceeds max size limit |
 | COMPOSE_TOO_LARGE | 413 | Composed bundle exceeds `capsule_max_chars` |
 | CAPSULE_TOO_THIN | 422 | Missing required sections |
+| CANCELLED | 499 | Context cancelled during long-running operation |
 | INTERNAL | 500 | Unexpected error |
 
 Response format:

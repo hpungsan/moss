@@ -20,6 +20,8 @@ Add `if_updated_at` to `update`:
 
 Rejects if capsule was modified since timestamp (prevents overwrites).
 
+**Context:** `Update` is a read-modify-write operation (fetch then `UpdateByID`) and can lose concurrent updates. `Delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but Moss does not enforce this, and humans/CLIs/orchestrators can still collide. Since `update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won’t merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
+
 ### Multi-Run Queries
 
 Allow `run_id` filter to accept an array for querying across multiple runs:
