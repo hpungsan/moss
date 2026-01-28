@@ -52,9 +52,9 @@ func Update(ctx context.Context, database *sql.DB, cfg *config.Config, input Upd
 	// Fetch existing capsule (active only)
 	var c *capsule.Capsule
 	if addr.ByID {
-		c, err = db.GetByID(database, addr.ID, false)
+		c, err = db.GetByID(ctx, database, addr.ID, false)
 	} else {
-		c, err = db.GetByName(database, addr.Workspace, addr.Name, false)
+		c, err = db.GetByName(ctx, database, addr.Workspace, addr.Name, false)
 	}
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func Update(ctx context.Context, database *sql.DB, cfg *config.Config, input Upd
 	}
 
 	// Persist update
-	if err := db.UpdateByID(database, c); err != nil {
+	if err := db.UpdateByID(ctx, database, c); err != nil {
 		return nil, err
 	}
 

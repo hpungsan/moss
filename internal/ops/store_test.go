@@ -119,7 +119,7 @@ func TestStore_DefaultWorkspace(t *testing.T) {
 	}
 
 	// Verify capsule is stored in default workspace
-	capsule, err := db.GetByName(database, "default", "test", false)
+	capsule, err := db.GetByName(context.Background(), database, "default", "test", false)
 	if err != nil {
 		t.Fatalf("GetByName failed: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestStore_NameCollision_ModeReplace(t *testing.T) {
 	}
 
 	// Verify content was updated
-	capsule, err := db.GetByID(database, output1.ID, false)
+	capsule, err := db.GetByID(context.Background(), database, output1.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestStore_NameCollision_ModeReplace_Concurrent(t *testing.T) {
 	}
 
 	// Verify only one capsule exists with this name
-	capsule, err := db.GetByName(database, "default", "concurrent-test", false)
+	capsule, err := db.GetByName(context.Background(), database, "default", "concurrent-test", false)
 	if err != nil {
 		t.Fatalf("GetByName failed: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestStore_TitleDefaultsToName(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	capsule, err := db.GetByID(database, output.ID, false)
+	capsule, err := db.GetByID(context.Background(), database, output.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -425,7 +425,7 @@ func TestStore_ExplicitTitle(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	capsule, err := db.GetByID(database, output.ID, false)
+	capsule, err := db.GetByID(context.Background(), database, output.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -456,7 +456,7 @@ func TestStore_NormalizesWorkspaceAndName(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	capsule, err := db.GetByID(database, output.ID, false)
+	capsule, err := db.GetByID(context.Background(), database, output.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}

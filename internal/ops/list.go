@@ -54,7 +54,7 @@ func List(ctx context.Context, database *sql.DB, input ListInput) (*ListOutput, 
 	}
 
 	// Query database
-	summaries, total, err := db.ListByWorkspace(database, workspace, filters, limit, offset, input.IncludeDeleted)
+	summaries, total, err := db.ListByWorkspace(ctx, database, workspace, filters, limit, offset, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

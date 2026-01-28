@@ -94,6 +94,12 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 	parts := make([]ComposePart, 0, len(input.Items))
 	estimatedChars := 0
 	for i, ref := range input.Items {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("compose cancelled: %w", ctx.Err())
+		default:
+		}
+
 		// Validate addressing for this ref
 		addr, err := ValidateAddress(ref.ID, ref.Workspace, ref.Name)
 		if err != nil {
@@ -103,9 +109,9 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(tx, addr.ID, false)
+			c, err = db.GetByID(ctx, tx, addr.ID, false)
 		} else {
-			c, err = db.GetByName(tx, addr.Workspace, addr.Name, false)
+			c, err = db.GetByName(ctx, tx, addr.Workspace, addr.Name, false)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("items[%d]: %w", i, err)

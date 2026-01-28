@@ -50,9 +50,9 @@ func Fetch(ctx context.Context, database *sql.DB, input FetchInput) (*FetchOutpu
 	// Fetch capsule
 	var c *capsule.Capsule
 	if addr.ByID {
-		c, err = db.GetByID(database, addr.ID, input.IncludeDeleted)
+		c, err = db.GetByID(ctx, database, addr.ID, input.IncludeDeleted)
 	} else {
-		c, err = db.GetByName(database, addr.Workspace, addr.Name, input.IncludeDeleted)
+		c, err = db.GetByName(ctx, database, addr.Workspace, addr.Name, input.IncludeDeleted)
 	}
 	if err != nil {
 		return nil, err

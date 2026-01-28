@@ -44,7 +44,7 @@ func TestExport_HappyPath(t *testing.T) {
 	c2.CreatedAt = 2000
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
@@ -141,7 +141,7 @@ func TestExport_JSONLFormat(t *testing.T) {
 	c.Tags = []string{"tag1", "tag2"}
 	c.Source = stringPtr("test")
 
-	if err := db.Insert(database, c); err != nil {
+	if err := db.Insert(context.Background(), database, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -195,7 +195,7 @@ func TestExport_WorkspaceFilter(t *testing.T) {
 	c2 := newTestCapsuleForExport("01EXP005", "other", "In other")
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
@@ -227,11 +227,11 @@ func TestExport_IncludeDeleted(t *testing.T) {
 	c2 := newTestCapsuleForExport("01EXP007", "default", "Deleted")
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
-	if err := db.SoftDelete(database, c2.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, c2.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
@@ -421,7 +421,7 @@ func TestExport_PreservesOrder(t *testing.T) {
 
 	// Insert in random order
 	for _, c := range []*capsule.Capsule{c3, c1, c2} {
-		if err := db.Insert(database, c); err != nil {
+		if err := db.Insert(context.Background(), database, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}

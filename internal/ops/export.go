@@ -95,7 +95,7 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 	}
 
 	// Stream capsules and write to file
-	rows, err := db.StreamForExport(database, input.Workspace, input.IncludeDeleted)
+	rows, err := db.StreamForExport(ctx, database, input.Workspace, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +103,12 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 
 	count := 0
 	for rows.Next() {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("export cancelled: %w", ctx.Err())
+		default:
+		}
+
 		c, err := db.ScanCapsuleFromRows(rows)
 		if err != nil {
 			return nil, errors.NewInternal(err)

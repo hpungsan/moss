@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,13 +15,13 @@ import (
 // Querier is an interface satisfied by both *sql.DB and *sql.Tx.
 // This allows functions to work with either a database connection or a transaction.
 type Querier interface {
-	Exec(query string, args ...any) (sql.Result, error)
-	Query(query string, args ...any) (*sql.Rows, error)
-	QueryRow(query string, args ...any) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 // Insert stores a new capsule in the database.
-func Insert(q Querier, c *capsule.Capsule) error {
+func Insert(ctx context.Context, q Querier, c *capsule.Capsule) error {
 	// Convert tags to JSON
 	var tagsJSON sql.NullString
 	if len(c.Tags) > 0 {
@@ -48,7 +50,7 @@ func Insert(q Querier, c *capsule.Capsule) error {
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
 	`
 
-	_, err := q.Exec(query,
+	_, err := q.ExecContext(ctx, query,
 		c.ID, c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
 		tagsJSON, source, runID, phase, role,
@@ -90,7 +92,7 @@ type UpsertResult struct {
 //
 // On update, preserves: id, workspace_raw/norm, name_raw/norm, created_at
 // On update, changes: capsule_text, title, tags, source, run_id, phase, role, updated_at, metrics
-func Upsert(q Querier, c *capsule.Capsule) (*UpsertResult, error) {
+func Upsert(ctx context.Context, q Querier, c *capsule.Capsule) (*UpsertResult, error) {
 	// Convert tags to JSON
 	var tagsJSON sql.NullString
 	if len(c.Tags) > 0 {
@@ -145,7 +147,7 @@ func Upsert(q Querier, c *capsule.Capsule) (*UpsertResult, error) {
 	`
 
 	var resultID string
-	err := q.QueryRow(query,
+	err := q.QueryRowContext(ctx, query,
 		c.ID, c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
 		tagsJSON, source, runID, phase, role,
@@ -164,7 +166,7 @@ func Upsert(q Querier, c *capsule.Capsule) (*UpsertResult, error) {
 
 // GetByID retrieves a capsule by its ULID.
 // If includeDeleted is false, soft-deleted capsules are excluded.
-func GetByID(q Querier, id string, includeDeleted bool) (*capsule.Capsule, error) {
+func GetByID(ctx context.Context, q Querier, id string, includeDeleted bool) (*capsule.Capsule, error) {
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
@@ -177,7 +179,7 @@ func GetByID(q Querier, id string, includeDeleted bool) (*capsule.Capsule, error
 		query += " AND deleted_at IS NULL"
 	}
 
-	row := q.QueryRow(query, id)
+	row := q.QueryRowContext(ctx, query, id)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
 		return nil, errors.NewNotFound(id)
@@ -191,7 +193,7 @@ func GetByID(q Querier, id string, includeDeleted bool) (*capsule.Capsule, error
 
 // GetByName retrieves a capsule by normalized workspace and name.
 // If includeDeleted is false, soft-deleted capsules are excluded.
-func GetByName(q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (*capsule.Capsule, error) {
+func GetByName(ctx context.Context, q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (*capsule.Capsule, error) {
 	query := `
 		SELECT id, workspace_raw, workspace_norm, name_raw, name_norm,
 			title, capsule_text, capsule_chars, tokens_estimate,
@@ -208,7 +210,7 @@ func GetByName(q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (
 		query += " ORDER BY (deleted_at IS NULL) DESC, updated_at DESC LIMIT 1"
 	}
 
-	row := q.QueryRow(query, workspaceNorm, nameNorm)
+	row := q.QueryRowContext(ctx, query, workspaceNorm, nameNorm)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
 		return nil, errors.NewNotFound(workspaceNorm + "/" + nameNorm)
@@ -221,7 +223,7 @@ func GetByName(q Querier, workspaceNorm, nameNorm string, includeDeleted bool) (
 }
 
 // CheckNameExists checks if an active capsule with the given name exists.
-func CheckNameExists(q Querier, workspaceNorm, nameNorm string) (bool, error) {
+func CheckNameExists(ctx context.Context, q Querier, workspaceNorm, nameNorm string) (bool, error) {
 	query := `
 		SELECT 1 FROM capsules
 		WHERE workspace_norm = ? AND name_norm = ? AND deleted_at IS NULL
@@ -229,7 +231,7 @@ func CheckNameExists(q Querier, workspaceNorm, nameNorm string) (bool, error) {
 	`
 
 	var exists int
-	err := q.QueryRow(query, workspaceNorm, nameNorm).Scan(&exists)
+	err := q.QueryRowContext(ctx, query, workspaceNorm, nameNorm).Scan(&exists)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -243,7 +245,7 @@ func CheckNameExists(q Querier, workspaceNorm, nameNorm string) (bool, error) {
 // UpdateByID updates mutable fields of an existing capsule.
 // Sets updated_at to current timestamp.
 // Does NOT change: id, workspace, name
-func UpdateByID(db *sql.DB, c *capsule.Capsule) error {
+func UpdateByID(ctx context.Context, db *sql.DB, c *capsule.Capsule) error {
 	// Convert tags to JSON
 	var tagsJSON sql.NullString
 	if len(c.Tags) > 0 {
@@ -271,7 +273,7 @@ func UpdateByID(db *sql.DB, c *capsule.Capsule) error {
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
-	result, err := db.Exec(query,
+	result, err := db.ExecContext(ctx, query,
 		c.CapsuleText, title, tagsJSON, source,
 		runID, phase, role,
 		c.CapsuleChars, c.TokensEstimate, now,
@@ -296,7 +298,7 @@ func UpdateByID(db *sql.DB, c *capsule.Capsule) error {
 }
 
 // SoftDelete marks a capsule as deleted by setting deleted_at.
-func SoftDelete(db *sql.DB, id string) error {
+func SoftDelete(ctx context.Context, db *sql.DB, id string) error {
 	now := time.Now().Unix()
 
 	query := `
@@ -305,7 +307,7 @@ func SoftDelete(db *sql.DB, id string) error {
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
-	result, err := db.Exec(query, now, id)
+	result, err := db.ExecContext(ctx, query, now, id)
 	if err != nil {
 		return errors.NewInternal(err)
 	}
@@ -456,7 +458,7 @@ type ListFilters struct {
 // ListByWorkspace retrieves capsule summaries for a workspace with pagination.
 // Returns summaries (no capsule_text) + total count.
 // Ordered by updated_at DESC, id DESC (stable pagination).
-func ListByWorkspace(db *sql.DB, workspaceNorm string, filters ListFilters, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
+func ListByWorkspace(ctx context.Context, db *sql.DB, workspaceNorm string, filters ListFilters, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
 	// Build WHERE conditions
 	conditions := []string{"workspace_norm = ?"}
 	args := []any{workspaceNorm}
@@ -482,7 +484,7 @@ func ListByWorkspace(db *sql.DB, workspaceNorm string, filters ListFilters, limi
 	// Build count query
 	countQuery := "SELECT COUNT(*) FROM capsules" + whereClause
 	var total int
-	if err := db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+	if err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, errors.NewInternal(err)
 	}
 
@@ -494,7 +496,7 @@ func ListByWorkspace(db *sql.DB, workspaceNorm string, filters ListFilters, limi
 		FROM capsules` + whereClause + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
 
 	listArgs := append(args, limit, offset)
-	rows, err := db.Query(listQuery, listArgs...)
+	rows, err := db.QueryContext(ctx, listQuery, listArgs...)
 	if err != nil {
 		return nil, 0, errors.NewInternal(err)
 	}
@@ -528,7 +530,7 @@ type InventoryFilters struct {
 // ListAll retrieves capsule summaries across all workspaces with optional filters.
 // Returns summaries (no capsule_text) + total count.
 // Ordered by updated_at DESC, id DESC (stable pagination).
-func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
+func ListAll(ctx context.Context, db *sql.DB, filters InventoryFilters, limit, offset int, includeDeleted bool) ([]capsule.CapsuleSummary, int, error) {
 	// Build WHERE clauses
 	var conditions []string
 	var args []any
@@ -569,7 +571,7 @@ func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDel
 	// Build count query
 	countQuery := "SELECT COUNT(*) FROM capsules" + whereClause
 	var total int
-	if err := db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+	if err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, errors.NewInternal(err)
 	}
 
@@ -581,7 +583,7 @@ func ListAll(db *sql.DB, filters InventoryFilters, limit, offset int, includeDel
 		FROM capsules` + whereClause + " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
 
 	listArgs := append(args, limit, offset)
-	rows, err := db.Query(listQuery, listArgs...)
+	rows, err := db.QueryContext(ctx, listQuery, listArgs...)
 	if err != nil {
 		return nil, 0, errors.NewInternal(err)
 	}
@@ -612,7 +614,7 @@ type LatestFilters struct {
 // GetLatestSummary retrieves the most recent capsule summary in a workspace.
 // Returns summary (no capsule_text).
 // Returns nil, nil if workspace is empty (not an error).
-func GetLatestSummary(db *sql.DB, workspaceNorm string, filters LatestFilters, includeDeleted bool) (*capsule.CapsuleSummary, error) {
+func GetLatestSummary(ctx context.Context, db *sql.DB, workspaceNorm string, filters LatestFilters, includeDeleted bool) (*capsule.CapsuleSummary, error) {
 	conditions := []string{"workspace_norm = ?"}
 	args := []any{workspaceNorm}
 
@@ -640,7 +642,7 @@ func GetLatestSummary(db *sql.DB, workspaceNorm string, filters LatestFilters, i
 		WHERE ` + strings.Join(conditions, " AND ") + `
 		ORDER BY updated_at DESC, id DESC LIMIT 1`
 
-	row := db.QueryRow(query, args...)
+	row := db.QueryRowContext(ctx, query, args...)
 	s, err := scanCapsuleSummary(row)
 	if err == sql.ErrNoRows {
 		return nil, nil // Empty workspace is not an error
@@ -654,7 +656,7 @@ func GetLatestSummary(db *sql.DB, workspaceNorm string, filters LatestFilters, i
 
 // GetLatestFull retrieves the most recent full capsule (including text) in a workspace.
 // Returns nil, nil if workspace is empty (not an error).
-func GetLatestFull(db *sql.DB, workspaceNorm string, filters LatestFilters, includeDeleted bool) (*capsule.Capsule, error) {
+func GetLatestFull(ctx context.Context, db *sql.DB, workspaceNorm string, filters LatestFilters, includeDeleted bool) (*capsule.Capsule, error) {
 	conditions := []string{"workspace_norm = ?"}
 	args := []any{workspaceNorm}
 
@@ -683,7 +685,7 @@ func GetLatestFull(db *sql.DB, workspaceNorm string, filters LatestFilters, incl
 		WHERE ` + strings.Join(conditions, " AND ") + `
 		ORDER BY updated_at DESC, id DESC LIMIT 1`
 
-	row := db.QueryRow(query, args...)
+	row := db.QueryRowContext(ctx, query, args...)
 	c, err := scanCapsule(row)
 	if err == sql.ErrNoRows {
 		return nil, nil // Empty workspace is not an error
@@ -702,7 +704,7 @@ func GetLatestFull(db *sql.DB, workspaceNorm string, filters LatestFilters, incl
 // StreamForExport returns a row iterator for exporting capsules.
 // The caller is responsible for closing the returned rows.
 // Capsules are ordered by created_at ASC for stable export order.
-func StreamForExport(db *sql.DB, workspace *string, includeDeleted bool) (*sql.Rows, error) {
+func StreamForExport(ctx context.Context, db *sql.DB, workspace *string, includeDeleted bool) (*sql.Rows, error) {
 	var conditions []string
 	var args []any
 
@@ -726,7 +728,7 @@ func StreamForExport(db *sql.DB, workspace *string, includeDeleted bool) (*sql.R
 	}
 	query += " ORDER BY created_at ASC, id ASC"
 
-	rows, err := db.Query(query, args...)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, errors.NewInternal(err)
 	}
@@ -787,7 +789,7 @@ func ScanCapsuleFromRows(rows *sql.Rows) (*capsule.Capsule, error) {
 // UpdateFull updates all fields of an existing capsule by ID.
 // Unlike UpdateByID, this can update workspace and name, and respects provided timestamps.
 // Used during import to restore exact capsule state.
-func UpdateFull(q Querier, c *capsule.Capsule) error {
+func UpdateFull(ctx context.Context, q Querier, c *capsule.Capsule) error {
 	// Convert tags to JSON
 	var tagsJSON sql.NullString
 	if len(c.Tags) > 0 {
@@ -820,7 +822,7 @@ func UpdateFull(q Querier, c *capsule.Capsule) error {
 		WHERE id = ?
 	`
 
-	result, err := q.Exec(query,
+	result, err := q.ExecContext(ctx, query,
 		c.WorkspaceRaw, c.WorkspaceNorm, nameRaw, nameNorm,
 		title, c.CapsuleText, c.CapsuleChars, c.TokensEstimate,
 		tagsJSON, source, runID, phase, role,
@@ -848,9 +850,9 @@ func UpdateFull(q Querier, c *capsule.Capsule) error {
 // FindUniqueName finds the next available unique name by appending -N suffix.
 // Used during import with mode:rename to avoid name collisions.
 // Returns the original baseName if it doesn't exist, otherwise tries baseName-1, baseName-2, etc.
-func FindUniqueName(q Querier, workspaceNorm, baseName string) (string, error) {
+func FindUniqueName(ctx context.Context, q Querier, workspaceNorm, baseName string) (string, error) {
 	// First check if baseName itself is available
-	exists, err := CheckNameExists(q, workspaceNorm, baseName)
+	exists, err := CheckNameExists(ctx, q, workspaceNorm, baseName)
 	if err != nil {
 		return "", err
 	}
@@ -860,8 +862,13 @@ func FindUniqueName(q Querier, workspaceNorm, baseName string) (string, error) {
 
 	// Try suffixed versions
 	for i := 1; i <= 1000; i++ {
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("find unique name cancelled: %w", ctx.Err())
+		default:
+		}
 		candidate := baseName + "-" + itoa(i)
-		exists, err := CheckNameExists(q, workspaceNorm, candidate)
+		exists, err := CheckNameExists(ctx, q, workspaceNorm, candidate)
 		if err != nil {
 			return "", err
 		}
@@ -892,7 +899,7 @@ func itoa(n int) string {
 //   - olderThanDays: only purge capsules deleted more than N days ago
 //
 // Returns the number of capsules purged.
-func PurgeDeleted(db *sql.DB, workspace *string, olderThanDays *int) (int, error) {
+func PurgeDeleted(ctx context.Context, db *sql.DB, workspace *string, olderThanDays *int) (int, error) {
 	var conditions []string
 	var args []any
 
@@ -915,7 +922,7 @@ func PurgeDeleted(db *sql.DB, workspace *string, olderThanDays *int) (int, error
 
 	query := "DELETE FROM capsules WHERE " + strings.Join(conditions, " AND ")
 
-	result, err := db.Exec(query, args...)
+	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, errors.NewInternal(err)
 	}
@@ -930,6 +937,6 @@ func PurgeDeleted(db *sql.DB, workspace *string, olderThanDays *int) (int, error
 
 // GetByIDIncludeDeleted retrieves a capsule by ID, optionally including deleted ones.
 // This is an alias for GetByID for clarity in import logic.
-func GetByIDIncludeDeleted(q Querier, id string) (*capsule.Capsule, error) {
-	return GetByID(q, id, true)
+func GetByIDIncludeDeleted(ctx context.Context, q Querier, id string) (*capsule.Capsule, error) {
+	return GetByID(ctx, q, id, true)
 }

@@ -386,7 +386,7 @@ func TestLatest_IncludeDeleted(t *testing.T) {
 		t.Fatalf("Failed to update timestamp: %v", err)
 	}
 
-	if err := db.SoftDelete(database, newer.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, newer.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 

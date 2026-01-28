@@ -234,7 +234,7 @@ func TestFetch_IncludeDeleted(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	if err := db.SoftDelete(database, storeOutput.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, storeOutput.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 

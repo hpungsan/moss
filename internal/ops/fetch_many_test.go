@@ -660,7 +660,7 @@ func TestFetchMany_IncludeDeleted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
-	if err := db.SoftDelete(database, stored.ID); err != nil {
+	if err := db.SoftDelete(context.Background(), database, stored.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 

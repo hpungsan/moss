@@ -54,7 +54,7 @@ func Latest(ctx context.Context, database *sql.DB, input LatestInput) (*LatestOu
 	// Query database based on include_text
 	if includeText {
 		// Fetch full capsule with text
-		c, err := db.GetLatestFull(database, workspace, filters, input.IncludeDeleted)
+		c, err := db.GetLatestFull(ctx, database, workspace, filters, input.IncludeDeleted)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func Latest(ctx context.Context, database *sql.DB, input LatestInput) (*LatestOu
 	}
 
 	// Fetch summary only (no text)
-	s, err := db.GetLatestSummary(database, workspace, filters, input.IncludeDeleted)
+	s, err := db.GetLatestSummary(ctx, database, workspace, filters, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

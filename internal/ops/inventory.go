@@ -68,7 +68,7 @@ func Inventory(ctx context.Context, database *sql.DB, input InventoryInput) (*In
 	offset := max(input.Offset, 0)
 
 	// Query database
-	summaries, total, err := db.ListAll(database, filters, limit, offset, input.IncludeDeleted)
+	summaries, total, err := db.ListAll(ctx, database, filters, limit, offset, input.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

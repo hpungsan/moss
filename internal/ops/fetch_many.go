@@ -86,6 +86,12 @@ func FetchMany(ctx context.Context, database *sql.DB, input FetchManyInput) (*Fe
 	var errs []FetchManyError
 
 	for _, ref := range input.Items {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("fetch_many cancelled: %w", ctx.Err())
+		default:
+		}
+
 		// Validate addressing for this ref
 		addr, err := ValidateAddress(ref.ID, ref.Workspace, ref.Name)
 		if err != nil {
@@ -96,9 +102,9 @@ func FetchMany(ctx context.Context, database *sql.DB, input FetchManyInput) (*Fe
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(tx, addr.ID, input.IncludeDeleted)
+			c, err = db.GetByID(ctx, tx, addr.ID, input.IncludeDeleted)
 		} else {
-			c, err = db.GetByName(tx, addr.Workspace, addr.Name, input.IncludeDeleted)
+			c, err = db.GetByName(ctx, tx, addr.Workspace, addr.Name, input.IncludeDeleted)
 		}
 		if err != nil {
 			errs = append(errs, refToError(ref, err))

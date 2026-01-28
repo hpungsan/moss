@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -44,12 +45,12 @@ func TestInsertAndGetByID(t *testing.T) {
 	c.Source = stringPtr("test")
 
 	// Insert
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// GetByID
-	retrieved, err := GetByID(db, "01ABC123", false)
+	retrieved, err := GetByID(context.Background(), db, "01ABC123", false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -92,7 +93,7 @@ func TestGetByID_NotFound(t *testing.T) {
 	}
 	defer db.Close()
 
-	_, err = GetByID(db, "nonexistent", false)
+	_, err = GetByID(context.Background(), db, "nonexistent", false)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("GetByID should return ErrNotFound, got: %v", err)
 	}
@@ -110,12 +111,12 @@ func TestGetByName(t *testing.T) {
 	c.NameRaw = stringPtr("Auth System")
 	c.NameNorm = stringPtr(capsule.Normalize("Auth System"))
 
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// GetByName with normalized values
-	retrieved, err := GetByName(db, "myworkspace", "auth system", false)
+	retrieved, err := GetByName(context.Background(), db, "myworkspace", "auth system", false)
 	if err != nil {
 		t.Fatalf("GetByName failed: %v", err)
 	}
@@ -133,7 +134,7 @@ func TestGetByName_NotFound(t *testing.T) {
 	}
 	defer db.Close()
 
-	_, err = GetByName(db, "default", "nonexistent", false)
+	_, err = GetByName(context.Background(), db, "default", "nonexistent", false)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("GetByName should return ErrNotFound, got: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestCheckNameExists(t *testing.T) {
 	defer db.Close()
 
 	// Check non-existent name
-	exists, err := CheckNameExists(db, "default", "auth")
+	exists, err := CheckNameExists(context.Background(), db, "default", "auth")
 	if err != nil {
 		t.Fatalf("CheckNameExists failed: %v", err)
 	}
@@ -160,12 +161,12 @@ func TestCheckNameExists(t *testing.T) {
 	c := newTestCapsule("01GHI789", "default", "Content")
 	c.NameRaw = stringPtr("auth")
 	c.NameNorm = stringPtr("auth")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Check existing name
-	exists, err = CheckNameExists(db, "default", "auth")
+	exists, err = CheckNameExists(context.Background(), db, "default", "auth")
 	if err != nil {
 		t.Fatalf("CheckNameExists failed: %v", err)
 	}
@@ -189,7 +190,7 @@ func TestUpdateByID(t *testing.T) {
 	c.Title = stringPtr("Original Title")
 	c.Tags = []string{"old"}
 	c.Source = stringPtr("original")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -203,7 +204,7 @@ func TestUpdateByID(t *testing.T) {
 
 	// Update
 	beforeUpdate := time.Now().Unix()
-	if err := UpdateByID(db, c); err != nil {
+	if err := UpdateByID(context.Background(), db, c); err != nil {
 		t.Fatalf("UpdateByID failed: %v", err)
 	}
 
@@ -213,7 +214,7 @@ func TestUpdateByID(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	retrieved, err := GetByID(db, c.ID, false)
+	retrieved, err := GetByID(context.Background(), db, c.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -243,7 +244,7 @@ func TestUpdateByID_NotFound(t *testing.T) {
 	defer db.Close()
 
 	c := newTestCapsule("nonexistent", "default", "Content")
-	err = UpdateByID(db, c)
+	err = UpdateByID(context.Background(), db, c)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("UpdateByID should return ErrNotFound, got: %v", err)
 	}
@@ -261,29 +262,29 @@ func TestSoftDelete(t *testing.T) {
 	c := newTestCapsule("01MNO345", "default", "Content to delete")
 	c.NameRaw = stringPtr("delete-test")
 	c.NameNorm = stringPtr("delete-test")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Verify exists
-	_, err = GetByID(db, c.ID, false)
+	_, err = GetByID(context.Background(), db, c.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID before delete failed: %v", err)
 	}
 
 	// Soft delete
-	if err := SoftDelete(db, c.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Verify not found without includeDeleted
-	_, err = GetByID(db, c.ID, false)
+	_, err = GetByID(context.Background(), db, c.ID, false)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("GetByID after delete should return ErrNotFound, got: %v", err)
 	}
 
 	// Verify found with includeDeleted
-	retrieved, err := GetByID(db, c.ID, true)
+	retrieved, err := GetByID(context.Background(), db, c.ID, true)
 	if err != nil {
 		t.Fatalf("GetByID with includeDeleted failed: %v", err)
 	}
@@ -292,7 +293,7 @@ func TestSoftDelete(t *testing.T) {
 	}
 
 	// Verify name slot is now free
-	exists, err := CheckNameExists(db, "default", "delete-test")
+	exists, err := CheckNameExists(context.Background(), db, "default", "delete-test")
 	if err != nil {
 		t.Fatalf("CheckNameExists failed: %v", err)
 	}
@@ -309,7 +310,7 @@ func TestSoftDelete_NotFound(t *testing.T) {
 	}
 	defer db.Close()
 
-	err = SoftDelete(db, "nonexistent")
+	err = SoftDelete(context.Background(), db, "nonexistent")
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("SoftDelete should return ErrNotFound, got: %v", err)
 	}
@@ -325,15 +326,15 @@ func TestSoftDelete_AlreadyDeleted(t *testing.T) {
 
 	// Insert and delete
 	c := newTestCapsule("01PQR678", "default", "Content")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := SoftDelete(db, c.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c.ID); err != nil {
 		t.Fatalf("First SoftDelete failed: %v", err)
 	}
 
 	// Try to delete again
-	err = SoftDelete(db, c.ID)
+	err = SoftDelete(context.Background(), db, c.ID)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("Second SoftDelete should return ErrNotFound, got: %v", err)
 	}
@@ -351,12 +352,12 @@ func TestInsert_UnnamedCapsule(t *testing.T) {
 	c := newTestCapsule("01STU901", "default", "Unnamed content")
 	// NameRaw and NameNorm are nil by default
 
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Retrieve
-	retrieved, err := GetByID(db, c.ID, false)
+	retrieved, err := GetByID(context.Background(), db, c.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -380,11 +381,11 @@ func TestInsert_EmptyTags(t *testing.T) {
 	c := newTestCapsule("01VWX234", "default", "Content")
 	// Tags is nil/empty by default
 
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	retrieved, err := GetByID(db, c.ID, false)
+	retrieved, err := GetByID(context.Background(), db, c.ID, false)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -406,7 +407,7 @@ func TestInsert_UniqueConstraint(t *testing.T) {
 	c1 := newTestCapsule("01FIRST1", "default", "First content")
 	c1.NameRaw = stringPtr("unique-name")
 	c1.NameNorm = stringPtr("unique-name")
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("First Insert failed: %v", err)
 	}
 
@@ -414,7 +415,7 @@ func TestInsert_UniqueConstraint(t *testing.T) {
 	c2 := newTestCapsule("01SECOND", "default", "Second content")
 	c2.NameRaw = stringPtr("unique-name")
 	c2.NameNorm = stringPtr("unique-name")
-	err = Insert(db, c2)
+	err = Insert(context.Background(), db, c2)
 
 	// Should return NAME_ALREADY_EXISTS (409) for named capsules
 	if !errors.Is(err, errors.ErrNameAlreadyExists) {
@@ -433,22 +434,22 @@ func TestGetByName_IncludeDeleted(t *testing.T) {
 	c := newTestCapsule("01YZA567", "default", "Content")
 	c.NameRaw = stringPtr("deleted-test")
 	c.NameNorm = stringPtr("deleted-test")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	if err := SoftDelete(db, c.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Should not find without includeDeleted
-	_, err = GetByName(db, "default", "deleted-test", false)
+	_, err = GetByName(context.Background(), db, "default", "deleted-test", false)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("GetByName should return ErrNotFound, got: %v", err)
 	}
 
 	// Should find with includeDeleted
-	retrieved, err := GetByName(db, "default", "deleted-test", true)
+	retrieved, err := GetByName(context.Background(), db, "default", "deleted-test", true)
 	if err != nil {
 		t.Fatalf("GetByName with includeDeleted failed: %v", err)
 	}
@@ -469,10 +470,10 @@ func TestGetByName_IncludeDeleted_PrefersActive(t *testing.T) {
 	old := newTestCapsule("01OLD567", "default", "Old content")
 	old.NameRaw = stringPtr("reuse")
 	old.NameNorm = stringPtr("reuse")
-	if err := Insert(db, old); err != nil {
+	if err := Insert(context.Background(), db, old); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := SoftDelete(db, old.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, old.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
@@ -480,12 +481,12 @@ func TestGetByName_IncludeDeleted_PrefersActive(t *testing.T) {
 	newer := newTestCapsule("01NEW567", "default", "New content")
 	newer.NameRaw = stringPtr("reuse")
 	newer.NameNorm = stringPtr("reuse")
-	if err := Insert(db, newer); err != nil {
+	if err := Insert(context.Background(), db, newer); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// includeDeleted:true should still return the active capsule (spec preference).
-	retrieved, err := GetByName(db, "default", "reuse", true)
+	retrieved, err := GetByName(context.Background(), db, "default", "reuse", true)
 	if err != nil {
 		t.Fatalf("GetByName failed: %v", err)
 	}
@@ -515,19 +516,19 @@ func TestListByWorkspace_Basic(t *testing.T) {
 		c.NameRaw = stringPtr("cap-" + id)
 		c.NameNorm = stringPtr("cap-" + id)
 		c.UpdatedAt = int64(1000 + i) // Ensure ordering
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Insert 1 capsule in different workspace
 	other := newTestCapsule("01BBB001", "other", "Other content")
-	if err := Insert(db, other); err != nil {
+	if err := Insert(context.Background(), db, other); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// List default workspace
-	summaries, total, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
+	summaries, total, err := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -558,13 +559,13 @@ func TestListByWorkspace_Pagination(t *testing.T) {
 		id := "01CCC00" + string(rune('1'+i))
 		c := newTestCapsule(id, "default", "Content")
 		c.UpdatedAt = int64(1000 + i)
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Get first page (limit 2)
-	page1, total, err := ListByWorkspace(db, "default", ListFilters{}, 2, 0, false)
+	page1, total, err := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 2, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace page 1 failed: %v", err)
 	}
@@ -576,7 +577,7 @@ func TestListByWorkspace_Pagination(t *testing.T) {
 	}
 
 	// Get second page (offset 2)
-	page2, _, err := ListByWorkspace(db, "default", ListFilters{}, 2, 2, false)
+	page2, _, err := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 2, 2, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace page 2 failed: %v", err)
 	}
@@ -604,12 +605,12 @@ func TestListByWorkspace_StableOrdering(t *testing.T) {
 	for _, id := range ids {
 		c := newTestCapsule(id, "default", "Content")
 		c.UpdatedAt = sameTime
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
-	summaries, _, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
+	summaries, _, err := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -636,21 +637,21 @@ func TestListByWorkspace_IncludeDeleted(t *testing.T) {
 
 	// Insert and delete one capsule
 	c := newTestCapsule("01EEE001", "default", "Content")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := SoftDelete(db, c.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Insert active capsule
 	active := newTestCapsule("01EEE002", "default", "Active")
-	if err := Insert(db, active); err != nil {
+	if err := Insert(context.Background(), db, active); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Without includeDeleted
-	_, total, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, false)
+	_, total, err := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -659,7 +660,7 @@ func TestListByWorkspace_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted
-	summaries, total, err := ListByWorkspace(db, "default", ListFilters{}, 10, 0, true)
+	summaries, total, err := ListByWorkspace(context.Background(), db, "default", ListFilters{}, 10, 0, true)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -679,7 +680,7 @@ func TestListByWorkspace_Empty(t *testing.T) {
 	}
 	defer db.Close()
 
-	summaries, total, err := ListByWorkspace(db, "nonexistent", ListFilters{}, 10, 0, false)
+	summaries, total, err := ListByWorkspace(context.Background(), db, "nonexistent", ListFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListByWorkspace failed: %v", err)
 	}
@@ -707,12 +708,12 @@ func TestListAll_NoFilters(t *testing.T) {
 	for i, ws := range []string{"ws1", "ws2", "ws3"} {
 		c := newTestCapsule("01FFF00"+string(rune('1'+i)), ws, "Content")
 		c.UpdatedAt = int64(1000 + i)
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
-	summaries, total, err := ListAll(db, InventoryFilters{}, 10, 0, false)
+	summaries, total, err := ListAll(context.Background(), db, InventoryFilters{}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -736,15 +737,15 @@ func TestListAll_WorkspaceFilter(t *testing.T) {
 	// Insert capsules
 	c1 := newTestCapsule("01GGG001", "alpha", "Content")
 	c2 := newTestCapsule("01GGG002", "beta", "Content")
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	workspace := "alpha"
-	summaries, total, err := ListAll(db, InventoryFilters{Workspace: &workspace}, 10, 0, false)
+	summaries, total, err := ListAll(context.Background(), db, InventoryFilters{Workspace: &workspace}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -768,25 +769,25 @@ func TestListAll_TagFilter(t *testing.T) {
 	// Capsule with matching tag
 	c1 := newTestCapsule("01HHH001", "default", "Content")
 	c1.Tags = []string{"important", "urgent"}
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Capsule without matching tag
 	c2 := newTestCapsule("01HHH002", "default", "Content")
 	c2.Tags = []string{"other"}
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Capsule with no tags
 	c3 := newTestCapsule("01HHH003", "default", "Content")
-	if err := Insert(db, c3); err != nil {
+	if err := Insert(context.Background(), db, c3); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	tag := "important"
-	summaries, total, err := ListAll(db, InventoryFilters{Tag: &tag}, 10, 0, false)
+	summaries, total, err := ListAll(context.Background(), db, InventoryFilters{Tag: &tag}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -811,7 +812,7 @@ func TestListAll_NamePrefixFilter_EscapesWildcards(t *testing.T) {
 	c1 := newTestCapsule("01WILD01", "default", "Content")
 	c1.NameRaw = stringPtr("test%percent")
 	c1.NameNorm = stringPtr("test%percent")
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -819,7 +820,7 @@ func TestListAll_NamePrefixFilter_EscapesWildcards(t *testing.T) {
 	c2 := newTestCapsule("01WILD02", "default", "Content")
 	c2.NameRaw = stringPtr("test_underscore")
 	c2.NameNorm = stringPtr("test_underscore")
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -827,13 +828,13 @@ func TestListAll_NamePrefixFilter_EscapesWildcards(t *testing.T) {
 	c3 := newTestCapsule("01WILD03", "default", "Content")
 	c3.NameRaw = stringPtr("testANYTHING")
 	c3.NameNorm = stringPtr("testanything")
-	if err := Insert(db, c3); err != nil {
+	if err := Insert(context.Background(), db, c3); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Search for literal "test%" - should only match c1, not c3
 	prefix := "test%"
-	summaries, total, err := ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	summaries, total, err := ListAll(context.Background(), db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -850,7 +851,7 @@ func TestListAll_NamePrefixFilter_EscapesWildcards(t *testing.T) {
 
 	// Search for literal "test_" - should only match c2, not c3
 	prefix = "test_"
-	summaries, total, err = ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	summaries, total, err = ListAll(context.Background(), db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -875,14 +876,14 @@ func TestListAll_NamePrefixFilter(t *testing.T) {
 	c1 := newTestCapsule("01III001", "default", "Content")
 	c1.NameRaw = stringPtr("auth-login")
 	c1.NameNorm = stringPtr("auth-login")
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c2 := newTestCapsule("01III002", "default", "Content")
 	c2.NameRaw = stringPtr("auth-logout")
 	c2.NameNorm = stringPtr("auth-logout")
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -890,12 +891,12 @@ func TestListAll_NamePrefixFilter(t *testing.T) {
 	c3 := newTestCapsule("01III003", "default", "Content")
 	c3.NameRaw = stringPtr("other")
 	c3.NameNorm = stringPtr("other")
-	if err := Insert(db, c3); err != nil {
+	if err := Insert(context.Background(), db, c3); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	prefix := "auth"
-	summaries, total, err := ListAll(db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
+	summaries, total, err := ListAll(context.Background(), db, InventoryFilters{NamePrefix: &prefix}, 10, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -920,13 +921,13 @@ func TestListAll_Pagination(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		c := newTestCapsule("01JJJ00"+string(rune('1'+i)), "default", "Content")
 		c.UpdatedAt = int64(1000 + i)
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// First page
-	page1, total, err := ListAll(db, InventoryFilters{}, 2, 0, false)
+	page1, total, err := ListAll(context.Background(), db, InventoryFilters{}, 2, 0, false)
 	if err != nil {
 		t.Fatalf("ListAll page 1 failed: %v", err)
 	}
@@ -938,7 +939,7 @@ func TestListAll_Pagination(t *testing.T) {
 	}
 
 	// Third page (partial)
-	page3, _, err := ListAll(db, InventoryFilters{}, 2, 4, false)
+	page3, _, err := ListAll(context.Background(), db, InventoryFilters{}, 2, 4, false)
 	if err != nil {
 		t.Fatalf("ListAll page 3 failed: %v", err)
 	}
@@ -962,23 +963,23 @@ func TestGetLatestSummary_Basic(t *testing.T) {
 	// Insert 3 capsules with different updated_at
 	c1 := newTestCapsule("01KKK001", "default", "First")
 	c1.UpdatedAt = 1000
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c2 := newTestCapsule("01KKK002", "default", "Second")
 	c2.UpdatedAt = 2000
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c3 := newTestCapsule("01KKK003", "default", "Third")
 	c3.UpdatedAt = 1500
-	if err := Insert(db, c3); err != nil {
+	if err := Insert(context.Background(), db, c3); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	summary, err := GetLatestSummary(db, "default", LatestFilters{}, false)
+	summary, err := GetLatestSummary(context.Background(), db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -999,7 +1000,7 @@ func TestGetLatestSummary_EmptyWorkspace(t *testing.T) {
 	}
 	defer db.Close()
 
-	summary, err := GetLatestSummary(db, "empty", LatestFilters{}, false)
+	summary, err := GetLatestSummary(context.Background(), db, "empty", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1021,17 +1022,17 @@ func TestGetLatestSummary_StableOrdering(t *testing.T) {
 	sameTime := int64(1000)
 	c1 := newTestCapsule("01LLL001", "default", "First")
 	c1.UpdatedAt = sameTime
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c2 := newTestCapsule("01LLL003", "default", "Second")
 	c2.UpdatedAt = sameTime
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	summary, err := GetLatestSummary(db, "default", LatestFilters{}, false)
+	summary, err := GetLatestSummary(context.Background(), db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1053,22 +1054,22 @@ func TestGetLatestSummary_IncludeDeleted(t *testing.T) {
 	// Insert and delete a recent capsule
 	c1 := newTestCapsule("01MMM001", "default", "Deleted")
 	c1.UpdatedAt = 2000
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := SoftDelete(db, c1.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c1.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Insert older active capsule
 	c2 := newTestCapsule("01MMM002", "default", "Active")
 	c2.UpdatedAt = 1000
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	// Without includeDeleted
-	summary, err := GetLatestSummary(db, "default", LatestFilters{}, false)
+	summary, err := GetLatestSummary(context.Background(), db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1077,7 +1078,7 @@ func TestGetLatestSummary_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted - should return deleted one since it's more recent
-	summary, err = GetLatestSummary(db, "default", LatestFilters{}, true)
+	summary, err = GetLatestSummary(context.Background(), db, "default", LatestFilters{}, true)
 	if err != nil {
 		t.Fatalf("GetLatestSummary failed: %v", err)
 	}
@@ -1099,11 +1100,11 @@ func TestGetLatestFull_Basic(t *testing.T) {
 	defer db.Close()
 
 	c := newTestCapsule("01NNN001", "default", "Full capsule content")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	capsule, err := GetLatestFull(db, "default", LatestFilters{}, false)
+	capsule, err := GetLatestFull(context.Background(), db, "default", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestFull failed: %v", err)
 	}
@@ -1124,7 +1125,7 @@ func TestGetLatestFull_EmptyWorkspace(t *testing.T) {
 	}
 	defer db.Close()
 
-	capsule, err := GetLatestFull(db, "empty", LatestFilters{}, false)
+	capsule, err := GetLatestFull(context.Background(), db, "empty", LatestFilters{}, false)
 	if err != nil {
 		t.Fatalf("GetLatestFull failed: %v", err)
 	}
@@ -1155,12 +1156,12 @@ func TestStreamForExport_All(t *testing.T) {
 	c3.CreatedAt = 3000
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
-	rows, err := StreamForExport(db, nil, false)
+	rows, err := StreamForExport(context.Background(), db, nil, false)
 	if err != nil {
 		t.Fatalf("StreamForExport failed: %v", err)
 	}
@@ -1197,13 +1198,13 @@ func TestStreamForExport_WorkspaceFilter(t *testing.T) {
 	c3 := newTestCapsule("01EXP103", "target", "Content 3")
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	ws := "target"
-	rows, err := StreamForExport(db, &ws, false)
+	rows, err := StreamForExport(context.Background(), db, &ws, false)
 	if err != nil {
 		t.Fatalf("StreamForExport failed: %v", err)
 	}
@@ -1237,18 +1238,18 @@ func TestStreamForExport_IncludeDeleted(t *testing.T) {
 	c1 := newTestCapsule("01EXP201", "default", "Active")
 	c2 := newTestCapsule("01EXP202", "default", "Deleted")
 
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
-	if err := SoftDelete(db, c2.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c2.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Without includeDeleted
-	rows, err := StreamForExport(db, nil, false)
+	rows, err := StreamForExport(context.Background(), db, nil, false)
 	if err != nil {
 		t.Fatalf("StreamForExport failed: %v", err)
 	}
@@ -1262,7 +1263,7 @@ func TestStreamForExport_IncludeDeleted(t *testing.T) {
 	}
 
 	// With includeDeleted
-	rows, err = StreamForExport(db, nil, true)
+	rows, err = StreamForExport(context.Background(), db, nil, true)
 	if err != nil {
 		t.Fatalf("StreamForExport failed: %v", err)
 	}
@@ -1298,7 +1299,7 @@ func TestUpdateFull_AllFields(t *testing.T) {
 	c.CreatedAt = 1000
 	c.UpdatedAt = 1000
 
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
@@ -1318,12 +1319,12 @@ func TestUpdateFull_AllFields(t *testing.T) {
 	deletedAt := int64(3000)
 	c.DeletedAt = &deletedAt
 
-	if err := UpdateFull(db, c); err != nil {
+	if err := UpdateFull(context.Background(), db, c); err != nil {
 		t.Fatalf("UpdateFull failed: %v", err)
 	}
 
 	// Retrieve and verify all fields
-	retrieved, err := GetByID(db, c.ID, true)
+	retrieved, err := GetByID(context.Background(), db, c.ID, true)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -1360,7 +1361,7 @@ func TestUpdateFull_NotFound(t *testing.T) {
 	defer db.Close()
 
 	c := newTestCapsule("nonexistent", "default", "Content")
-	err = UpdateFull(db, c)
+	err = UpdateFull(context.Background(), db, c)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("UpdateFull should return ErrNotFound, got: %v", err)
 	}
@@ -1378,7 +1379,7 @@ func TestFindUniqueName_NoCollision(t *testing.T) {
 	}
 	defer db.Close()
 
-	name, err := FindUniqueName(db, "default", "auth")
+	name, err := FindUniqueName(context.Background(), db, "default", "auth")
 	if err != nil {
 		t.Fatalf("FindUniqueName failed: %v", err)
 	}
@@ -1399,18 +1400,18 @@ func TestFindUniqueName_FindsNextSuffix(t *testing.T) {
 	c1 := newTestCapsule("01FUN001", "default", "Content")
 	c1.NameRaw = stringPtr("auth")
 	c1.NameNorm = stringPtr("auth")
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c2 := newTestCapsule("01FUN002", "default", "Content")
 	c2.NameRaw = stringPtr("auth-1")
 	c2.NameNorm = stringPtr("auth-1")
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	name, err := FindUniqueName(db, "default", "auth")
+	name, err := FindUniqueName(context.Background(), db, "default", "auth")
 	if err != nil {
 		t.Fatalf("FindUniqueName failed: %v", err)
 	}
@@ -1431,18 +1432,18 @@ func TestFindUniqueName_SkipsGaps(t *testing.T) {
 	c1 := newTestCapsule("01FUN101", "default", "Content")
 	c1.NameRaw = stringPtr("auth")
 	c1.NameNorm = stringPtr("auth")
-	if err := Insert(db, c1); err != nil {
+	if err := Insert(context.Background(), db, c1); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
 	c2 := newTestCapsule("01FUN102", "default", "Content")
 	c2.NameRaw = stringPtr("auth-2")
 	c2.NameNorm = stringPtr("auth-2")
-	if err := Insert(db, c2); err != nil {
+	if err := Insert(context.Background(), db, c2); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	name, err := FindUniqueName(db, "default", "auth")
+	name, err := FindUniqueName(context.Background(), db, "default", "auth")
 	if err != nil {
 		t.Fatalf("FindUniqueName failed: %v", err)
 	}
@@ -1470,20 +1471,20 @@ func TestPurgeDeleted_Basic(t *testing.T) {
 	c3 := newTestCapsule("01PUR003", "default", "Deleted 2")
 
 	for _, c := range []*capsule.Capsule{c1, c2, c3} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
-	if err := SoftDelete(db, c2.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c2.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
-	if err := SoftDelete(db, c3.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c3.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
 	// Purge all deleted
-	count, err := PurgeDeleted(db, nil, nil)
+	count, err := PurgeDeleted(context.Background(), db, nil, nil)
 	if err != nil {
 		t.Fatalf("PurgeDeleted failed: %v", err)
 	}
@@ -1492,13 +1493,13 @@ func TestPurgeDeleted_Basic(t *testing.T) {
 	}
 
 	// Verify active capsule still exists
-	_, err = GetByID(db, c1.ID, false)
+	_, err = GetByID(context.Background(), db, c1.ID, false)
 	if err != nil {
 		t.Errorf("Active capsule should still exist: %v", err)
 	}
 
 	// Verify deleted capsules are gone
-	_, err = GetByID(db, c2.ID, true)
+	_, err = GetByID(context.Background(), db, c2.ID, true)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("Deleted capsule should be purged: %v", err)
 	}
@@ -1517,17 +1518,17 @@ func TestPurgeDeleted_WorkspaceFilter(t *testing.T) {
 	c2 := newTestCapsule("01PUR102", "ws2", "Deleted in ws2")
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
-		if err := SoftDelete(db, c.ID); err != nil {
+		if err := SoftDelete(context.Background(), db, c.ID); err != nil {
 			t.Fatalf("SoftDelete failed: %v", err)
 		}
 	}
 
 	// Purge only ws1
 	ws := "ws1"
-	count, err := PurgeDeleted(db, &ws, nil)
+	count, err := PurgeDeleted(context.Background(), db, &ws, nil)
 	if err != nil {
 		t.Fatalf("PurgeDeleted failed: %v", err)
 	}
@@ -1536,7 +1537,7 @@ func TestPurgeDeleted_WorkspaceFilter(t *testing.T) {
 	}
 
 	// ws2 capsule should still exist (as deleted)
-	_, err = GetByID(db, c2.ID, true)
+	_, err = GetByID(context.Background(), db, c2.ID, true)
 	if err != nil {
 		t.Errorf("ws2 capsule should still exist: %v", err)
 	}
@@ -1555,13 +1556,13 @@ func TestPurgeDeleted_OlderThanDays(t *testing.T) {
 	c2 := newTestCapsule("01PUR202", "default", "Old")
 
 	for _, c := range []*capsule.Capsule{c1, c2} {
-		if err := Insert(db, c); err != nil {
+		if err := Insert(context.Background(), db, c); err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 	}
 
 	// Soft-delete both, but manipulate deleted_at for c2 to be old
-	if err := SoftDelete(db, c1.ID); err != nil {
+	if err := SoftDelete(context.Background(), db, c1.ID); err != nil {
 		t.Fatalf("SoftDelete failed: %v", err)
 	}
 
@@ -1574,7 +1575,7 @@ func TestPurgeDeleted_OlderThanDays(t *testing.T) {
 
 	// Purge capsules deleted more than 7 days ago
 	days := 7
-	count, err := PurgeDeleted(db, nil, &days)
+	count, err := PurgeDeleted(context.Background(), db, nil, &days)
 	if err != nil {
 		t.Fatalf("PurgeDeleted failed: %v", err)
 	}
@@ -1583,13 +1584,13 @@ func TestPurgeDeleted_OlderThanDays(t *testing.T) {
 	}
 
 	// Recent deleted capsule should still exist
-	_, err = GetByID(db, c1.ID, true)
+	_, err = GetByID(context.Background(), db, c1.ID, true)
 	if err != nil {
 		t.Errorf("Recent deleted capsule should still exist: %v", err)
 	}
 
 	// Old deleted capsule should be gone
-	_, err = GetByID(db, c2.ID, true)
+	_, err = GetByID(context.Background(), db, c2.ID, true)
 	if !errors.Is(err, errors.ErrNotFound) {
 		t.Errorf("Old deleted capsule should be purged: %v", err)
 	}
@@ -1605,11 +1606,11 @@ func TestPurgeDeleted_NoDeleted(t *testing.T) {
 
 	// Insert only active capsules
 	c := newTestCapsule("01PUR301", "default", "Active")
-	if err := Insert(db, c); err != nil {
+	if err := Insert(context.Background(), db, c); err != nil {
 		t.Fatalf("Insert failed: %v", err)
 	}
 
-	count, err := PurgeDeleted(db, nil, nil)
+	count, err := PurgeDeleted(context.Background(), db, nil, nil)
 	if err != nil {
 		t.Fatalf("PurgeDeleted failed: %v", err)
 	}

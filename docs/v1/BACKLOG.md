@@ -323,14 +323,6 @@ Optional snippets/transcript refs with "expand" semantics:
 
 ## Minor Improvements
 
-### Context-Aware DB Calls and Loop Cancellation
-
-`context.Context` is threaded through the ops layer to `BeginTx`, but individual DB calls still use non-context methods (`Query`, `Exec`, `QueryRow`) and loops in long-running operations don't check `ctx.Done()`.
-
-**Remaining work:**
-- Update `internal/db` `Querier` interface to use `QueryContext`, `ExecContext`, `QueryRowContext`
-- Add `ctx.Done()` checks in loops: `import.go`, `export.go`, `fetch_many.go`, `compose.go`
-
 ### MCP Server Graceful Shutdown (HTTP Transport)
 
 **Stdio**: Already handled. `mcp-go`'s `ServeStdio()` catches SIGTERM/SIGINT and shuts down gracefully.

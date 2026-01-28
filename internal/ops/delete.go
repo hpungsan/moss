@@ -33,12 +33,12 @@ func Delete(ctx context.Context, database *sql.DB, input DeleteInput) (*DeleteOu
 	if addr.ByID {
 		capsuleID = addr.ID
 		// Verify it exists (GetByID will return ErrNotFound if not)
-		_, err = db.GetByID(database, addr.ID, false)
+		_, err = db.GetByID(ctx, database, addr.ID, false)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		c, err := db.GetByName(database, addr.Workspace, addr.Name, false)
+		c, err := db.GetByName(ctx, database, addr.Workspace, addr.Name, false)
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func Delete(ctx context.Context, database *sql.DB, input DeleteInput) (*DeleteOu
 	}
 
 	// Soft delete
-	if err := db.SoftDelete(database, capsuleID); err != nil {
+	if err := db.SoftDelete(ctx, database, capsuleID); err != nil {
 		return nil, err
 	}
 

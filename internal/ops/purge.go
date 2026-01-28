@@ -22,7 +22,7 @@ type PurgeOutput struct {
 
 // Purge permanently deletes soft-deleted capsules.
 func Purge(ctx context.Context, database *sql.DB, input PurgeInput) (*PurgeOutput, error) {
-	count, err := db.PurgeDeleted(database, input.Workspace, input.OlderThanDays)
+	count, err := db.PurgeDeleted(ctx, database, input.Workspace, input.OlderThanDays)
 	if err != nil {
 		return nil, err
 	}

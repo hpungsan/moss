@@ -143,7 +143,7 @@ func Store(ctx context.Context, database *sql.DB, cfg *config.Config, input Stor
 		// Use atomic UPSERT to avoid race conditions between concurrent callers.
 		// If a capsule with the same (workspace, name) exists, it updates that capsule.
 		// Otherwise, it inserts a new capsule.
-		result, err := db.Upsert(database, c)
+		result, err := db.Upsert(ctx, database, c)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +155,7 @@ func Store(ctx context.Context, database *sql.DB, cfg *config.Config, input Stor
 	}
 
 	// mode:error - Insert and fail on conflict
-	if err := db.Insert(database, c); err != nil {
+	if err := db.Insert(ctx, database, c); err != nil {
 		return nil, err
 	}
 

@@ -208,8 +208,14 @@ func importModeError(ctx context.Context, database *sql.DB, records []capsule.Ex
 	var importErrors []ImportError
 
 	for _, record := range records {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("import cancelled: %w", ctx.Err())
+		default:
+		}
+
 		// Check for ID collision (within transaction to prevent TOCTOU)
-		existing, err := db.GetByID(tx, record.ID, true)
+		existing, err := db.GetByID(ctx, tx, record.ID, true)
 		if err != nil && !errors.Is(err, errors.ErrNotFound) {
 			return nil, err
 		}
@@ -230,7 +236,7 @@ func importModeError(ctx context.Context, database *sql.DB, records []capsule.Ex
 		// Check for name collision (if named, within transaction to prevent TOCTOU)
 		c := record.ToCapsule()
 		if c.NameNorm != nil {
-			exists, err := db.CheckNameExists(tx, c.WorkspaceNorm, *c.NameNorm)
+			exists, err := db.CheckNameExists(ctx, tx, c.WorkspaceNorm, *c.NameNorm)
 			if err != nil {
 				return nil, err
 			}
@@ -255,7 +261,7 @@ func importModeError(ctx context.Context, database *sql.DB, records []capsule.Ex
 		}
 
 		// Insert capsule (within transaction)
-		if err := db.Insert(tx, c); err != nil {
+		if err := db.Insert(ctx, tx, c); err != nil {
 			return nil, err
 		}
 		imported++
@@ -290,10 +296,16 @@ func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.
 	importErrors = append(importErrors, parseErrors...)
 
 	for _, record := range records {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("import cancelled: %w", ctx.Err())
+		default:
+		}
+
 		c := record.ToCapsule()
 
 		// Check for ID collision
-		existingByID, err := db.GetByID(tx, record.ID, true)
+		existingByID, err := db.GetByID(ctx, tx, record.ID, true)
 		if err != nil && !errors.Is(err, errors.ErrNotFound) {
 			return nil, err
 		}
@@ -302,7 +314,7 @@ func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.
 		var existingByName *capsule.Capsule
 		if c.NameNorm != nil {
 			// Name collisions should only consider active capsules (deleted_at IS NULL).
-			existingByName, err = db.GetByName(tx, c.WorkspaceNorm, *c.NameNorm, false)
+			existingByName, err = db.GetByName(ctx, tx, c.WorkspaceNorm, *c.NameNorm, false)
 			if err != nil && !errors.Is(err, errors.ErrNotFound) {
 				return nil, err
 			}
@@ -327,20 +339,20 @@ func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.
 		// Decide action based on collisions
 		if existingByID != nil {
 			// ID collision: update by ID
-			if err := db.UpdateFull(tx, c); err != nil {
+			if err := db.UpdateFull(ctx, tx, c); err != nil {
 				return nil, err
 			}
 			imported++
 		} else if existingByName != nil {
 			// Name collision (different ID): update by existing ID, keep new data
 			c.ID = existingByName.ID
-			if err := db.UpdateFull(tx, c); err != nil {
+			if err := db.UpdateFull(ctx, tx, c); err != nil {
 				return nil, err
 			}
 			imported++
 		} else {
 			// No collision: insert new
-			if err := db.Insert(tx, c); err != nil {
+			if err := db.Insert(ctx, tx, c); err != nil {
 				return nil, err
 			}
 			imported++
@@ -386,10 +398,16 @@ func importModeRename(ctx context.Context, database *sql.DB, records []capsule.E
 	importErrors = append(importErrors, parseErrors...)
 
 	for _, record := range records {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("import cancelled: %w", ctx.Err())
+		default:
+		}
+
 		c := record.ToCapsule()
 
 		// Check for ID collision
-		existingByID, err := db.GetByID(tx, record.ID, true)
+		existingByID, err := db.GetByID(ctx, tx, record.ID, true)
 		if err != nil && !errors.Is(err, errors.ErrNotFound) {
 			return nil, err
 		}
@@ -405,14 +423,14 @@ func importModeRename(ctx context.Context, database *sql.DB, records []capsule.E
 
 		// Check for name collision (if named)
 		if c.NameNorm != nil {
-			exists, err := db.CheckNameExists(tx, c.WorkspaceNorm, *c.NameNorm)
+			exists, err := db.CheckNameExists(ctx, tx, c.WorkspaceNorm, *c.NameNorm)
 			if err != nil {
 				return nil, err
 			}
 			if exists {
 				// Find unique name
 				baseName := *c.NameNorm
-				newName, err := db.FindUniqueName(tx, c.WorkspaceNorm, baseName)
+				newName, err := db.FindUniqueName(ctx, tx, c.WorkspaceNorm, baseName)
 				if err != nil {
 					name := ""
 					if record.NameRaw != nil {
@@ -434,7 +452,7 @@ func importModeRename(ctx context.Context, database *sql.DB, records []capsule.E
 		}
 
 		// Insert capsule
-		if err := db.Insert(tx, c); err != nil {
+		if err := db.Insert(ctx, tx, c); err != nil {
 			name := ""
 			if c.NameRaw != nil {
 				name = *c.NameRaw
