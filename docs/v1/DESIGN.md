@@ -2,7 +2,7 @@
 
 ## Summary
 
-12 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
+14 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -170,6 +170,8 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanently delete soft-deleted |
+| `bulk_delete` | Soft-delete multiple capsules by filter |
+| `bulk_update` | Update metadata on multiple capsules |
 | `compose` | Assemble multiple capsules into bundle |
 
 Each tool has a focused schema — no `action` dispatch needed.
@@ -373,6 +375,63 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 
 ---
 
+## 6.13 `bulk_delete`
+
+Soft-delete multiple active capsules matching filters. Requires at least one filter (safety guard). Only targets active capsules (`deleted_at IS NULL` is hardcoded).
+
+**Optional filters:** `workspace`, `tag`, `name_prefix`, `run_id`, `phase`, `role`
+
+**Safety:** At least one filter must be provided and non-empty after normalization. Calling with no filters or only whitespace filters → **400 INVALID_REQUEST**.
+
+**Behaviors:**
+- Filters use AND semantics (all provided filters must match)
+- Already soft-deleted capsules are not affected
+- Returns count of 0 with no error if no capsules match
+- Single atomic UPDATE query (no explicit transaction needed)
+
+**Output:**
+```json
+{
+  "deleted": 3,
+  "message": "Soft-deleted 3 capsules matching workspace=\"project\", tag=\"stale\""
+}
+```
+
+---
+
+## 6.14 `bulk_update`
+
+Update metadata (phase, role, tags) on multiple active capsules matching filters. Requires at least one filter AND at least one update field (safety guard). Only targets active capsules (`deleted_at IS NULL` is hardcoded).
+
+**Optional filters:** `workspace`, `tag`, `name_prefix`, `run_id`, `phase`, `role`
+
+**Update fields:** `set_phase`, `set_role`, `set_tags` (prefixed with `set_` to distinguish from filter fields)
+
+**Safety:**
+- At least one filter must be provided and non-empty after normalization.
+- At least one update field must be provided (empty values are allowed to support explicit clearing).
+- Calling with no filters or no update fields → **400 INVALID_REQUEST**.
+
+**Empty string semantics:** Empty string `""` means "clear the field" (set to NULL). This allows intentional field clearing. An empty `set_tags` array clears all tags.
+
+**Behaviors:**
+- Filters use AND semantics (all provided filters must match)
+- Tags are replaced entirely (not merged)
+- Always updates `updated_at` timestamp
+- Already soft-deleted capsules are not affected
+- Returns count of 0 with no error if no capsules match
+- Single atomic UPDATE query (no explicit transaction needed)
+
+**Output:**
+```json
+{
+  "updated": 5,
+  "message": "Updated 5 capsules matching workspace=\"project\"; set phase=\"archived\""
+}
+```
+
+---
+
 # 7) System architecture (minimal)
 
 1. **Moss service** (single local process)
@@ -397,7 +456,7 @@ No workers, queues, vector DB.
 
 ## 7.1 Context propagation and cancellation
 
-All 12 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
+All 14 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
 
 ```
 MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
@@ -417,7 +476,7 @@ MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
 - `import` runs within a transaction — cancellation triggers rollback with no partial writes
 - `export` cleans up the partial output file on failure
 
-**Single-item operations** (`store`, `fetch`, `update`, `delete`, `list`, `latest`, `inventory`, `purge`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
+**Single-query operations** (`store`, `fetch`, `update`, `delete`, `list`, `latest`, `inventory`, `purge`, `bulk_delete`, `bulk_update`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
 
 ---
 

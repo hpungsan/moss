@@ -133,6 +133,8 @@ This allows all Moss MCP tools without prompting. For finer control:
 | `export` | Export capsules to JSONL file |
 | `import` | Import capsules from JSONL file |
 | `purge` | Permanently delete soft-deleted capsules |
+| `bulk_delete` | Soft-delete multiple capsules by filter |
+| `bulk_update` | Update metadata on multiple capsules |
 | `compose` | Assemble multiple capsules into bundle |
 
 ---
@@ -244,7 +246,7 @@ Files are named: `<workspace>-<timestamp>.jsonl` or `all-<timestamp>.jsonl`
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./moss
 ```
 
-Expected: JSON response listing 12 tools.
+Expected: JSON response listing 14 tools.
 
 ### 2. Inventory (Empty Store)
 
@@ -367,6 +369,78 @@ compose {
 ```
 
 **Note:** `store_as` requires `format:"markdown"` (the default). Using `format:"json"` with `store_as` returns an error because JSON output lacks section headers required for capsule lint.
+
+### Bulk Delete by Filter
+
+```
+bulk_delete { "workspace": "scratch" }
+```
+
+Expected:
+```json
+{
+  "deleted": 5,
+  "message": "Soft-deleted 5 capsules matching workspace=\"scratch\""
+}
+```
+
+Multiple filters (AND semantics):
+
+```
+bulk_delete {
+  "workspace": "myproject",
+  "tag": "stale",
+  "phase": "research"
+}
+```
+
+At least one filter is required. Calling with no filters returns an error:
+
+```
+bulk_delete {}
+```
+
+Expected: `isError: true` with `code: "INVALID_REQUEST"`
+
+### Bulk Update by Filter
+
+```
+bulk_update { "workspace": "myproject", "set_phase": "archived" }
+```
+
+Expected:
+```json
+{
+  "updated": 5,
+  "message": "Updated 5 capsules matching workspace=\"myproject\"; set phase=\"archived\""
+}
+```
+
+Multiple filters and updates:
+
+```
+bulk_update {
+  "workspace": "myproject",
+  "tag": "completed",
+  "set_phase": "archived",
+  "set_role": "done"
+}
+```
+
+Clear a field with empty string:
+
+```
+bulk_update { "workspace": "scratch", "set_phase": "" }
+```
+
+At least one filter AND one update field is required:
+
+```
+bulk_update { "workspace": "test" }  // Error: no update fields
+bulk_update { "set_phase": "done" }  // Error: no filters
+```
+
+Expected: `isError: true` with `code: "INVALID_REQUEST"`
 
 ---
 

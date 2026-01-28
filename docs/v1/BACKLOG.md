@@ -106,28 +106,6 @@ store {
 
 **Use case:** Pipeline traceability. "This plan was based on that research." Audit trail for "why was this decision made?"
 
-### `bulk_update` Tool
-
-Update metadata across multiple capsules matching a filter:
-
-```json
-bulk_update {
-  "filter": { "run_id": "pr-123" },
-  "set": { "phase": "archived", "tags": ["completed", "reviewed"] }
-}
-```
-
-**Parameters:**
-- `filter` — same filters as `list`/`inventory` (workspace, run_id, phase, role, tag)
-- `set` — fields to update: `phase`, `role`, `tags` (not `capsule_text` — use `update` for content)
-
-**Output:**
-```json
-{ "updated_count": 7 }
-```
-
-**Use case:** After swarm completes, mark all capsules as archived in one call. Add tags for categorization without N individual updates.
-
 ### `clone` Tool
 
 Create new capsule based on existing:

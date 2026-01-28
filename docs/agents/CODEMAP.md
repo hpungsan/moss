@@ -22,14 +22,15 @@ moss/
 │   │   └── queries.go             # Querier interface, Insert, GetByID, GetByName,
 │   │                              # UpdateByID, SoftDelete, ListByWorkspace, ListAll,
 │   │                              # GetLatestSummary, GetLatestFull, StreamForExport,
-│   │                              # UpdateFull, FindUniqueName, PurgeDeleted
+│   │                              # UpdateFull, FindUniqueName, PurgeDeleted,
+│   │                              # BulkSoftDelete, BulkUpdate
 │   ├── errors/
-│   │   └── errors.go              # MossError, error codes (400/404/409/413/422/500)
+│   │   └── errors.go              # MossError, error codes (400/404/409/413/422/499/500)
 │   ├── mcp/
 │   │   ├── decode.go              # Generic decode[T] helper for MCP requests
 │   │   ├── handlers.go            # Tool handlers calling ops functions
 │   │   ├── server.go              # NewServer, Run (stdio transport)
-│   │   └── tools.go               # 12 tool definitions with JSON schemas
+│   │   └── tools.go               # 14 tool definitions with JSON schemas
 │   └── ops/
 │       ├── ops.go                 # Address validation, FetchKey
 │       ├── store.go               # Store operation (create/replace)
@@ -43,6 +44,8 @@ moss/
 │       ├── export.go              # Export to JSONL
 │       ├── import.go              # Import from JSONL
 │       ├── purge.go               # Purge soft-deleted capsules
+│       ├── bulk_delete.go         # Bulk soft-delete by filter
+│       ├── bulk_update.go         # Bulk metadata update by filter
 │       └── compose.go             # Compose multiple capsules into bundle
 ├── docs/
 │   ├── OVERVIEW.md                # Concepts, use cases
@@ -74,9 +77,9 @@ moss/
 | `internal/capsule/` | Capsule struct, normalization, linting (6 required sections), export record conversion |
 | `internal/db/` | SQLite init, schema, CRUD + browse queries, Querier interface for transactions |
 | `internal/config/` | Config loading from ~/.moss/config.json |
-| `internal/errors/` | Structured errors with codes (400/404/409/413/422/500) |
-| `internal/mcp/` | MCP server exposing 12 tools via stdio transport |
-| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge, Compose |
+| `internal/errors/` | Structured errors with codes (400/404/409/413/422/499/500) |
+| `internal/mcp/` | MCP server exposing 14 tools via stdio transport |
+| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
 | `docs/v1/DESIGN.md` | Full v1 spec |
 
 ## Notes
