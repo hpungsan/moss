@@ -200,6 +200,9 @@ func parseExportFile(file *os.File) ([]capsule.ExportRecord, []ImportError) {
 func importModeError(ctx context.Context, database *sql.DB, records []capsule.ExportRecord) (*ImportOutput, error) {
 	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("import")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -285,6 +288,9 @@ func importModeError(ctx context.Context, database *sql.DB, records []capsule.Ex
 func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
 	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("import")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
@@ -387,6 +393,9 @@ func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.
 func importModeRename(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
 	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("import")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck

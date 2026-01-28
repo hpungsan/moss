@@ -78,6 +78,9 @@ func FetchMany(ctx context.Context, database *sql.DB, input FetchManyInput) (*Fe
 	// Open a read-only transaction so all reads share a single point-in-time snapshot.
 	tx, err := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("fetch_many")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck

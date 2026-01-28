@@ -456,8 +456,7 @@ func TestHandleFetchMany_CancelledContextReturnsCancelled(t *testing.T) {
 	}
 	req := makeRequest(map[string]any{"items": items})
 
-	// Cancel after a small number of ctx.Done() checks so cancellation happens mid-loop
-	// (not pre-cancelled, which could fail BeginTx and return INTERNAL).
+	// Cancel after a small number of ctx.Done() checks so cancellation happens mid-loop.
 	ctx := newCancelAfterDoneCallsCtx(context.Background(), 10)
 
 	result, err := h.HandleFetchMany(ctx, req)

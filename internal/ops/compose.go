@@ -86,6 +86,9 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 	// Open a read-only transaction so all reads share a single point-in-time snapshot.
 	tx, err := database.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, errors.NewCancelled("compose")
+		}
 		return nil, errors.NewInternal(err)
 	}
 	defer tx.Rollback() //nolint:errcheck
