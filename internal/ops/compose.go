@@ -82,6 +82,13 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		return nil, errors.NewInvalidRequest("cannot use format:\"json\" with store_as; JSON output is not a valid capsule structure")
 	}
 
+	// Open a transaction so all reads share a single point-in-time snapshot.
+	tx, err := database.Begin()
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
 	// Fetch all capsules (all-or-nothing)
 	parts := make([]ComposePart, 0, len(input.Items))
 	estimatedChars := 0
@@ -95,9 +102,9 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(database, addr.ID, false)
+			c, err = db.GetByID(tx, addr.ID, false)
 		} else {
-			c, err = db.GetByName(database, addr.Workspace, addr.Name, false)
+			c, err = db.GetByName(tx, addr.Workspace, addr.Name, false)
 		}
 		if err != nil {
 			// Return error with context about which item failed
@@ -135,6 +142,10 @@ func Compose(database *sql.DB, cfg *config.Config, input ComposeInput) (*Compose
 			Text:        c.CapsuleText,
 			Chars:       c.CapsuleChars,
 		})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.NewInternal(err)
 	}
 
 	// Assemble bundle based on format

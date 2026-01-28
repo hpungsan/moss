@@ -73,6 +73,13 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 		includeText = *input.IncludeText
 	}
 
+	// Open a transaction so all reads share a single point-in-time snapshot.
+	tx, err := database.Begin()
+	if err != nil {
+		return nil, errors.NewInternal(err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
 	var items []FetchManyItem
 	var errs []FetchManyError
 
@@ -87,9 +94,9 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 		// Fetch capsule
 		var c *capsule.Capsule
 		if addr.ByID {
-			c, err = db.GetByID(database, addr.ID, input.IncludeDeleted)
+			c, err = db.GetByID(tx, addr.ID, input.IncludeDeleted)
 		} else {
-			c, err = db.GetByName(database, addr.Workspace, addr.Name, input.IncludeDeleted)
+			c, err = db.GetByName(tx, addr.Workspace, addr.Name, input.IncludeDeleted)
 		}
 		if err != nil {
 			errs = append(errs, refToError(ref, err))
@@ -99,6 +106,10 @@ func FetchMany(database *sql.DB, input FetchManyInput) (*FetchManyOutput, error)
 		// Build item
 		item := capsuleToItem(c, includeText)
 		items = append(items, item)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.NewInternal(err)
 	}
 
 	// Ensure we return empty arrays rather than nil
