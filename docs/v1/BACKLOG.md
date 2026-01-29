@@ -317,6 +317,14 @@ Optional snippets/transcript refs with "expand" semantics:
 
 `internal/ops/import.go` uses `bufio.NewScanner()` with default 64KB line limit. If `capsule_max_chars` is increased significantly (e.g., 50K+), large export records could be silently truncated. Consider using `scanner.Buffer()` to set explicit limit matching max capsule size + overhead.
 
+### Export: Atomic Replace on Windows
+
+`internal/ops/export.go` writes exports to a temp file and then finalizes via rename. On Windows, `os.Rename` fails if the destination already exists, and a delete+rename fallback is not atomic and can lose the existing file if the rename fails (locked file, AV, perms, etc.).
+
+**Current behavior (safe):** if the destination exists on Windows, export fails and preserves the existing file.
+
+**Desired behavior:** implement an atomic replace strategy on Windows (e.g., via Win32 `ReplaceFile` / `MoveFileEx` patterns) so exports can overwrite existing files without data-loss risk.
+
 ---
 
 ## Considered & Deferred

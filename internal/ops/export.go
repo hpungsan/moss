@@ -2,11 +2,14 @@ package ops
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/hpungsan/moss/internal/capsule"
@@ -63,18 +66,25 @@ func Export(ctx context.Context, database *sql.DB, cfg *config.Config, input Exp
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export directory: %w", err))
 	}
 
-	// Create export file with O_NOFOLLOW to prevent TOCTOU symlink attacks
-	file, err := openFileNoFollow(exportPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	// Write to temp file first, then atomic rename to preserve existing file on failure
+	randBytes := make([]byte, 8)
+	if _, err := rand.Read(randBytes); err != nil {
+		return nil, errors.NewInternal(fmt.Errorf("failed to generate temp file name: %w", err))
+	}
+	tempPath := exportPath + "." + hex.EncodeToString(randBytes) + ".tmp"
+	file, err := openFileNoFollow(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export file: %w", err))
 	}
 
-	// Clean up partial file on failure
+	// Clean up temp file on failure (original file is preserved)
 	success := false
 	defer func() {
-		file.Close()
+		if file != nil {
+			file.Close()
+		}
 		if !success {
-			os.Remove(exportPath)
+			os.Remove(tempPath)
 		}
 	}()
 
@@ -138,6 +148,31 @@ func Export(ctx context.Context, database *sql.DB, cfg *config.Config, input Exp
 	// Ensure file is written
 	if err := file.Sync(); err != nil {
 		return nil, errors.NewInternal(err)
+	}
+
+	// Close before atomic replace (required on Windows; fine elsewhere).
+	if err := file.Close(); err != nil {
+		return nil, errors.NewInternal(fmt.Errorf("failed to close export file: %w", err))
+	}
+	file = nil
+
+	// Check if destination is a symlink (os.Rename would follow it)
+	if info, err := os.Lstat(exportPath); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return nil, errors.NewInternal(fmt.Errorf("export path is a symlink"))
+	}
+
+	// Finalize export by renaming temp file into place.
+	//
+	// Note: On Windows, os.Rename fails if the destination exists. We intentionally
+	// fail safely (preserving the existing file) instead of doing a non-atomic
+	// delete+rename that could lose the original if rename fails.
+	if err := os.Rename(tempPath, exportPath); err != nil {
+		if runtime.GOOS == "windows" {
+			if _, statErr := os.Stat(exportPath); statErr == nil {
+				return nil, errors.NewInvalidRequest("export destination already exists; overwriting is not supported on Windows yet (choose a new path or delete the existing file)")
+			}
+		}
+		return nil, errors.NewInternal(fmt.Errorf("failed to finalize export: %w", err))
 	}
 
 	success = true
