@@ -325,6 +325,22 @@ Optional snippets/transcript refs with "expand" semantics:
 
 **Desired behavior:** implement an atomic replace strategy on Windows (e.g., via Win32 `ReplaceFile` / `MoveFileEx` patterns) so exports can overwrite existing files without data-loss risk.
 
+### Database: Dedicated Write Connection
+
+For high-concurrency workloads, separate read and write connection pools to reduce lock contention without globally serializing reads.
+
+**Current mitigation:** Config knobs `db_max_open_conns` and `db_max_idle_conns` allow users to tune pool behavior if they hit "database is locked" errors.
+
+**Desired behavior:** Dedicated write connection (`SetMaxOpenConns(1)`) for writes only; default pool for concurrent reads. Avoids serializing read throughput while eliminating write contention.
+
+### Bulk Update: `skip_unchanged` Option
+
+`bulk_update` always bumps `updated_at` even if values are already at the target ("touched" semantics). This can cause churn in `list`/`latest` ordering.
+
+**Current behavior (keep as default):** Consistent with single-item `update`, simple "rows matched" count semantics.
+
+**Desired behavior:** Add opt-in `skip_unchanged: true` flag. When set, add WHERE predicates to exclude rows already at target values (`phase IS NULL OR phase != ?` for set, `phase IS NOT NULL` for clear). Tags comparison works via `tags_json IS NULL OR tags_json != ?` since JSON is deterministically serialized.
+
 ---
 
 ## Considered & Deferred

@@ -297,16 +297,17 @@ func UpdateByID(ctx context.Context, db *sql.DB, c *capsule.Capsule) error {
 }
 
 // SoftDelete marks a capsule as deleted by setting deleted_at.
+// Also bumps updated_at so deletion is reflected in "latest" ordering.
 func SoftDelete(ctx context.Context, db *sql.DB, id string) error {
 	now := time.Now().Unix()
 
 	query := `
 		UPDATE capsules
-		SET deleted_at = ?
+		SET deleted_at = ?, updated_at = ?
 		WHERE id = ? AND deleted_at IS NULL
 	`
 
-	result, err := db.ExecContext(ctx, query, now, id)
+	result, err := db.ExecContext(ctx, query, now, now, id)
 	if err != nil {
 		return errors.NewInternal(err)
 	}
@@ -524,6 +525,18 @@ type InventoryFilters struct {
 	RunID      *string // filter by run_id
 	Phase      *string // filter by phase
 	Role       *string // filter by role
+}
+
+// HasFilters returns true if at least one meaningful filter is set.
+// Used by bulk operations to prevent accidental mass updates/deletes.
+// Checks both that pointer is non-nil AND value is non-empty.
+func (f InventoryFilters) HasFilters() bool {
+	return (f.Workspace != nil && strings.TrimSpace(*f.Workspace) != "") ||
+		(f.Tag != nil && strings.TrimSpace(*f.Tag) != "") ||
+		(f.NamePrefix != nil && strings.TrimSpace(*f.NamePrefix) != "") ||
+		(f.RunID != nil && strings.TrimSpace(*f.RunID) != "") ||
+		(f.Phase != nil && strings.TrimSpace(*f.Phase) != "") ||
+		(f.Role != nil && strings.TrimSpace(*f.Role) != "")
 }
 
 // ListAll retrieves capsule summaries across all workspaces with optional filters.
@@ -942,41 +955,46 @@ func GetByIDIncludeDeleted(ctx context.Context, q Querier, id string) (*capsule.
 
 // BulkSoftDelete sets deleted_at on all active capsules matching the given filters.
 // Only targets active capsules (deleted_at IS NULL is hardcoded).
-// Filter validation is the caller's responsibility.
+// Also bumps updated_at so deletion is reflected in "latest" ordering.
+// Requires at least one filter (defense-in-depth against accidental mass deletion).
 func BulkSoftDelete(ctx context.Context, db *sql.DB, filters InventoryFilters) (int, error) {
+	if !filters.HasFilters() {
+		return 0, errors.NewInvalidRequest("at least one filter is required for bulk delete")
+	}
+
 	now := time.Now().Unix()
 
 	conditions := []string{"deleted_at IS NULL"}
 	var args []any
 
-	if filters.Workspace != nil {
+	if filters.Workspace != nil && strings.TrimSpace(*filters.Workspace) != "" {
 		conditions = append(conditions, "workspace_norm = ?")
-		args = append(args, *filters.Workspace)
+		args = append(args, strings.TrimSpace(*filters.Workspace))
 	}
-	if filters.Tag != nil {
+	if filters.Tag != nil && strings.TrimSpace(*filters.Tag) != "" {
 		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(tags_json) WHERE value = ?)")
-		args = append(args, *filters.Tag)
+		args = append(args, strings.TrimSpace(*filters.Tag))
 	}
-	if filters.NamePrefix != nil {
+	if filters.NamePrefix != nil && strings.TrimSpace(*filters.NamePrefix) != "" {
 		conditions = append(conditions, "name_norm LIKE ? ESCAPE '\\'")
-		args = append(args, escapeLikePattern(*filters.NamePrefix)+"%")
+		args = append(args, escapeLikePattern(strings.TrimSpace(*filters.NamePrefix))+"%")
 	}
-	if filters.RunID != nil {
+	if filters.RunID != nil && strings.TrimSpace(*filters.RunID) != "" {
 		conditions = append(conditions, "run_id = ?")
-		args = append(args, *filters.RunID)
+		args = append(args, strings.TrimSpace(*filters.RunID))
 	}
-	if filters.Phase != nil {
+	if filters.Phase != nil && strings.TrimSpace(*filters.Phase) != "" {
 		conditions = append(conditions, "phase = ?")
-		args = append(args, *filters.Phase)
+		args = append(args, strings.TrimSpace(*filters.Phase))
 	}
-	if filters.Role != nil {
+	if filters.Role != nil && strings.TrimSpace(*filters.Role) != "" {
 		conditions = append(conditions, "role = ?")
-		args = append(args, *filters.Role)
+		args = append(args, strings.TrimSpace(*filters.Role))
 	}
 
-	query := "UPDATE capsules SET deleted_at = ? WHERE " + strings.Join(conditions, " AND ")
-	// Prepend deleted_at value to args
-	args = append([]any{now}, args...)
+	query := "UPDATE capsules SET deleted_at = ?, updated_at = ? WHERE " + strings.Join(conditions, " AND ")
+	// Prepend deleted_at and updated_at values to args
+	args = append([]any{now, now}, args...)
 
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -1000,9 +1018,13 @@ type BulkUpdateFields struct {
 
 // BulkUpdate updates metadata on all active capsules matching the given filters.
 // Only targets active capsules (deleted_at IS NULL is hardcoded).
-// Filter validation is the caller's responsibility.
 // Empty string values in fields mean "clear the field" (set to NULL).
+// Requires at least one filter (defense-in-depth against accidental mass updates).
 func BulkUpdate(ctx context.Context, db *sql.DB, filters InventoryFilters, fields BulkUpdateFields) (int, error) {
+	if !filters.HasFilters() {
+		return 0, errors.NewInvalidRequest("at least one filter is required for bulk update")
+	}
+
 	now := time.Now().Unix()
 
 	// Build SET clause from non-nil fields
@@ -1046,29 +1068,29 @@ func BulkUpdate(ctx context.Context, db *sql.DB, filters InventoryFilters, field
 	conditions := []string{"deleted_at IS NULL"}
 	var filterArgs []any
 
-	if filters.Workspace != nil {
+	if filters.Workspace != nil && strings.TrimSpace(*filters.Workspace) != "" {
 		conditions = append(conditions, "workspace_norm = ?")
-		filterArgs = append(filterArgs, *filters.Workspace)
+		filterArgs = append(filterArgs, strings.TrimSpace(*filters.Workspace))
 	}
-	if filters.Tag != nil {
+	if filters.Tag != nil && strings.TrimSpace(*filters.Tag) != "" {
 		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(tags_json) WHERE value = ?)")
-		filterArgs = append(filterArgs, *filters.Tag)
+		filterArgs = append(filterArgs, strings.TrimSpace(*filters.Tag))
 	}
-	if filters.NamePrefix != nil {
+	if filters.NamePrefix != nil && strings.TrimSpace(*filters.NamePrefix) != "" {
 		conditions = append(conditions, "name_norm LIKE ? ESCAPE '\\'")
-		filterArgs = append(filterArgs, escapeLikePattern(*filters.NamePrefix)+"%")
+		filterArgs = append(filterArgs, escapeLikePattern(strings.TrimSpace(*filters.NamePrefix))+"%")
 	}
-	if filters.RunID != nil {
+	if filters.RunID != nil && strings.TrimSpace(*filters.RunID) != "" {
 		conditions = append(conditions, "run_id = ?")
-		filterArgs = append(filterArgs, *filters.RunID)
+		filterArgs = append(filterArgs, strings.TrimSpace(*filters.RunID))
 	}
-	if filters.Phase != nil {
+	if filters.Phase != nil && strings.TrimSpace(*filters.Phase) != "" {
 		conditions = append(conditions, "phase = ?")
-		filterArgs = append(filterArgs, *filters.Phase)
+		filterArgs = append(filterArgs, strings.TrimSpace(*filters.Phase))
 	}
-	if filters.Role != nil {
+	if filters.Role != nil && strings.TrimSpace(*filters.Role) != "" {
 		conditions = append(conditions, "role = ?")
-		filterArgs = append(filterArgs, *filters.Role)
+		filterArgs = append(filterArgs, strings.TrimSpace(*filters.Role))
 	}
 
 	query := "UPDATE capsules SET " + strings.Join(setClauses, ", ") + " WHERE " + strings.Join(conditions, " AND ")

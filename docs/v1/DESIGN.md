@@ -282,7 +282,7 @@ Batch fetch multiple capsules in a single call. Useful for fan-in patterns where
 
 ## 6.5 `delete`
 
-Soft-deletes by setting `deleted_at`. Capsule recoverable via `include_deleted` or export/import.
+Soft-deletes by setting `deleted_at` and bumping `updated_at` to reflect deletion in "latest" ordering. Capsule recoverable via `include_deleted` or export/import.
 
 ---
 
@@ -474,7 +474,7 @@ MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
 **On cancellation:**
 - The loop exits immediately and returns a **499 CANCELLED** error with the operation name (e.g., `"import cancelled"`)
 - `import` runs within a transaction — cancellation triggers rollback with no partial writes
-- `export` cleans up the partial output file on failure
+- `export` writes to a temp file and finalizes via atomic rename; failures clean up the temp file and preserve any existing destination file
 
 **Single-query operations** (`store`, `fetch`, `update`, `delete`, `list`, `latest`, `inventory`, `purge`, `bulk_delete`, `bulk_update`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
 
@@ -490,7 +490,9 @@ Location: `~/.moss/config.json`
 {
   "capsule_max_chars": 12000,
   "allowed_paths": ["/tmp/my-exports"],
-  "allow_unsafe_paths": false
+  "allow_unsafe_paths": false,
+  "db_max_open_conns": 0,
+  "db_max_idle_conns": 0
 }
 ```
 
@@ -500,7 +502,9 @@ Location: `~/.moss/config.json`
 |-------|---------|-------------|
 | `capsule_max_chars` | 12000 | Max characters per capsule (~3k tokens) |
 | `allowed_paths` | `[]` | Additional directories allowed for import/export |
-| `allow_unsafe_paths` | `false` | Bypass path restrictions (use with caution) |
+| `allow_unsafe_paths` | `false` | Bypass directory restrictions for import/export (symlink checks still apply) |
+| `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
+| `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 
 ### Import/export path security
 
@@ -509,8 +513,9 @@ By default, `export` and `import` operations are restricted to `~/.moss/exports/
 **Restrictions enforced:**
 - `.jsonl` extension required
 - Directory traversal (`..`) rejected
-- Symlink files rejected (uses `O_NOFOLLOW` where supported) to prevent TOCTOU attacks
-- Directory symlinks resolved and validated: resolved path must be within allowed directories
+- Subdirectories not allowed: files must be directly in an allowed directory (prevents TOCTOU attacks on directory components)
+- Symlink files rejected (uses `O_NOFOLLOW` where supported) to prevent symlink-target reads/writes
+- Parent directory symlinks rejected (defense-in-depth)
 - Workspace names sanitized: path separators and `..` stripped from default export filenames
 - Paths must be within `~/.moss/exports/` or a directory in `allowed_paths`
 

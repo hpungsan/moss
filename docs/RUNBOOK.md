@@ -214,7 +214,9 @@ Location: `~/.moss/config.json`
 {
   "capsule_max_chars": 12000,
   "allowed_paths": [],
-  "allow_unsafe_paths": false
+  "allow_unsafe_paths": false,
+  "db_max_open_conns": 0,
+  "db_max_idle_conns": 0
 }
 ```
 
@@ -223,6 +225,8 @@ Location: `~/.moss/config.json`
 | `capsule_max_chars` | 12000 | Maximum characters per capsule (~3k tokens) |
 | `allowed_paths` | `[]` | Additional directories allowed for import/export |
 | `allow_unsafe_paths` | `false` | Bypass directory restrictions (symlink checks still apply) |
+| `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
+| `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 
 If the file doesn't exist, defaults are used.
 
@@ -237,6 +241,8 @@ By default, `export` and `import` are restricted to `~/.moss/exports/` to preven
   "allowed_paths": ["/tmp/moss-backups", "/home/user/capsule-exports"]
 }
 ```
+
+Note: `allowed_paths` entries must be absolute paths (relative paths are ignored).
 
 **To bypass directory restrictions (not recommended):**
 
@@ -433,6 +439,8 @@ bulk_delete {}
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`
 
+Note: whitespace-only filters are treated as empty and rejected.
+
 ### Bulk Update by Filter
 
 ```
@@ -472,6 +480,8 @@ bulk_update { "set_phase": "done" }  // Error: no filters
 ```
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`
+
+Note: whitespace-only filters are treated as empty and rejected.
 
 ---
 

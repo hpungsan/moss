@@ -1453,6 +1453,58 @@ func TestFindUniqueName_SkipsGaps(t *testing.T) {
 	}
 }
 
+func TestBulkSoftDelete_RequiresMeaningfulFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbConn, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer dbConn.Close()
+
+	c := newTestCapsule("01BULKDEL1", "default", "Test content")
+	if err := Insert(context.Background(), dbConn, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	// No filters
+	if _, err := BulkSoftDelete(context.Background(), dbConn, InventoryFilters{}); err == nil || !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest for empty filters, got: %v", err)
+	}
+
+	// Whitespace-only should not count as a filter
+	ws := "   "
+	if _, err := BulkSoftDelete(context.Background(), dbConn, InventoryFilters{NamePrefix: &ws}); err == nil || !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest for whitespace-only filter, got: %v", err)
+	}
+}
+
+func TestBulkUpdate_RequiresMeaningfulFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbConn, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer dbConn.Close()
+
+	c := newTestCapsule("01BULKUPD1", "default", "Test content")
+	if err := Insert(context.Background(), dbConn, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	fields := BulkUpdateFields{Phase: stringPtr("phase1")}
+
+	// No filters
+	if _, err := BulkUpdate(context.Background(), dbConn, InventoryFilters{}, fields); err == nil || !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest for empty filters, got: %v", err)
+	}
+
+	// Whitespace-only should not count as a filter
+	ws := "\t\n "
+	if _, err := BulkUpdate(context.Background(), dbConn, InventoryFilters{Tag: &ws}, fields); err == nil || !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Fatalf("expected ErrInvalidRequest for whitespace-only filter, got: %v", err)
+	}
+}
+
 // =============================================================================
 // PurgeDeleted Tests
 // =============================================================================

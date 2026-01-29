@@ -107,6 +107,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Apply database pool settings from config (if configured)
+	db.ConfigurePool(database, cfg)
+
 	// CLI mode: known subcommand
 	if isCLIMode() {
 		app := newCLIApp(database, cfg)

@@ -281,9 +281,13 @@ func importModeError(ctx context.Context, database *sql.DB, records []capsule.Ex
 }
 
 // importModeReplace imports records, updating existing on collision.
-// Atomic: all records succeed or none. If any errors occur (parse errors or
-// ambiguous collisions), the entire transaction is rolled back and all errors
-// are returned so the user can fix their export file and retry.
+// Atomic: all records succeed or none.
+//
+// Error handling:
+//   - Parse errors and ambiguous collisions are collected in ImportOutput.Errors
+//   - If any such errors exist, the transaction is rolled back and errors are returned
+//   - Database errors (unexpected failures) short-circuit immediately with a top-level error
+//     (these indicate systemic issues, not user-fixable problems)
 func importModeReplace(ctx context.Context, database *sql.DB, records []capsule.ExportRecord, parseErrors []ImportError) (*ImportOutput, error) {
 	tx, err := database.BeginTx(ctx, nil)
 	if err != nil {
