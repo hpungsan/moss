@@ -488,7 +488,9 @@ Location: `~/.moss/config.json`
 
 ```json
 {
-  "capsule_max_chars": 12000
+  "capsule_max_chars": 12000,
+  "allowed_paths": ["/tmp/my-exports"],
+  "allow_unsafe_paths": false
 }
 ```
 
@@ -497,6 +499,24 @@ Location: `~/.moss/config.json`
 | Field | Default | Description |
 |-------|---------|-------------|
 | `capsule_max_chars` | 12000 | Max characters per capsule (~3k tokens) |
+| `allowed_paths` | `[]` | Additional directories allowed for import/export |
+| `allow_unsafe_paths` | `false` | Bypass path restrictions (use with caution) |
+
+### Import/export path security
+
+By default, `export` and `import` operations are restricted to `~/.moss/exports/`. This prevents accidental writes to sensitive locations and limits exposure from symlink attacks.
+
+**Restrictions enforced:**
+- `.jsonl` extension required
+- Directory traversal (`..`) rejected
+- Symlink files rejected (uses `O_NOFOLLOW` where supported) to prevent TOCTOU attacks
+- Directory symlinks resolved and validated: resolved path must be within allowed directories
+- Workspace names sanitized: path separators and `..` stripped from default export filenames
+- Paths must be within `~/.moss/exports/` or a directory in `allowed_paths`
+
+**Configuration options:**
+- `allowed_paths`: Add directories to the allowlist (absolute paths only)
+- `allow_unsafe_paths: true`: Bypass directory and symlink restrictions (escape hatch for advanced users; still enforces `.jsonl` extension and traversal checks)
 
 ---
 
@@ -632,14 +652,14 @@ The `details` field varies by error code (e.g., `max_chars`/`actual_chars` for C
 
 ```
 1. Export all capsules:
-   export { path: "/tmp/backup.jsonl" }
+   export { path: "~/.moss/exports/backup.jsonl" }
 
 2. Export specific workspace:
-   export { path: "/tmp/projectA.jsonl", workspace: "projectA" }
+   export { path: "~/.moss/exports/projectA.jsonl", workspace: "projectA" }
 
 3. Restore to new machine:
-   import { path: "/tmp/backup.jsonl", mode: "error" }
+   import { path: "~/.moss/exports/backup.jsonl", mode: "error" }
 
 4. Merge with existing:
-   import { path: "/tmp/backup.jsonl", mode: "replace" }
+   import { path: "~/.moss/exports/backup.jsonl", mode: "replace" }
 ```

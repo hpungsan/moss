@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 
 	"github.com/hpungsan/moss/internal/capsule"
+	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/db"
 	"github.com/hpungsan/moss/internal/errors"
 )
@@ -57,7 +57,7 @@ type ImportError struct {
 }
 
 // Import imports capsules from a JSONL export file.
-func Import(ctx context.Context, database *sql.DB, input ImportInput) (*ImportOutput, error) {
+func Import(ctx context.Context, database *sql.DB, cfg *config.Config, input ImportInput) (*ImportOutput, error) {
 	// Validate input
 	if input.Path == "" {
 		return nil, errors.NewInvalidRequest("path is required")
@@ -69,19 +69,18 @@ func Import(ctx context.Context, database *sql.DB, input ImportInput) (*ImportOu
 		return nil, errors.NewInvalidRequest("mode must be one of: error, replace, rename")
 	}
 
-	// Validate path (reject traversal attempts, require .jsonl extension)
-	if err := validateImportPath(input.Path); err != nil {
+	// Validate path (includes security checks: traversal, extension, directory restrictions, symlinks)
+	if err := ValidatePath(input.Path, PathCheckRead, cfg); err != nil {
 		return nil, err
 	}
 
-	// Check file exists
-	if _, err := os.Stat(input.Path); os.IsNotExist(err) {
-		return nil, errors.NewFileNotFound(input.Path)
-	}
-
-	// Open file
-	file, err := os.Open(input.Path)
+	// Open file with O_NOFOLLOW to prevent TOCTOU symlink attacks
+	file, err := openFileNoFollowRead(input.Path)
 	if err != nil {
+		// openFileNoFollowRead returns MossError for symlinks and not-found
+		if _, ok := err.(*errors.MossError); ok {
+			return nil, err
+		}
 		return nil, errors.NewInternal(fmt.Errorf("failed to open import file: %w", err))
 	}
 	defer file.Close()
@@ -507,22 +506,4 @@ func generateNewULID() (string, error) {
 		return "", err
 	}
 	return id.String(), nil
-}
-
-// validateImportPath validates a user-provided import path.
-// Rejects paths containing traversal sequences and requires .jsonl extension.
-func validateImportPath(path string) error {
-	// Reject paths containing ".." (traversal attempt)
-	// Uses containsTraversal from export.go (same package)
-	if containsTraversal(path) {
-		return errors.NewInvalidRequest("import path must not contain directory traversal (..)")
-	}
-
-	// Require .jsonl extension
-	cleaned := filepath.Clean(path)
-	if filepath.Ext(cleaned) != ".jsonl" {
-		return errors.NewInvalidRequest("import path must have .jsonl extension")
-	}
-
-	return nil
 }

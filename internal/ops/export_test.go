@@ -11,9 +11,17 @@ import (
 	"time"
 
 	"github.com/hpungsan/moss/internal/capsule"
+	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/db"
 	"github.com/hpungsan/moss/internal/errors"
 )
+
+// testConfigUnsafe returns a config that allows any path (for testing with temp dirs).
+func testConfigUnsafe() *config.Config {
+	cfg := config.DefaultConfig()
+	cfg.AllowUnsafePaths = true
+	return cfg
+}
 
 func newTestCapsuleForExport(id, workspaceRaw, text string) *capsule.Capsule {
 	now := time.Now().Unix()
@@ -50,7 +58,7 @@ func TestExport_HappyPath(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	output, err := Export(context.Background(), database, ExportInput{Path: exportPath})
+	output, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -93,7 +101,7 @@ func TestExport_HeaderLine(t *testing.T) {
 	defer database.Close()
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	output, err := Export(context.Background(), database, ExportInput{Path: exportPath})
+	output, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -146,7 +154,7 @@ func TestExport_JSONLFormat(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -202,7 +210,7 @@ func TestExport_WorkspaceFilter(t *testing.T) {
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
 	ws := "target"
-	output, err := Export(context.Background(), database, ExportInput{
+	output, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{
 		Path:      exportPath,
 		Workspace: &ws,
 	})
@@ -237,7 +245,7 @@ func TestExport_IncludeDeleted(t *testing.T) {
 
 	// Without includeDeleted
 	exportPath1 := filepath.Join(tmpDir, "export1.jsonl")
-	output1, err := Export(context.Background(), database, ExportInput{
+	output1, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{
 		Path:           exportPath1,
 		IncludeDeleted: false,
 	})
@@ -250,7 +258,7 @@ func TestExport_IncludeDeleted(t *testing.T) {
 
 	// With includeDeleted
 	exportPath2 := filepath.Join(tmpDir, "export2.jsonl")
-	output2, err := Export(context.Background(), database, ExportInput{
+	output2, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{
 		Path:           exportPath2,
 		IncludeDeleted: true,
 	})
@@ -271,7 +279,7 @@ func TestExport_Empty(t *testing.T) {
 	defer database.Close()
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	output, err := Export(context.Background(), database, ExportInput{Path: exportPath})
+	output, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -306,7 +314,7 @@ func TestExport_FilePermissions(t *testing.T) {
 	defer database.Close()
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -335,7 +343,7 @@ func TestExport_DefaultPath(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", oldHome)
 
-	output, err := Export(context.Background(), database, ExportInput{})
+	output, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -371,7 +379,7 @@ func TestExport_DefaultPathWithWorkspace(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	ws := "MyWorkspace"
-	output, err := Export(context.Background(), database, ExportInput{Workspace: &ws})
+	output, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{Workspace: &ws})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -392,7 +400,7 @@ func TestExport_CreatesDirectory(t *testing.T) {
 
 	// Export to a nested path that doesn't exist
 	exportPath := filepath.Join(tmpDir, "nested", "dir", "export.jsonl")
-	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -427,7 +435,7 @@ func TestExport_PreservesOrder(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tmpDir, "export.jsonl")
-	_, err = Export(context.Background(), database, ExportInput{Path: exportPath})
+	_, err = Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: exportPath})
 	if err != nil {
 		t.Fatalf("Export failed: %v", err)
 	}
@@ -476,7 +484,7 @@ func TestExport_PathTraversalRejected(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Export(context.Background(), database, ExportInput{Path: tc.path})
+			_, err := Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: tc.path})
 			if err == nil {
 				t.Error("Expected error for path traversal, got nil")
 			}
@@ -495,11 +503,100 @@ func TestExport_RequiresJSONLExtension(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = Export(context.Background(), database, ExportInput{Path: filepath.Join(tmpDir, "export.txt")})
+	_, err = Export(context.Background(), database, testConfigUnsafe(), ExportInput{Path: filepath.Join(tmpDir, "export.txt")})
 	if err == nil {
 		t.Error("Expected error for non-.jsonl extension, got nil")
 	}
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("Expected ErrInvalidRequest, got: %v", err)
+	}
+}
+
+func TestExport_WorkspaceInjectionBlocked(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Override HOME for test to use a clean temp dir
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", oldHome)
+
+	// Create the exports directory
+	exportsDir := filepath.Join(tmpDir, ".moss", "exports")
+	if err := os.MkdirAll(exportsDir, 0700); err != nil {
+		t.Fatalf("Failed to create exports dir: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		workspace string
+		wantInDir bool // true = should succeed and be in exports dir
+	}{
+		{"simple workspace", "myproject", true},
+		{"traversal attempt", "../../../tmp/pwned", true}, // sanitized, stays in exports
+		{"absolute path attempt", "/etc/passwd", true},    // sanitized, stays in exports
+		{"backslash attempt", "..\\..\\tmp\\pwned", true}, // sanitized, stays in exports
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ws := tc.workspace
+			// Use default config (restricts to ~/.moss/exports)
+			cfg := config.DefaultConfig()
+			output, err := Export(context.Background(), database, cfg, ExportInput{Workspace: &ws})
+
+			if tc.wantInDir {
+				if err != nil {
+					t.Fatalf("Export failed unexpectedly: %v", err)
+				}
+				// Verify the file is actually in the exports directory
+				if !strings.HasPrefix(output.Path, exportsDir) {
+					t.Errorf("Path %q should be in %q", output.Path, exportsDir)
+				}
+				// Verify the filename doesn't contain path separators
+				filename := filepath.Base(output.Path)
+				if strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+					t.Errorf("Filename %q should not contain path separators", filename)
+				}
+				// Verify the file exists
+				if _, err := os.Stat(output.Path); os.IsNotExist(err) {
+					t.Error("Export file should exist")
+				}
+				// Cleanup
+				os.Remove(output.Path)
+			}
+		})
+	}
+}
+
+func TestExport_SymlinkFileRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Create a target file
+	targetFile := filepath.Join(tmpDir, "target.jsonl")
+	if err := os.WriteFile(targetFile, []byte("{}"), 0600); err != nil {
+		t.Fatalf("Failed to create target file: %v", err)
+	}
+
+	// Create a symlink to the target
+	symlinkPath := filepath.Join(tmpDir, "link.jsonl")
+	if err := os.Symlink(targetFile, symlinkPath); err != nil {
+		t.Skipf("Cannot create symlink: %v", err)
+	}
+
+	// Attempt to export to the symlink should fail
+	cfg := testConfigUnsafe() // Allow the temp dir
+	_, err = Export(context.Background(), database, cfg, ExportInput{Path: symlinkPath})
+	if err == nil {
+		t.Error("Expected error when exporting to symlink, got nil")
 	}
 }

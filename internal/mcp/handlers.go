@@ -393,7 +393,7 @@ func (h *Handlers) HandleExport(ctx context.Context, req mcp.CallToolRequest) (*
 		return errorResult(errors.NewInvalidRequest(err.Error())), nil
 	}
 
-	result, err := ops.Export(ctx, h.db, ops.ExportInput{
+	result, err := ops.Export(ctx, h.db, h.cfg, ops.ExportInput{
 		Path:           input.Path,
 		Workspace:      input.Workspace,
 		IncludeDeleted: input.IncludeDeleted,
@@ -421,7 +421,7 @@ func (h *Handlers) HandleImport(ctx context.Context, req mcp.CallToolRequest) (*
 		mode = ops.ImportModeRename
 	}
 
-	result, err := ops.Import(ctx, h.db, ops.ImportInput{
+	result, err := ops.Import(ctx, h.db, h.cfg, ops.ImportInput{
 		Path: input.Path,
 		Mode: mode,
 	})

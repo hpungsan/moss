@@ -31,8 +31,8 @@ func newCLIApp(db *sql.DB, cfg *config.Config) *cli.App {
 			listCmd(db),
 			inventoryCmd(db),
 			latestCmd(db),
-			exportCmd(db),
-			importCmd(db),
+			exportCmd(db, cfg),
+			importCmd(db, cfg),
 			purgeCmd(db),
 		},
 	}
@@ -317,7 +317,7 @@ func latestCmd(db *sql.DB) *cli.Command {
 }
 
 // exportCmd creates the export command.
-func exportCmd(db *sql.DB) *cli.Command {
+func exportCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "export",
 		Usage: "Export capsules to a JSONL file",
@@ -333,7 +333,7 @@ func exportCmd(db *sql.DB) *cli.Command {
 				Workspace:      optionalString(c, "workspace"),
 			}
 
-			output, err := ops.Export(c.Context, db, input)
+			output, err := ops.Export(c.Context, db, cfg, input)
 			if err != nil {
 				return outputError(err)
 			}
@@ -344,7 +344,7 @@ func exportCmd(db *sql.DB) *cli.Command {
 }
 
 // importCmd creates the import command.
-func importCmd(db *sql.DB) *cli.Command {
+func importCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "import",
 		Usage: "Import capsules from a JSONL file",
@@ -358,7 +358,7 @@ func importCmd(db *sql.DB) *cli.Command {
 				Mode: ops.ImportMode(c.String("mode")),
 			}
 
-			output, err := ops.Import(c.Context, db, input)
+			output, err := ops.Import(c.Context, db, cfg, input)
 			if err != nil {
 				return outputError(err)
 			}

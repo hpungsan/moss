@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hpungsan/moss/internal/capsule"
+	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/db"
 	"github.com/hpungsan/moss/internal/errors"
 )
@@ -37,7 +37,7 @@ type ExportHeader struct {
 }
 
 // Export exports capsules to a JSONL file.
-func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOutput, error) {
+func Export(ctx context.Context, database *sql.DB, cfg *config.Config, input ExportInput) (*ExportOutput, error) {
 	now := time.Now()
 	exportedAt := now.Unix()
 
@@ -49,11 +49,12 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Validate user-provided path
-		if err := validateExportPath(exportPath); err != nil {
-			return nil, err
-		}
+	}
+
+	// Validate ALL paths (both user-provided and default) for security
+	// This catches workspace injection attacks in default paths
+	if err := ValidatePath(exportPath, PathCheckWrite, cfg); err != nil {
+		return nil, err
 	}
 
 	// Ensure parent directory exists
@@ -62,8 +63,8 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export directory: %w", err))
 	}
 
-	// Create export file
-	file, err := os.OpenFile(exportPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	// Create export file with O_NOFOLLOW to prevent TOCTOU symlink attacks
+	file, err := openFileNoFollow(exportPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export file: %w", err))
 	}
@@ -158,46 +159,11 @@ func defaultExportPath(workspace *string, now time.Time) (string, error) {
 	timestamp := now.Format("2006-01-02T150405")
 	name := "all"
 	if workspace != nil && *workspace != "" {
-		name = capsule.Normalize(*workspace)
+		// Normalize first (lowercase, collapse whitespace), then sanitize for filename
+		// to prevent path traversal/injection via malicious workspace names
+		name = SanitizeForFilename(capsule.Normalize(*workspace))
 	}
 
 	filename := fmt.Sprintf("%s-%s.jsonl", name, timestamp)
 	return filepath.Join(homeDir, ".moss", "exports", filename), nil
-}
-
-// validateExportPath validates a user-provided export path.
-// Rejects paths containing traversal sequences.
-func validateExportPath(path string) error {
-	// Reject paths containing ".." (traversal attempt)
-	// Check before cleaning since Clean() resolves traversal sequences
-	if containsTraversal(path) {
-		return errors.NewInvalidRequest("export path must not contain directory traversal (..)")
-	}
-
-	// Require .jsonl extension for safety
-	cleaned := filepath.Clean(path)
-	if filepath.Ext(cleaned) != ".jsonl" {
-		return errors.NewInvalidRequest("export path must have .jsonl extension")
-	}
-
-	return nil
-}
-
-// containsTraversal checks if path contains ".." directory traversal.
-func containsTraversal(path string) bool {
-	// Check each path component
-	for _, part := range strings.Split(path, string(filepath.Separator)) {
-		if part == ".." {
-			return true
-		}
-	}
-	// Also check for forward slashes on all platforms (e.g., user input)
-	if filepath.Separator != '/' {
-		for _, part := range strings.Split(path, "/") {
-			if part == ".." {
-				return true
-			}
-		}
-	}
-	return false
 }

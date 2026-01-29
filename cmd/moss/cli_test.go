@@ -32,7 +32,8 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 // testConfig returns a default config for testing.
 func testConfig() *config.Config {
 	return &config.Config{
-		CapsuleMaxChars: 50000,
+		CapsuleMaxChars:  50000,
+		AllowUnsafePaths: true, // Allow temp dirs in tests
 	}
 }
 

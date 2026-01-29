@@ -175,11 +175,11 @@ moss inventory
 # Get latest in workspace
 moss latest --workspace=myproject --include-text
 
-# Export to file
-moss export --path=/tmp/backup.jsonl
+# Export to file (default-safe location)
+moss export --path=~/.moss/exports/backup.jsonl
 
 # Import from file
-moss import --path=/tmp/backup.jsonl --mode=replace
+moss import --path=~/.moss/exports/backup.jsonl --mode=replace
 
 # Purge deleted capsules
 moss purge --older-than=7d
@@ -212,15 +212,45 @@ Location: `~/.moss/config.json`
 
 ```json
 {
-  "capsule_max_chars": 12000
+  "capsule_max_chars": 12000,
+  "allowed_paths": [],
+  "allow_unsafe_paths": false
 }
 ```
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `capsule_max_chars` | 12000 | Maximum characters per capsule (~3k tokens) |
+| `allowed_paths` | `[]` | Additional directories allowed for import/export |
+| `allow_unsafe_paths` | `false` | Bypass path restrictions (use with caution) |
 
 If the file doesn't exist, defaults are used.
+
+### Import/Export Path Security
+
+By default, `export` and `import` are restricted to `~/.moss/exports/` to prevent accidental writes to sensitive locations.
+
+**To allow additional directories:**
+
+```json
+{
+  "allowed_paths": ["/tmp/moss-backups", "/home/user/capsule-exports"]
+}
+```
+
+**To bypass directory restrictions (not recommended):**
+
+```json
+{
+  "allow_unsafe_paths": true
+}
+```
+
+**Security checks performed:**
+- `.jsonl` extension required
+- Directory traversal (`..`) rejected
+- Symlink files rejected (best-effort across platforms; `O_NOFOLLOW` where supported)
+- Symlinked directories resolved: resolved path must be within allowed directories
 
 ### Database
 
@@ -331,13 +361,13 @@ inventory {}
 ### Export for Backup
 
 ```
-export { "path": "/tmp/moss-backup.jsonl" }
+export { "path": "~/.moss/exports/moss-backup.jsonl" }
 ```
 
 ### Import from Backup
 
 ```
-import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
+import { "path": "~/.moss/exports/moss-backup.jsonl", "mode": "error" }
 ```
 
 ### Compose Multiple Capsules

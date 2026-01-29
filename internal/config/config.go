@@ -11,6 +11,16 @@ import (
 type Config struct {
 	// CapsuleMaxChars is the maximum character count for capsule text
 	CapsuleMaxChars int `json:"capsule_max_chars"`
+
+	// AllowedPaths is an allowlist of directories for import/export operations.
+	// Paths outside ~/.moss/exports require either being in this list or AllowUnsafePaths=true.
+	// Paths should be absolute (relative paths are ignored).
+	AllowedPaths []string `json:"allowed_paths,omitempty"`
+
+	// AllowUnsafePaths disables path restrictions for import/export.
+	// When true, any path (with .jsonl extension) is allowed.
+	// Use with caution: enables arbitrary file read/write.
+	AllowUnsafePaths bool `json:"allow_unsafe_paths,omitempty"`
 }
 
 // DefaultConfig returns the default configuration.

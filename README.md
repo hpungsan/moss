@@ -96,7 +96,7 @@ latest { "workspace": "myproject", "include_text": true }
 ### Export for Backup
 
 ```
-export { "path": "/tmp/backup.jsonl" }
+export {}
 ```
 
 ## MCP Tools
@@ -114,6 +114,8 @@ export { "path": "/tmp/backup.jsonl" }
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanent delete |
+| `bulk_delete` | Soft-delete multiple by filter |
+| `bulk_update` | Update metadata on multiple |
 | `compose` | Assemble multiple capsules |
 
 ## CLI
@@ -132,7 +134,7 @@ moss fetch --name=auth
 moss inventory
 
 # Export
-moss export --path=/tmp/backup.jsonl
+moss export
 ```
 
 Run `moss --help` for all commands.
