@@ -1016,6 +1016,174 @@ type BulkUpdateFields struct {
 	Tags  *[]string
 }
 
+// SearchFilters contains optional filters for search operations.
+type SearchFilters struct {
+	Workspace *string
+	Tag       *string
+	RunID     *string
+	Phase     *string
+	Role      *string
+}
+
+// SearchResult contains a capsule summary with match snippet.
+type SearchResult struct {
+	Summary capsule.CapsuleSummary
+	Snippet string // Highlighted match context (~300 chars max)
+}
+
+// SearchFullText performs full-text search across capsules.
+// Returns results ranked by relevance (BM25) with match snippets.
+// Title matches are weighted 5x higher than body matches.
+func SearchFullText(ctx context.Context, db *sql.DB, query string, filters SearchFilters, limit, offset int, includeDeleted bool) ([]SearchResult, int, error) {
+	// Build WHERE conditions
+	// FTS5 MATCH is required for the JOIN to work
+	conditions := []string{"capsules_fts MATCH ?"}
+	args := []any{query}
+
+	if !includeDeleted {
+		conditions = append(conditions, "c.deleted_at IS NULL")
+	}
+	if filters.Workspace != nil {
+		conditions = append(conditions, "c.workspace_norm = ?")
+		args = append(args, *filters.Workspace)
+	}
+	if filters.Tag != nil {
+		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(c.tags_json) WHERE value = ?)")
+		args = append(args, *filters.Tag)
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "c.run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "c.phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "c.role = ?")
+		args = append(args, *filters.Role)
+	}
+
+	whereClause := " WHERE " + strings.Join(conditions, " AND ")
+
+	// Count query
+	countQuery := `
+		SELECT COUNT(*)
+		FROM capsules c
+		INNER JOIN capsules_fts ON c.rowid = capsules_fts.rowid` + whereClause
+
+	var total int
+	if err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		// Check for FTS5 syntax errors
+		if isFTSSyntaxError(err) {
+			return nil, 0, errors.NewInvalidRequest("invalid search syntax")
+		}
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	// Search query with snippets
+	// snippet() params: table, column (-1 for all), start mark, end mark, ellipsis, max tokens
+	// bm25() params: table, weight for capsule_text, weight for title (higher = more important)
+	// ORDER BY bm25 ASC because bm25() returns negative values (more negative = better match)
+	searchQuery := `
+		SELECT c.id, c.workspace_raw, c.workspace_norm, c.name_raw, c.name_norm,
+			c.title, c.capsule_chars, c.tokens_estimate, c.tags_json, c.source,
+			c.run_id, c.phase, c.role, c.created_at, c.updated_at, c.deleted_at,
+			snippet(capsules_fts, -1, '<b>', '</b>', '...', 64) as snippet
+		FROM capsules c
+		INNER JOIN capsules_fts ON c.rowid = capsules_fts.rowid` + whereClause + `
+		ORDER BY bm25(capsules_fts, 1.0, 5.0) ASC, c.updated_at DESC, c.id DESC
+		LIMIT ? OFFSET ?`
+
+	searchArgs := append(args, limit, offset)
+	rows, err := db.QueryContext(ctx, searchQuery, searchArgs...)
+	if err != nil {
+		if isFTSSyntaxError(err) {
+			return nil, 0, errors.NewInvalidRequest("invalid search syntax")
+		}
+		return nil, 0, errors.NewInternal(err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var (
+			s         capsule.CapsuleSummary
+			nameRaw   sql.NullString
+			nameNorm  sql.NullString
+			title     sql.NullString
+			tagsJSON  sql.NullString
+			source    sql.NullString
+			runID     sql.NullString
+			phase     sql.NullString
+			role      sql.NullString
+			deletedAt sql.NullInt64
+			snippet   string
+		)
+
+		err := rows.Scan(
+			&s.ID, &s.Workspace, &s.WorkspaceNorm, &nameRaw, &nameNorm,
+			&title, &s.CapsuleChars, &s.TokensEstimate,
+			&tagsJSON, &source, &runID, &phase, &role,
+			&s.CreatedAt, &s.UpdatedAt, &deletedAt,
+			&snippet,
+		)
+		if err != nil {
+			return nil, 0, errors.NewInternal(err)
+		}
+
+		// Convert nullable fields
+		s.Name = fromNullString(nameRaw)
+		s.NameNorm = fromNullString(nameNorm)
+		s.Title = fromNullString(title)
+		s.Source = fromNullString(source)
+		s.RunID = fromNullString(runID)
+		s.Phase = fromNullString(phase)
+		s.Role = fromNullString(role)
+
+		// Convert deleted_at
+		if deletedAt.Valid {
+			s.DeletedAt = &deletedAt.Int64
+		}
+
+		// Parse tags JSON
+		if tagsJSON.Valid && tagsJSON.String != "" {
+			if err := json.Unmarshal([]byte(tagsJSON.String), &s.Tags); err != nil {
+				return nil, 0, errors.NewInternal(err)
+			}
+		}
+
+		results = append(results, SearchResult{
+			Summary: s,
+			Snippet: snippet,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	return results, total, nil
+}
+
+// isFTSSyntaxError checks if an error is an FTS5 syntax error.
+func isFTSSyntaxError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	// FTS5 syntax errors contain these patterns:
+	// - "fts5: syntax error" - explicit FTS5 syntax errors
+	// - "fts5:" - other FTS5-specific errors
+	// - "unterminated string" - unclosed quotes in query
+	// - "unknown special query" - invalid FTS5 special commands (e.g., "* " alone)
+	// - "no such column: capsules_fts" - FTS table not found (schema issue)
+	return strings.Contains(msg, "fts5: syntax error") ||
+		strings.Contains(msg, "fts5:") ||
+		strings.Contains(msg, "unterminated string") ||
+		strings.Contains(msg, "unknown special query") ||
+		strings.Contains(msg, "no such column: capsules_fts")
+}
+
 // BulkUpdate updates metadata on all active capsules matching the given filters.
 // Only targets active capsules (deleted_at IS NULL is hardcoded).
 // Empty string values in fields mean "clear the field" (set to NULL).

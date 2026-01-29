@@ -13,7 +13,7 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 - **Orchestration**: `run_id`, `phase`, `role` for multi-agent workflow scoping
 
 ## MCP Tools
-`store` `fetch` `fetch_many` `update` `delete` `list` `inventory` `latest` `export` `import` `purge` `bulk_delete` `bulk_update` `compose`
+`store` `fetch` `fetch_many` `update` `delete` `list` `inventory` `search` `latest` `export` `import` `purge` `bulk_delete` `bulk_update` `compose`
 
 ## Guidelines
 - MCP-first (CLI is secondary)
@@ -52,7 +52,7 @@ internal/
 ├── db/          # SQLite init, migrations, queries (CRUD)
 ├── errors/      # MossError with codes (400/404/409/413/422/499/500)
 ├── mcp/         # MCP server, tool definitions, handlers
-└── ops/         # Business logic (13 operations)
+└── ops/         # Business logic (15 operations)
 ```
 
 ## Paths

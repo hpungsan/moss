@@ -130,6 +130,7 @@ This allows all Moss MCP tools without prompting. For finer control:
 | `latest` | Get most recent capsule in workspace |
 | `list` | List capsules in a workspace |
 | `inventory` | List all capsules across workspaces |
+| `search` | Full-text search across capsules |
 | `export` | Export capsules to JSONL file |
 | `import` | Import capsules from JSONL file |
 | `purge` | Permanently delete soft-deleted capsules |
@@ -283,7 +284,7 @@ Files are named: `<workspace>-<timestamp>.jsonl` or `all-<timestamp>.jsonl`
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./moss
 ```
 
-Expected: JSON response listing 14 tools.
+Expected: JSON response listing 15 tools.
 
 ### 2. Inventory (Empty Store)
 
@@ -406,6 +407,30 @@ compose {
 ```
 
 **Note:** `store_as` requires `format:"markdown"` (the default). Using `format:"json"` with `store_as` returns an error because JSON output lacks section headers required for capsule lint.
+
+### Search Capsules
+
+```
+search { "query": "authentication" }
+```
+
+With filters:
+
+```
+search {
+  "query": "JWT OR OAuth",
+  "workspace": "myproject",
+  "phase": "design"
+}
+```
+
+**Query syntax:**
+- Simple: `authentication`
+- Phrase: `"user authentication"`
+- Prefix: `auth*`
+- Boolean: `JWT OR OAuth`, `Redis AND cache`, `NOT deprecated`
+
+Results are ranked by relevance (title matches weighted 5x higher).
 
 ### Bulk Delete by Filter
 

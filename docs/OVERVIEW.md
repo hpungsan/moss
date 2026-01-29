@@ -90,6 +90,7 @@ MCP tools (one per operation):
 | `delete` | Soft delete (recoverable) |
 | `list` | List capsules in workspace |
 | `inventory` | List all capsules globally |
+| `search` | Full-text search across capsules |
 | `latest` | Get most recent capsule |
 | `export` | JSONL backup |
 | `import` | JSONL restore |

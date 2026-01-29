@@ -2,7 +2,7 @@
 
 ## Summary
 
-14 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, orchestration fields (`run_id`, `phase`, `role`).
+15 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -37,7 +37,7 @@ Moss is a **local "context capsule" store** that lets you **store/fetch/update/d
 * Repo indexing / RAG
 * Multi-user / hosted SaaS / roles
 * Integrations (GitHub, Notion, etc.)
-* Semantic search (optional later)
+* Semantic/vector search (FTS5 keyword search available; embeddings deferred)
 * Rich evidence store (optional later)
 * Editing capsule addressing keys (name/workspace changes)
 
@@ -167,6 +167,7 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 | `latest` | Most recent capsule in workspace |
 | `list` | List capsule summaries in workspace |
 | `inventory` | List capsule summaries globally |
+| `search` | Full-text search across capsules |
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanently delete soft-deleted |
@@ -314,7 +315,46 @@ Global list across all workspaces. **Never returns `capsule_text`.**
 
 ---
 
-## 6.9 `export`
+## 6.9 `search`
+
+Full-text search across capsules using SQLite FTS5. Returns results ranked by relevance with match snippets.
+
+**Required:** `query`
+
+**Optional filters:** `workspace`, `tag`, `run_id`, `phase`, `role`, `include_deleted`, `limit` (default: 20, max: 100), `offset`
+
+**Query syntax (FTS5):**
+- Simple words: `authentication` (matches anywhere)
+- Phrases: `"user authentication"` (exact match)
+- Prefix: `auth*` (matches auth, authentication, authorize...)
+- Boolean: `JWT OR OAuth`, `Redis AND cache`, `NOT deprecated`
+
+**Behaviors:**
+- Title matches weighted 5x higher than body (BM25 ranking)
+- Returns `snippet` field with match context (~300 chars, `<b>` highlights)
+- Empty results returns `[]`, not error
+- Invalid FTS5 syntax → **400 INVALID_REQUEST**
+
+**Output:**
+```json
+{
+  "items": [
+    {
+      "id": "01J...",
+      "workspace": "default",
+      "name": "auth",
+      "snippet": "...using <b>JWT</b> for authentication...",
+      "fetch_key": { "moss_capsule": "auth", "moss_workspace": "default" }
+    }
+  ],
+  "pagination": { "limit": 20, "offset": 0, "has_more": false, "total": 1 },
+  "sort": "relevance"
+}
+```
+
+---
+
+## 6.10 `export`
 
 Export to JSONL file.
 
@@ -322,7 +362,7 @@ Export to JSONL file.
 
 ---
 
-## 6.10 `import`
+## 6.11 `import`
 
 Import from JSONL file.
 
@@ -334,7 +374,7 @@ Import from JSONL file.
 
 ---
 
-## 6.11 `purge`
+## 6.12 `purge`
 
 Permanently delete soft-deleted capsules.
 
@@ -342,7 +382,7 @@ Permanently delete soft-deleted capsules.
 
 ---
 
-## 6.12 `compose`
+## 6.13 `compose`
 
 Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing.
 
@@ -375,7 +415,7 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 
 ---
 
-## 6.13 `bulk_delete`
+## 6.14 `bulk_delete`
 
 Soft-delete multiple active capsules matching filters. Requires at least one filter (safety guard). Only targets active capsules (`deleted_at IS NULL` is hardcoded).
 
@@ -399,7 +439,7 @@ Soft-delete multiple active capsules matching filters. Requires at least one fil
 
 ---
 
-## 6.14 `bulk_update`
+## 6.15 `bulk_update`
 
 Update metadata (phase, role, tags) on multiple active capsules matching filters. Requires at least one filter AND at least one update field (safety guard). Only targets active capsules (`deleted_at IS NULL` is hardcoded).
 
@@ -456,7 +496,7 @@ No workers, queues, vector DB.
 
 ## 7.1 Context propagation and cancellation
 
-All 14 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
+All 15 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
 
 ```
 MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)

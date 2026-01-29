@@ -21,16 +21,16 @@ moss/
 │   │   ├── db.go                  # Init, schema, WAL setup
 │   │   └── queries.go             # Querier interface, Insert, GetByID, GetByName,
 │   │                              # UpdateByID, SoftDelete, ListByWorkspace, ListAll,
-│   │                              # GetLatestSummary, GetLatestFull, StreamForExport,
-│   │                              # UpdateFull, FindUniqueName, PurgeDeleted,
-│   │                              # BulkSoftDelete, BulkUpdate
+│   │                              # GetLatestSummary, GetLatestFull, SearchFullText,
+│   │                              # StreamForExport, UpdateFull, FindUniqueName,
+│   │                              # PurgeDeleted, BulkSoftDelete, BulkUpdate
 │   ├── errors/
 │   │   └── errors.go              # MossError, error codes (400/404/409/413/422/499/500)
 │   ├── mcp/
 │   │   ├── decode.go              # Generic decode[T] helper for MCP requests
 │   │   ├── handlers.go            # Tool handlers calling ops functions
 │   │   ├── server.go              # NewServer, Run (stdio transport)
-│   │   └── tools.go               # 14 tool definitions with JSON schemas
+│   │   └── tools.go               # 15 tool definitions with JSON schemas
 │   └── ops/
 │       ├── ops.go                 # Address validation, FetchKey
 │       ├── store.go               # Store operation (create/replace)
@@ -40,6 +40,7 @@ moss/
 │       ├── delete.go              # Delete operation (soft delete)
 │       ├── list.go                # List operation (workspace-scoped)
 │       ├── inventory.go           # Inventory operation (global)
+│       ├── search.go              # Search operation (FTS5 full-text search)
 │       ├── latest.go              # Latest operation
 │       ├── export.go              # Export to JSONL
 │       ├── import.go              # Import from JSONL
@@ -81,8 +82,8 @@ moss/
 | `internal/db/` | SQLite init, schema, CRUD + browse queries, Querier interface for transactions |
 | `internal/config/` | Config loading from ~/.moss/config.json |
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/499/500) |
-| `internal/mcp/` | MCP server exposing 14 tools via stdio transport |
-| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
+| `internal/mcp/` | MCP server exposing 15 tools via stdio transport |
+| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Search, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
 | `docs/v1/DESIGN.md` | Full v1 spec |
 
 ## Notes

@@ -18,7 +18,7 @@ func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer
 
 	h := NewHandlers(db, cfg)
 
-	// Register all 14 tools
+	// Register all 15 tools
 	s.AddTool(storeToolDef, h.HandleStore)
 	s.AddTool(fetchToolDef, h.HandleFetch)
 	s.AddTool(fetchManyToolDef, h.HandleFetchMany)
@@ -27,6 +27,7 @@ func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer
 	s.AddTool(latestToolDef, h.HandleLatest)
 	s.AddTool(listToolDef, h.HandleList)
 	s.AddTool(inventoryToolDef, h.HandleInventory)
+	s.AddTool(searchToolDef, h.HandleSearch)
 	s.AddTool(exportToolDef, h.HandleExport)
 	s.AddTool(importToolDef, h.HandleImport)
 	s.AddTool(purgeToolDef, h.HandlePurge)

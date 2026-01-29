@@ -2,7 +2,7 @@ package mcp
 
 import "github.com/mark3labs/mcp-go/mcp"
 
-// Tool definitions for all 14 Moss MCP tools.
+// Tool definitions for all 15 Moss MCP tools.
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
@@ -325,6 +325,40 @@ var bulkUpdateToolDef = mcp.NewTool("bulk_update",
 	mcp.WithArray("set_tags",
 		mcp.Description("New tags (replaces existing; empty array clears tags)"),
 		mcp.WithStringItems(),
+	),
+)
+
+var searchToolDef = mcp.NewTool("search",
+	mcp.WithDescription("Full-text search across capsules. Returns results ranked by relevance with match snippets."),
+	mcp.WithReadOnlyHintAnnotation(true),
+	mcp.WithDestructiveHintAnnotation(false),
+	mcp.WithString("query",
+		mcp.Required(),
+		mcp.Description("Search query. Supports phrases (\"exact match\"), prefix (auth*), boolean (A OR B, A AND B, NOT A)."),
+	),
+	mcp.WithString("workspace",
+		mcp.Description("Filter by workspace"),
+	),
+	mcp.WithString("tag",
+		mcp.Description("Filter by tag"),
+	),
+	mcp.WithString("run_id",
+		mcp.Description("Filter by orchestration run ID"),
+	),
+	mcp.WithString("phase",
+		mcp.Description("Filter by workflow phase"),
+	),
+	mcp.WithString("role",
+		mcp.Description("Filter by agent role"),
+	),
+	mcp.WithNumber("limit",
+		mcp.Description("Max items to return (default: 20, max: 100)"),
+	),
+	mcp.WithNumber("offset",
+		mcp.Description("Skip first N items for pagination"),
+	),
+	mcp.WithBoolean("include_deleted",
+		mcp.Description("Include soft-deleted capsules"),
 	),
 )
 

@@ -164,6 +164,19 @@ type BulkUpdateRequest struct {
 	SetTags  *[]string `json:"set_tags,omitempty"`
 }
 
+// SearchRequest represents the arguments for search.
+type SearchRequest struct {
+	Query          string  `json:"query"`
+	Workspace      *string `json:"workspace,omitempty"`
+	Tag            *string `json:"tag,omitempty"`
+	RunID          *string `json:"run_id,omitempty"`
+	Phase          *string `json:"phase,omitempty"`
+	Role           *string `json:"role,omitempty"`
+	Limit          int     `json:"limit,omitempty"`
+	Offset         int     `json:"offset,omitempty"`
+	IncludeDeleted bool    `json:"include_deleted,omitempty"`
+}
+
 // ComposeRequest represents the arguments for compose.
 type ComposeRequest struct {
 	Items   []ComposeRef    `json:"items"`
@@ -489,6 +502,31 @@ func (h *Handlers) HandleBulkUpdate(ctx context.Context, req mcp.CallToolRequest
 		SetPhase:   input.SetPhase,
 		SetRole:    input.SetRole,
 		SetTags:    input.SetTags,
+	})
+	if err != nil {
+		return errorResult(err), nil
+	}
+
+	return successResult(result)
+}
+
+// HandleSearch handles the search tool call.
+func (h *Handlers) HandleSearch(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input, err := decode[SearchRequest](req)
+	if err != nil {
+		return errorResult(errors.NewInvalidRequest(err.Error())), nil
+	}
+
+	result, err := ops.Search(ctx, h.db, ops.SearchInput{
+		Query:          input.Query,
+		Workspace:      input.Workspace,
+		Tag:            input.Tag,
+		RunID:          input.RunID,
+		Phase:          input.Phase,
+		Role:           input.Role,
+		Limit:          input.Limit,
+		Offset:         input.Offset,
+		IncludeDeleted: input.IncludeDeleted,
 	})
 	if err != nil {
 		return errorResult(err), nil

@@ -12,7 +12,7 @@ import (
 
 // CurrentSchemaVersion is the latest schema version.
 // Bump this when adding migrations.
-const CurrentSchemaVersion = 1
+const CurrentSchemaVersion = 2
 
 // Init initializes the SQLite database at baseDir/moss.db.
 // The baseDir parameter allows tests to use t.TempDir() instead of ~/.moss.
@@ -134,8 +134,53 @@ func migrate(db *sql.DB) error {
 		}
 	}
 
+	// Migration 1 -> 2: FTS5 full-text search
+	if version < 2 {
+		ftsSchema := `
+		-- FTS5 virtual table with external content
+		-- unicode61 tokenizer (default), prefix index for 2-4 char prefixes
+		CREATE VIRTUAL TABLE IF NOT EXISTS capsules_fts USING fts5(
+			capsule_text,
+			title,
+			content='capsules',
+			content_rowid='rowid',
+			prefix='2 3 4'
+		);
+
+		-- Sync triggers (only fire on indexed column changes)
+		CREATE TRIGGER IF NOT EXISTS capsules_fts_insert AFTER INSERT ON capsules BEGIN
+			INSERT INTO capsules_fts(rowid, capsule_text, title)
+			VALUES (NEW.rowid, NEW.capsule_text, NEW.title);
+		END;
+
+		CREATE TRIGGER IF NOT EXISTS capsules_fts_delete AFTER DELETE ON capsules BEGIN
+			INSERT INTO capsules_fts(capsules_fts, rowid, capsule_text, title)
+			VALUES ('delete', OLD.rowid, OLD.capsule_text, OLD.title);
+		END;
+
+		CREATE TRIGGER IF NOT EXISTS capsules_fts_update AFTER UPDATE OF capsule_text, title ON capsules BEGIN
+			INSERT INTO capsules_fts(capsules_fts, rowid, capsule_text, title)
+			VALUES ('delete', OLD.rowid, OLD.capsule_text, OLD.title);
+			INSERT INTO capsules_fts(rowid, capsule_text, title)
+			VALUES (NEW.rowid, NEW.capsule_text, NEW.title);
+		END;
+		`
+		if _, err := db.Exec(ftsSchema); err != nil {
+			return fmt.Errorf("migration 2 (FTS5 schema) failed: %w", err)
+		}
+
+		// Backfill existing data using rebuild (cleaner than manual INSERT...SELECT)
+		if _, err := db.Exec("INSERT INTO capsules_fts(capsules_fts) VALUES('rebuild')"); err != nil {
+			return fmt.Errorf("migration 2 (FTS5 rebuild) failed: %w", err)
+		}
+
+		if err := SetUserVersion(db, 2); err != nil {
+			return err
+		}
+	}
+
 	// Future migrations go here:
-	// if version < 2 { ... }
+	// if version < 3 { ... }
 
 	return nil
 }
