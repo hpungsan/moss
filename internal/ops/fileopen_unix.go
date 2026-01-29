@@ -3,18 +3,23 @@
 package ops
 
 import (
+	stderrors "errors"
 	"os"
 	"syscall"
 
 	"github.com/hpungsan/moss/internal/errors"
 )
 
-// openFileNoFollow opens a file for writing with O_NOFOLLOW to prevent symlink attacks.
-// This closes the TOCTOU gap between ValidatePath and file open.
+// openFileNoFollow opens a file for writing with O_NOFOLLOW to prevent symlink attacks
+// on the final path component. O_CLOEXEC prevents FD leaks across exec.
+//
+// Note: O_NOFOLLOW only protects the final component. Directory components are validated
+// by ValidatePath (which requires files to be directly in allowed directories, disallowing
+// nested paths that could be subject to directory symlink swaps).
 func openFileNoFollow(path string, flag int, perm os.FileMode) (*os.File, error) {
-	fd, err := syscall.Open(path, flag|syscall.O_NOFOLLOW, uint32(perm))
+	fd, err := syscall.Open(path, flag|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, uint32(perm))
 	if err != nil {
-		if err == syscall.ELOOP {
+		if stderrors.Is(err, syscall.ELOOP) {
 			return nil, errors.NewInvalidRequest("cannot write to symlink")
 		}
 		return nil, err
@@ -22,15 +27,19 @@ func openFileNoFollow(path string, flag int, perm os.FileMode) (*os.File, error)
 	return os.NewFile(uintptr(fd), path), nil
 }
 
-// openFileNoFollowRead opens a file for reading with O_NOFOLLOW to prevent symlink attacks.
-// This closes the TOCTOU gap between ValidatePath and file open.
+// openFileNoFollowRead opens a file for reading with O_NOFOLLOW to prevent symlink attacks
+// on the final path component. O_CLOEXEC prevents FD leaks across exec.
+//
+// Note: O_NOFOLLOW only protects the final component. Directory components are validated
+// by ValidatePath (which requires files to be directly in allowed directories, disallowing
+// nested paths that could be subject to directory symlink swaps).
 func openFileNoFollowRead(path string) (*os.File, error) {
-	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		if err == syscall.ELOOP {
+		if stderrors.Is(err, syscall.ELOOP) {
 			return nil, errors.NewInvalidRequest("cannot read from symlink")
 		}
-		if err == syscall.ENOENT {
+		if stderrors.Is(err, syscall.ENOENT) {
 			return nil, errors.NewFileNotFound(path)
 		}
 		return nil, err

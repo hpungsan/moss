@@ -222,7 +222,7 @@ Location: `~/.moss/config.json`
 |-------|---------|-------------|
 | `capsule_max_chars` | 12000 | Maximum characters per capsule (~3k tokens) |
 | `allowed_paths` | `[]` | Additional directories allowed for import/export |
-| `allow_unsafe_paths` | `false` | Bypass path restrictions (use with caution) |
+| `allow_unsafe_paths` | `false` | Bypass directory restrictions (symlink checks still apply) |
 
 If the file doesn't exist, defaults are used.
 
@@ -249,8 +249,9 @@ By default, `export` and `import` are restricted to `~/.moss/exports/` to preven
 **Security checks performed:**
 - `.jsonl` extension required
 - Directory traversal (`..`) rejected
-- Symlink files rejected (best-effort across platforms; `O_NOFOLLOW` where supported)
-- Symlinked directories resolved: resolved path must be within allowed directories
+- Subdirectories not allowed: files must be directly in an allowed directory (prevents TOCTOU attacks)
+- Symlink files rejected (`O_NOFOLLOW` on Unix; validation check on all platforms)
+- Parent directory symlinks rejected
 
 ### Database
 

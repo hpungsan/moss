@@ -329,6 +329,12 @@ Optional snippets/transcript refs with "expand" semantics:
 
 ## Considered & Deferred
 
+### Import/Export: Full openat() Path Traversal
+
+For complete TOCTOU protection, each directory component could be opened with `openat(O_NOFOLLOW|O_DIRECTORY)` before opening the final file.
+
+**Decision:** Instead of complex `openat()` traversal, we disallow subdirectories entirely—files must be directly in allowed directories. This eliminates the attack surface (no intermediate components to swap) while keeping the implementation simple. Combined with `O_NOFOLLOW` on the final component, this provides complete symlink protection.
+
 ### Content Lint Checks
 
 Warn or reject if capsule sections lack actual content:

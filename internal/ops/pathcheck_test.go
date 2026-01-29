@@ -173,7 +173,7 @@ func TestValidatePath_SymlinkRejected(t *testing.T) {
 	}
 }
 
-func TestValidatePath_SymlinkAllowed_WithUnsafePaths(t *testing.T) {
+func TestValidatePath_SymlinkRejected_EvenWithUnsafePaths(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfg := config.DefaultConfig()
 	cfg.AllowUnsafePaths = true
@@ -190,58 +190,58 @@ func TestValidatePath_SymlinkAllowed_WithUnsafePaths(t *testing.T) {
 		t.Skipf("cannot create symlink: %v", err)
 	}
 
-	// With AllowUnsafePaths=true, symlinks should be allowed
+	// Even with AllowUnsafePaths=true, symlinks should be rejected.
+	// AllowUnsafePaths bypasses directory restrictions, NOT symlink restrictions.
+	// O_NOFOLLOW is always used at open time, so validation should match.
 	err := ValidatePath(symlink, PathCheckRead, cfg)
-	if err != nil {
-		t.Errorf("expected success with AllowUnsafePaths=true, got: %v", err)
-	}
-}
-
-func TestValidatePath_DirectorySymlinkEscapeRejected_Read(t *testing.T) {
-	allowedDir := t.TempDir()
-	cfg := config.DefaultConfig()
-	cfg.AllowedPaths = []string{allowedDir}
-
-	// Create a target file in a different directory (outside allowed paths)
-	otherDir := t.TempDir()
-	targetFile := filepath.Join(otherDir, "secret.jsonl")
-	if err := os.WriteFile(targetFile, []byte("{}"), 0600); err != nil {
-		t.Fatalf("failed to create target file: %v", err)
-	}
-
-	// Create a symlinked directory inside the allowed dir pointing outside.
-	linkDir := filepath.Join(allowedDir, "linkdir")
-	if err := os.Symlink(otherDir, linkDir); err != nil {
-		t.Skipf("cannot create symlink: %v", err)
-	}
-
-	// Attempt to read via symlinked directory escape should fail.
-	escapedPath := filepath.Join(linkDir, "secret.jsonl")
-	err := ValidatePath(escapedPath, PathCheckRead, cfg)
 	if err == nil {
-		t.Error("expected error for directory symlink escape, got nil")
+		t.Error("expected error for symlink even with AllowUnsafePaths=true, got nil")
 	}
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("expected ErrInvalidRequest, got: %v", err)
 	}
 }
 
-func TestValidatePath_DirectorySymlinkEscapeRejected_Write(t *testing.T) {
+func TestValidatePath_NestedPathRejected_Read(t *testing.T) {
 	allowedDir := t.TempDir()
 	cfg := config.DefaultConfig()
 	cfg.AllowedPaths = []string{allowedDir}
 
-	otherDir := t.TempDir()
-
-	linkDir := filepath.Join(allowedDir, "linkdir")
-	if err := os.Symlink(otherDir, linkDir); err != nil {
-		t.Skipf("cannot create symlink: %v", err)
+	// Create a subdirectory (nested paths are not allowed)
+	subDir := filepath.Join(allowedDir, "subdir")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+	targetFile := filepath.Join(subDir, "test.jsonl")
+	if err := os.WriteFile(targetFile, []byte("{}"), 0600); err != nil {
+		t.Fatalf("failed to create target file: %v", err)
 	}
 
-	escapedPath := filepath.Join(linkDir, "out.jsonl")
-	err := ValidatePath(escapedPath, PathCheckWrite, cfg)
+	// Nested paths are rejected to prevent TOCTOU attacks on directory components.
+	err := ValidatePath(targetFile, PathCheckRead, cfg)
 	if err == nil {
-		t.Error("expected error for directory symlink escape, got nil")
+		t.Error("expected error for nested path, got nil")
+	}
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("expected ErrInvalidRequest, got: %v", err)
+	}
+}
+
+func TestValidatePath_NestedPathRejected_Write(t *testing.T) {
+	allowedDir := t.TempDir()
+	cfg := config.DefaultConfig()
+	cfg.AllowedPaths = []string{allowedDir}
+
+	// Create a subdirectory (nested paths are not allowed)
+	subDir := filepath.Join(allowedDir, "subdir")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	nestedPath := filepath.Join(subDir, "out.jsonl")
+	err := ValidatePath(nestedPath, PathCheckWrite, cfg)
+	if err == nil {
+		t.Error("expected error for nested path, got nil")
 	}
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("expected ErrInvalidRequest, got: %v", err)

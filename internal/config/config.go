@@ -17,9 +17,9 @@ type Config struct {
 	// Paths should be absolute (relative paths are ignored).
 	AllowedPaths []string `json:"allowed_paths,omitempty"`
 
-	// AllowUnsafePaths disables path restrictions for import/export.
-	// When true, any path (with .jsonl extension) is allowed.
-	// Use with caution: enables arbitrary file read/write.
+	// AllowUnsafePaths disables directory restrictions for import/export.
+	// When true, any directory is allowed (but symlink and extension checks still apply).
+	// Use with caution: enables file read/write outside ~/.moss/exports.
 	AllowUnsafePaths bool `json:"allow_unsafe_paths,omitempty"`
 }
 

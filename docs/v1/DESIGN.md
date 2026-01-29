@@ -516,7 +516,7 @@ By default, `export` and `import` operations are restricted to `~/.moss/exports/
 
 **Configuration options:**
 - `allowed_paths`: Add directories to the allowlist (absolute paths only)
-- `allow_unsafe_paths: true`: Bypass directory and symlink restrictions (escape hatch for advanced users; still enforces `.jsonl` extension and traversal checks)
+- `allow_unsafe_paths: true`: Bypass directory restrictions (escape hatch for advanced users; symlink restrictions, `.jsonl` extension, and traversal checks still apply)
 
 ---
 

@@ -22,8 +22,12 @@ const (
 // It checks:
 // 1. Path traversal (.. sequences)
 // 2. Extension (.jsonl required)
-// 3. Symlink safety (realpath must match input for writes, or be in allowed dirs)
-// 4. Directory restrictions (must be in ~/.moss/exports or allowed_paths, unless allow_unsafe_paths)
+// 3. Directory restrictions (file must be DIRECTLY in ~/.moss/exports or allowed_paths - no subdirectories)
+// 4. Symlink safety (parent dir must not be a symlink, file must not be a symlink for writes)
+//
+// The "no subdirectories" rule eliminates TOCTOU race conditions where an attacker could
+// swap an intermediate directory component with a symlink between validation and open.
+// Combined with O_NOFOLLOW on the final component, this provides complete symlink protection.
 func ValidatePath(path string, mode PathCheckMode, cfg *config.Config) error {
 	if path == "" {
 		return errors.NewInvalidRequest("path is required")
@@ -45,7 +49,8 @@ func ValidatePath(path string, mode PathCheckMode, cfg *config.Config) error {
 		return errors.NewInvalidRequest(fmt.Sprintf("invalid path: %v", err))
 	}
 
-	// If unsafe paths allowed, skip directory and symlink checks
+	// If unsafe paths allowed, skip directory checks (but NOT symlink checks).
+	// Symlink restrictions always apply because O_NOFOLLOW is used at open time.
 	if cfg != nil && cfg.AllowUnsafePaths {
 		// For read mode, still verify file exists (prevents confusing internal errors).
 		if mode == PathCheckRead {
@@ -53,20 +58,35 @@ func ValidatePath(path string, mode PathCheckMode, cfg *config.Config) error {
 				return errors.NewFileNotFound(path)
 			}
 		}
+		// Reject symlink files even in unsafe mode (O_NOFOLLOW would reject at runtime anyway).
+		if info, err := os.Lstat(absPath); err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return errors.NewInvalidRequest("path must not be a symlink")
+			}
+		}
 		return nil
 	}
 
-	// Get allowed directories
-	allowedDirsAbs, allowedDirsResolved, err := getAllowedDirs(cfg)
+	// Get allowed directories (resolved to catch symlinked allowed_paths entries)
+	allowedDirs, err := getAllowedDirs(cfg)
 	if err != nil {
 		return err
 	}
 
-	// Check basic directory restriction first (based on absolute cleaned path).
-	if !isInAllowedDirs(absPath, allowedDirsAbs) {
+	// File must be DIRECTLY in an allowed directory (no subdirectories allowed).
+	// This eliminates TOCTOU races on intermediate directory components.
+	parentDir := filepath.Dir(absPath)
+	if !isDirectlyInAllowedDir(parentDir, allowedDirs) {
 		return errors.NewInvalidRequest(
-			fmt.Sprintf("path outside allowed directories; allowed: %v (set allow_unsafe_paths:true in config to override)",
-				allowedDirsAbs))
+			fmt.Sprintf("file must be directly in an allowed directory (no subdirectories); allowed: %v",
+				allowedDirs))
+	}
+
+	// Verify the parent directory is not a symlink (defense-in-depth).
+	if info, err := os.Lstat(parentDir); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return errors.NewInvalidRequest("parent directory must not be a symlink")
+		}
 	}
 
 	if mode == PathCheckRead {
@@ -75,36 +95,24 @@ func ValidatePath(path string, mode PathCheckMode, cfg *config.Config) error {
 		}
 	}
 
-	// Resolve symlinks (including symlinked directories) and verify the resolved path
-	// stays within allowed directories. For write mode we resolve as much as possible
-	// (best-effort) to catch existing symlink components even if the file doesn't exist yet.
-	resolvedPath, err := resolvePathBestEffort(absPath)
-	if err != nil {
-		return err
-	}
-	if !isInAllowedDirs(resolvedPath, allowedDirsResolved) {
-		return errors.NewInvalidRequest(
-			fmt.Sprintf("path resolves outside allowed directories (resolved: %s; allowed: %v)", resolvedPath, allowedDirsAbs))
-	}
-
-	// For write mode, reject if the destination already exists as a symlink.
-	// (Prevents clobbering arbitrary targets via symlink file.)
-	if mode == PathCheckWrite {
-		if info, err := os.Lstat(absPath); err == nil {
-			if info.Mode()&os.ModeSymlink != 0 {
-				return errors.NewInvalidRequest("path must not be a symlink")
-			}
+	// Reject symlink files for both read and write modes.
+	// O_NOFOLLOW at open time would catch this too, but rejecting early gives a clearer error.
+	// Note: AllowUnsafePaths bypasses directory restrictions but NOT symlink restrictions.
+	if info, err := os.Lstat(absPath); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return errors.NewInvalidRequest("path must not be a symlink")
 		}
 	}
 
 	return nil
 }
 
-// getAllowedDirs returns absolute+clean allowed dirs and their best-effort symlink-resolved equivalents.
-func getAllowedDirs(cfg *config.Config) (allowedAbs []string, allowedResolved []string, _ error) {
+// getAllowedDirs returns the list of allowed directories (absolute, cleaned).
+// If an allowed directory exists, it is resolved to catch symlinked allowed_paths entries.
+func getAllowedDirs(cfg *config.Config) ([]string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, nil, errors.NewInternal(fmt.Errorf("failed to get home directory: %w", err))
+		return nil, errors.NewInternal(fmt.Errorf("failed to get home directory: %w", err))
 	}
 
 	// Default: ~/.moss/exports
@@ -115,57 +123,42 @@ func getAllowedDirs(cfg *config.Config) (allowedAbs []string, allowedResolved []
 	if cfg != nil {
 		for _, p := range cfg.AllowedPaths {
 			if filepath.IsAbs(p) {
-				// Clean and add
 				dirs = append(dirs, filepath.Clean(p))
 			}
 		}
 	}
 
-	absDirs := make([]string, 0, len(dirs))
-	resolvedDirs := make([]string, 0, len(dirs))
+	result := make([]string, 0, len(dirs))
 	for _, d := range dirs {
 		abs, err := filepath.Abs(filepath.Clean(d))
 		if err != nil {
-			return nil, nil, errors.NewInvalidRequest(fmt.Sprintf("invalid allowed path: %v", err))
+			return nil, errors.NewInvalidRequest(fmt.Sprintf("invalid allowed path: %v", err))
 		}
-		absDirs = append(absDirs, abs)
 
-		resolved, err := resolvePathBestEffort(abs)
-		if err != nil {
-			return nil, nil, err
+		// If the directory exists, resolve symlinks to get the real path.
+		// This ensures that if allowed_paths contains a symlink, we match against the real target.
+		if info, err := os.Lstat(abs); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			resolved, err := filepath.EvalSymlinks(abs)
+			if err != nil {
+				return nil, errors.NewInvalidRequest(fmt.Sprintf("cannot resolve symlink in allowed path: %v", err))
+			}
+			abs = resolved
 		}
-		resolvedDirs = append(resolvedDirs, resolved)
+		result = append(result, abs)
 	}
 
-	return absDirs, resolvedDirs, nil
+	return result, nil
 }
 
-// isInAllowedDirs checks if a path is within one of the allowed directories.
-func isInAllowedDirs(absPath string, allowedDirs []string) bool {
+// isDirectlyInAllowedDir checks if parentDir exactly matches one of the allowed directories.
+// This is stricter than "is under" - the file must be directly in the allowed dir, not in a subdirectory.
+func isDirectlyInAllowedDir(parentDir string, allowedDirs []string) bool {
+	parentDir = filepath.Clean(parentDir)
 	for _, dir := range allowedDirs {
-		if isSubPath(absPath, dir) {
+		if parentDir == filepath.Clean(dir) {
 			return true
 		}
 	}
-	return false
-}
-
-// isSubPath checks if path is equal to or under baseDir.
-func isSubPath(path, baseDir string) bool {
-	// Ensure both are clean absolute paths
-	path = filepath.Clean(path)
-	baseDir = filepath.Clean(baseDir)
-
-	// Check if path starts with baseDir
-	if path == baseDir {
-		return true
-	}
-
-	// Add separator to avoid /foo/bar matching /foo/barbaz
-	if strings.HasPrefix(path, baseDir+string(filepath.Separator)) {
-		return true
-	}
-
 	return false
 }
 
@@ -176,44 +169,6 @@ func DefaultExportsDir() (string, error) {
 		return "", errors.NewInternal(fmt.Errorf("failed to get home directory: %w", err))
 	}
 	return filepath.Join(homeDir, ".moss", "exports"), nil
-}
-
-// resolvePathBestEffort resolves symlinks in an absolute path as much as possible.
-// If the full path doesn't exist (common for writes), it resolves the deepest existing
-// ancestor and reattaches the remaining suffix.
-func resolvePathBestEffort(absPath string) (string, error) {
-	absPath = filepath.Clean(absPath)
-
-	existing := absPath
-	for {
-		if _, err := os.Lstat(existing); err == nil {
-			break
-		} else if os.IsNotExist(err) {
-			parent := filepath.Dir(existing)
-			if parent == existing {
-				break
-			}
-			existing = parent
-			continue
-		} else {
-			return "", errors.NewInternal(fmt.Errorf("failed to stat path: %w", err))
-		}
-	}
-
-	realExisting, err := filepath.EvalSymlinks(existing)
-	if err != nil {
-		return "", errors.NewInvalidRequest(fmt.Sprintf("cannot resolve symlink in path: %v", err))
-	}
-
-	rel, err := filepath.Rel(existing, absPath)
-	if err != nil {
-		return "", errors.NewInternal(fmt.Errorf("failed to compute relative path: %w", err))
-	}
-	if rel == "." {
-		return filepath.Clean(realExisting), nil
-	}
-
-	return filepath.Clean(filepath.Join(realExisting, rel)), nil
 }
 
 // containsTraversal checks if path contains ".." directory traversal.
