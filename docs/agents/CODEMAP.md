@@ -46,7 +46,10 @@ moss/
 │       ├── purge.go               # Purge soft-deleted capsules
 │       ├── bulk_delete.go         # Bulk soft-delete by filter
 │       ├── bulk_update.go         # Bulk metadata update by filter
-│       └── compose.go             # Compose multiple capsules into bundle
+│       ├── compose.go             # Compose multiple capsules into bundle
+│       ├── pathcheck.go           # Path validation for import/export security
+│       ├── fileopen_unix.go       # O_NOFOLLOW file open (Unix/Darwin/Linux)
+│       └── fileopen_windows.go    # File open fallback (Windows)
 ├── docs/
 │   ├── OVERVIEW.md                # Concepts, use cases
 │   ├── RUNBOOK.md                 # Build, configure, run, troubleshoot

@@ -175,11 +175,11 @@ moss inventory
 # Get latest in workspace
 moss latest --workspace=myproject --include-text
 
-# Export to file
-moss export --path=/tmp/backup.jsonl
+# Export to file (default-safe location)
+moss export --path=~/.moss/exports/backup.jsonl
 
 # Import from file
-moss import --path=/tmp/backup.jsonl --mode=replace
+moss import --path=~/.moss/exports/backup.jsonl --mode=replace
 
 # Purge deleted capsules
 moss purge --older-than=7d
@@ -212,15 +212,52 @@ Location: `~/.moss/config.json`
 
 ```json
 {
-  "capsule_max_chars": 12000
+  "capsule_max_chars": 12000,
+  "allowed_paths": [],
+  "allow_unsafe_paths": false,
+  "db_max_open_conns": 0,
+  "db_max_idle_conns": 0
 }
 ```
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `capsule_max_chars` | 12000 | Maximum characters per capsule (~3k tokens) |
+| `allowed_paths` | `[]` | Additional directories allowed for import/export |
+| `allow_unsafe_paths` | `false` | Bypass directory restrictions (symlink checks still apply) |
+| `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
+| `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 
 If the file doesn't exist, defaults are used.
+
+### Import/Export Path Security
+
+By default, `export` and `import` are restricted to `~/.moss/exports/` to prevent accidental writes to sensitive locations.
+
+**To allow additional directories:**
+
+```json
+{
+  "allowed_paths": ["/tmp/moss-backups", "/home/user/capsule-exports"]
+}
+```
+
+Note: `allowed_paths` entries must be absolute paths (relative paths are ignored).
+
+**To bypass directory restrictions (not recommended):**
+
+```json
+{
+  "allow_unsafe_paths": true
+}
+```
+
+**Security checks performed:**
+- `.jsonl` extension required
+- Directory traversal (`..`) rejected
+- Subdirectories not allowed: files must be directly in an allowed directory (prevents TOCTOU attacks)
+- Symlink files rejected (`O_NOFOLLOW` on Unix; validation check on all platforms)
+- Parent directory symlinks rejected
 
 ### Database
 
@@ -331,13 +368,13 @@ inventory {}
 ### Export for Backup
 
 ```
-export { "path": "/tmp/moss-backup.jsonl" }
+export { "path": "~/.moss/exports/moss-backup.jsonl" }
 ```
 
 ### Import from Backup
 
 ```
-import { "path": "/tmp/moss-backup.jsonl", "mode": "error" }
+import { "path": "~/.moss/exports/moss-backup.jsonl", "mode": "error" }
 ```
 
 ### Compose Multiple Capsules
@@ -402,6 +439,8 @@ bulk_delete {}
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`
 
+Note: whitespace-only filters are treated as empty and rejected.
+
 ### Bulk Update by Filter
 
 ```
@@ -441,6 +480,8 @@ bulk_update { "set_phase": "done" }  // Error: no filters
 ```
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`
+
+Note: whitespace-only filters are treated as empty and rejected.
 
 ---
 

@@ -29,6 +29,7 @@ func testSetup(t *testing.T) (*sql.DB, *config.Config, func()) {
 	}
 
 	cfg := config.DefaultConfig()
+	cfg.AllowUnsafePaths = true // Allow temp dirs in tests
 
 	cleanup := func() {
 		database.Close()

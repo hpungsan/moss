@@ -317,9 +317,39 @@ Optional snippets/transcript refs with "expand" semantics:
 
 `internal/ops/import.go` uses `bufio.NewScanner()` with default 64KB line limit. If `capsule_max_chars` is increased significantly (e.g., 50K+), large export records could be silently truncated. Consider using `scanner.Buffer()` to set explicit limit matching max capsule size + overhead.
 
+### Export: Atomic Replace on Windows
+
+`internal/ops/export.go` writes exports to a temp file and then finalizes via rename. On Windows, `os.Rename` fails if the destination already exists, and a delete+rename fallback is not atomic and can lose the existing file if the rename fails (locked file, AV, perms, etc.).
+
+**Current behavior (safe):** if the destination exists on Windows, export fails and preserves the existing file.
+
+**Desired behavior:** implement an atomic replace strategy on Windows (e.g., via Win32 `ReplaceFile` / `MoveFileEx` patterns) so exports can overwrite existing files without data-loss risk.
+
+### Database: Dedicated Write Connection
+
+For high-concurrency workloads, separate read and write connection pools to reduce lock contention without globally serializing reads.
+
+**Current mitigation:** Config knobs `db_max_open_conns` and `db_max_idle_conns` allow users to tune pool behavior if they hit "database is locked" errors.
+
+**Desired behavior:** Dedicated write connection (`SetMaxOpenConns(1)`) for writes only; default pool for concurrent reads. Avoids serializing read throughput while eliminating write contention.
+
+### Bulk Update: `skip_unchanged` Option
+
+`bulk_update` always bumps `updated_at` even if values are already at the target ("touched" semantics). This can cause churn in `list`/`latest` ordering.
+
+**Current behavior (keep as default):** Consistent with single-item `update`, simple "rows matched" count semantics.
+
+**Desired behavior:** Add opt-in `skip_unchanged: true` flag. When set, add WHERE predicates to exclude rows already at target values (`phase IS NULL OR phase != ?` for set, `phase IS NOT NULL` for clear). Tags comparison works via `tags_json IS NULL OR tags_json != ?` since JSON is deterministically serialized.
+
 ---
 
 ## Considered & Deferred
+
+### Import/Export: Full openat() Path Traversal
+
+For complete TOCTOU protection, each directory component could be opened with `openat(O_NOFOLLOW|O_DIRECTORY)` before opening the final file.
+
+**Decision:** Instead of complex `openat()` traversal, we disallow subdirectories entirely—files must be directly in allowed directories. This eliminates the attack surface (no intermediate components to swap) while keeping the implementation simple. Combined with `O_NOFOLLOW` on the final component, this provides complete symlink protection.
 
 ### Content Lint Checks
 

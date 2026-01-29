@@ -2,15 +2,18 @@ package ops
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
 	"time"
 
 	"github.com/hpungsan/moss/internal/capsule"
+	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/db"
 	"github.com/hpungsan/moss/internal/errors"
 )
@@ -37,7 +40,7 @@ type ExportHeader struct {
 }
 
 // Export exports capsules to a JSONL file.
-func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOutput, error) {
+func Export(ctx context.Context, database *sql.DB, cfg *config.Config, input ExportInput) (*ExportOutput, error) {
 	now := time.Now()
 	exportedAt := now.Unix()
 
@@ -49,11 +52,12 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Validate user-provided path
-		if err := validateExportPath(exportPath); err != nil {
-			return nil, err
-		}
+	}
+
+	// Validate ALL paths (both user-provided and default) for security
+	// This catches workspace injection attacks in default paths
+	if err := ValidatePath(exportPath, PathCheckWrite, cfg); err != nil {
+		return nil, err
 	}
 
 	// Ensure parent directory exists
@@ -62,18 +66,25 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export directory: %w", err))
 	}
 
-	// Create export file
-	file, err := os.OpenFile(exportPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	// Write to temp file first, then atomic rename to preserve existing file on failure
+	randBytes := make([]byte, 8)
+	if _, err := rand.Read(randBytes); err != nil {
+		return nil, errors.NewInternal(fmt.Errorf("failed to generate temp file name: %w", err))
+	}
+	tempPath := exportPath + "." + hex.EncodeToString(randBytes) + ".tmp"
+	file, err := openFileNoFollow(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return nil, errors.NewInternal(fmt.Errorf("failed to create export file: %w", err))
 	}
 
-	// Clean up partial file on failure
+	// Clean up temp file on failure (original file is preserved)
 	success := false
 	defer func() {
-		file.Close()
+		if file != nil {
+			file.Close()
+		}
 		if !success {
-			os.Remove(exportPath)
+			os.Remove(tempPath)
 		}
 	}()
 
@@ -139,6 +150,31 @@ func Export(ctx context.Context, database *sql.DB, input ExportInput) (*ExportOu
 		return nil, errors.NewInternal(err)
 	}
 
+	// Close before atomic replace (required on Windows; fine elsewhere).
+	if err := file.Close(); err != nil {
+		return nil, errors.NewInternal(fmt.Errorf("failed to close export file: %w", err))
+	}
+	file = nil
+
+	// Check if destination is a symlink (os.Rename would follow it)
+	if info, err := os.Lstat(exportPath); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return nil, errors.NewInternal(fmt.Errorf("export path is a symlink"))
+	}
+
+	// Finalize export by renaming temp file into place.
+	//
+	// Note: On Windows, os.Rename fails if the destination exists. We intentionally
+	// fail safely (preserving the existing file) instead of doing a non-atomic
+	// delete+rename that could lose the original if rename fails.
+	if err := os.Rename(tempPath, exportPath); err != nil {
+		if runtime.GOOS == "windows" {
+			if _, statErr := os.Stat(exportPath); statErr == nil {
+				return nil, errors.NewInvalidRequest("export destination already exists; overwriting is not supported on Windows yet (choose a new path or delete the existing file)")
+			}
+		}
+		return nil, errors.NewInternal(fmt.Errorf("failed to finalize export: %w", err))
+	}
+
 	success = true
 	return &ExportOutput{
 		Path:       exportPath,
@@ -158,46 +194,11 @@ func defaultExportPath(workspace *string, now time.Time) (string, error) {
 	timestamp := now.Format("2006-01-02T150405")
 	name := "all"
 	if workspace != nil && *workspace != "" {
-		name = capsule.Normalize(*workspace)
+		// Normalize first (lowercase, collapse whitespace), then sanitize for filename
+		// to prevent path traversal/injection via malicious workspace names
+		name = SanitizeForFilename(capsule.Normalize(*workspace))
 	}
 
 	filename := fmt.Sprintf("%s-%s.jsonl", name, timestamp)
 	return filepath.Join(homeDir, ".moss", "exports", filename), nil
-}
-
-// validateExportPath validates a user-provided export path.
-// Rejects paths containing traversal sequences.
-func validateExportPath(path string) error {
-	// Reject paths containing ".." (traversal attempt)
-	// Check before cleaning since Clean() resolves traversal sequences
-	if containsTraversal(path) {
-		return errors.NewInvalidRequest("export path must not contain directory traversal (..)")
-	}
-
-	// Require .jsonl extension for safety
-	cleaned := filepath.Clean(path)
-	if filepath.Ext(cleaned) != ".jsonl" {
-		return errors.NewInvalidRequest("export path must have .jsonl extension")
-	}
-
-	return nil
-}
-
-// containsTraversal checks if path contains ".." directory traversal.
-func containsTraversal(path string) bool {
-	// Check each path component
-	for _, part := range strings.Split(path, string(filepath.Separator)) {
-		if part == ".." {
-			return true
-		}
-	}
-	// Also check for forward slashes on all platforms (e.g., user input)
-	if filepath.Separator != '/' {
-		for _, part := range strings.Split(path, "/") {
-			if part == ".." {
-				return true
-			}
-		}
-	}
-	return false
 }

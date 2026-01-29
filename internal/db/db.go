@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hpungsan/moss/internal/config"
 	_ "modernc.org/sqlite"
 )
 
@@ -54,6 +55,21 @@ func Init(baseDir string) (*sql.DB, error) {
 	_ = os.Chmod(dbPath, 0600)
 
 	return db, nil
+}
+
+// ConfigurePool applies connection pool settings from config.
+// Only sets limits if explicitly configured (non-zero values).
+// Call after Init if you need to tune pool behavior for contention.
+func ConfigurePool(db *sql.DB, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	if cfg.DBMaxOpenConns > 0 {
+		db.SetMaxOpenConns(cfg.DBMaxOpenConns)
+	}
+	if cfg.DBMaxIdleConns > 0 {
+		db.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	}
 }
 
 // migrate applies schema migrations based on user_version.
