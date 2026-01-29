@@ -331,7 +331,7 @@ Full-text search across capsules using SQLite FTS5. Returns results ranked by re
 
 **Behaviors:**
 - Title matches weighted 5x higher than body (BM25 ranking)
-- Returns `snippet` field with match context (~300 chars, `<b>` highlights)
+- Returns `snippet` field with match context (~300 chars, `<b>` highlights, HTML-escaped user content)
 - Empty results returns `[]`, not error
 - Invalid FTS5 syntax → **400 INVALID_REQUEST**
 

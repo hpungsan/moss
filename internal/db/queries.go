@@ -1035,6 +1035,14 @@ type SearchResult struct {
 // Returns results ranked by relevance (BM25) with match snippets.
 // Title matches are weighted 5x higher than body matches.
 func SearchFullText(ctx context.Context, db *sql.DB, query string, filters SearchFilters, limit, offset int, includeDeleted bool) ([]SearchResult, int, error) {
+	// Use a read-only transaction to ensure COUNT and page results come from the
+	// same snapshot (prevents inconsistencies under concurrent writes).
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	// Build WHERE conditions
 	// FTS5 MATCH is required for the JOIN to work
 	conditions := []string{"capsules_fts MATCH ?"}
@@ -1073,7 +1081,7 @@ func SearchFullText(ctx context.Context, db *sql.DB, query string, filters Searc
 		INNER JOIN capsules_fts ON c.rowid = capsules_fts.rowid` + whereClause
 
 	var total int
-	if err := db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := tx.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		// Check for FTS5 syntax errors
 		if isFTSSyntaxError(err) {
 			return nil, 0, errors.NewInvalidRequest("invalid search syntax")
@@ -1089,14 +1097,14 @@ func SearchFullText(ctx context.Context, db *sql.DB, query string, filters Searc
 		SELECT c.id, c.workspace_raw, c.workspace_norm, c.name_raw, c.name_norm,
 			c.title, c.capsule_chars, c.tokens_estimate, c.tags_json, c.source,
 			c.run_id, c.phase, c.role, c.created_at, c.updated_at, c.deleted_at,
-			snippet(capsules_fts, -1, '<b>', '</b>', '...', 64) as snippet
+			snippet(capsules_fts, -1, '[[[B]]]', '[[[/B]]]', '...', 64) as snippet
 		FROM capsules c
 		INNER JOIN capsules_fts ON c.rowid = capsules_fts.rowid` + whereClause + `
 		ORDER BY bm25(capsules_fts, 1.0, 5.0) ASC, c.updated_at DESC, c.id DESC
 		LIMIT ? OFFSET ?`
 
 	searchArgs := append(args, limit, offset)
-	rows, err := db.QueryContext(ctx, searchQuery, searchArgs...)
+	rows, err := tx.QueryContext(ctx, searchQuery, searchArgs...)
 	if err != nil {
 		if isFTSSyntaxError(err) {
 			return nil, 0, errors.NewInvalidRequest("invalid search syntax")
@@ -1162,26 +1170,61 @@ func SearchFullText(ctx context.Context, db *sql.DB, query string, filters Searc
 		return nil, 0, errors.NewInternal(err)
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
 	return results, total, nil
 }
 
-// isFTSSyntaxError checks if an error is an FTS5 syntax error.
+// isFTSSyntaxError checks if an error is an FTS5 user syntax error.
+// Only matches errors caused by invalid query syntax from user input.
+// Does NOT match internal errors (corruption, OOM, schema issues) which should
+// surface as 500 INTERNAL, not 400 INVALID_REQUEST.
 func isFTSSyntaxError(err error) bool {
 	if err == nil {
 		return false
 	}
 	msg := err.Error()
-	// FTS5 syntax errors contain these patterns:
-	// - "fts5: syntax error" - explicit FTS5 syntax errors
-	// - "fts5:" - other FTS5-specific errors
-	// - "unterminated string" - unclosed quotes in query
-	// - "unknown special query" - invalid FTS5 special commands (e.g., "* " alone)
-	// - "no such column: capsules_fts" - FTS table not found (schema issue)
-	return strings.Contains(msg, "fts5: syntax error") ||
-		strings.Contains(msg, "fts5:") ||
-		strings.Contains(msg, "unterminated string") ||
-		strings.Contains(msg, "unknown special query") ||
-		strings.Contains(msg, "no such column: capsules_fts")
+
+	// Explicit syntax errors from FTS5 query parser
+	// e.g., "fts5: syntax error near X"
+	if strings.Contains(msg, "fts5: syntax error") {
+		return true
+	}
+
+	// Unclosed quotes in query
+	// e.g., `"unclosed quote` → "unterminated string"
+	if strings.Contains(msg, "unterminated string") {
+		return true
+	}
+
+	// Invalid special queries (e.g., standalone "*", "* ")
+	// e.g., "unknown special query: *"
+	if strings.Contains(msg, "unknown special query") {
+		return true
+	}
+
+	// NEAR operator errors
+	// e.g., "fts5: near: syntax error" for malformed NEAR queries
+	if strings.Contains(msg, "fts5: near") {
+		return true
+	}
+
+	// Column filter errors (user trying to search non-existent column)
+	// e.g., "fts5: no such column: badcolumn"
+	// Note: This is different from "no such table" which is a schema error
+	if strings.Contains(msg, "fts5: no such column") {
+		return true
+	}
+
+	// DO NOT match:
+	// - Generic "fts5:" prefix - too broad, catches internal errors like:
+	//   "fts5: database disk image is malformed"
+	//   "fts5: out of memory"
+	// - "no such table: capsules_fts" - schema error, not user input error
+
+	return false
 }
 
 // BulkUpdate updates metadata on all active capsules matching the given filters.

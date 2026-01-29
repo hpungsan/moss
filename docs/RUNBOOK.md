@@ -430,7 +430,7 @@ search {
 - Prefix: `auth*`
 - Boolean: `JWT OR OAuth`, `Redis AND cache`, `NOT deprecated`
 
-Results are ranked by relevance (title matches weighted 5x higher).
+Results are ranked by relevance (title matches weighted 5x higher). Snippets are HTML-safe: user content is escaped; only `<b>` highlight tags are present.
 
 ### Bulk Delete by Filter
 

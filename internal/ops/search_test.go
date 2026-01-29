@@ -807,3 +807,200 @@ func TestTruncateSnippet(t *testing.T) {
 		})
 	}
 }
+
+func TestTruncateSnippet_UTF8Safety(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxChars int
+	}{
+		{
+			name:     "chinese characters",
+			input:    "测试内容很长很长", // 8 Chinese chars = 24 bytes
+			maxChars: 10,
+		},
+		{
+			name:     "emoji",
+			input:    "Hello 😀 World 🎉 Test",
+			maxChars: 10,
+		},
+		{
+			name:     "mixed utf8 and ascii",
+			input:    "Test 世界 content",
+			maxChars: 8,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := truncateSnippet(tt.input, tt.maxChars)
+
+			// Must produce valid UTF-8
+			if !isValidUTF8(result) {
+				t.Errorf("truncateSnippet(%q, %d) produced invalid UTF-8: %q",
+					tt.input, tt.maxChars, result)
+			}
+		})
+	}
+}
+
+func TestTruncateSnippet_MarkupPreservation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxChars int
+	}{
+		{
+			name:     "unclosed b tag",
+			input:    "<b>authentication</b> system",
+			maxChars: 10,
+		},
+		{
+			name:     "multiple unclosed tags",
+			input:    "<b>test</b> <b>more</b> content",
+			maxChars: 15,
+		},
+		{
+			name:     "nested-like pattern",
+			input:    "<b>outer <b>inner</b> still</b> end",
+			maxChars: 20,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := truncateSnippet(tt.input, tt.maxChars)
+
+			// Count open and close tags - should be balanced
+			openTags := strings.Count(result, "<b>")
+			closeTags := strings.Count(result, "</b>")
+
+			if openTags != closeTags {
+				t.Errorf("truncateSnippet(%q, %d) has unbalanced tags: %d open, %d close in %q",
+					tt.input, tt.maxChars, openTags, closeTags, result)
+			}
+		})
+	}
+}
+
+func TestEscapeSnippetHTML(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "no escaping needed",
+			input: "hello world",
+			want:  "hello world",
+		},
+		{
+			name:  "converts highlight markers to b tags",
+			input: "[[[B]]]match[[[/B]]]",
+			want:  "<b>match</b>",
+		},
+		{
+			name:  "escapes user html",
+			input: "<script>alert('xss')</script>",
+			want:  "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;",
+		},
+		{
+			name:  "escapes user b tags (only internal markers become <b>)",
+			input: "<b>match</b>",
+			want:  "&lt;b&gt;match&lt;/b&gt;",
+		},
+		{
+			name:  "mixed - escapes user html preserves markers",
+			input: "[[[B]]]match[[[/B]]] <script>bad</script>",
+			want:  "<b>match</b> &lt;script&gt;bad&lt;/script&gt;",
+		},
+		{
+			name:  "escapes ampersands",
+			input: "foo & bar [[[B]]]match[[[/B]]]",
+			want:  "foo &amp; bar <b>match</b>",
+		},
+		{
+			name:  "preserves ellipsis",
+			input: "...prefix [[[B]]]match[[[/B]]] suffix...",
+			want:  "...prefix <b>match</b> suffix...",
+		},
+		{
+			name:  "escapes quotes",
+			input: `[[[B]]]match[[[/B]]] onclick="evil()"`,
+			want:  `<b>match</b> onclick=&#34;evil()&#34;`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := escapeSnippetHTML(tt.input)
+			if got != tt.want {
+				t.Errorf("escapeSnippetHTML(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTruncateSnippet_DoesNotReturnBrokenHTMLEntities(t *testing.T) {
+	// This string includes an HTML entity; truncation shouldn't return a partial "&amp"
+	// suffix (invalid HTML) after it has been escaped.
+	input := "foo &amp; bar baz"
+	got := truncateSnippet(input, 7) // "foo &amp" would be partial without trimming
+	if strings.Contains(got, "&amp") && !strings.Contains(got, "&amp;") {
+		t.Fatalf("expected no partial entity in %q", got)
+	}
+	if strings.HasSuffix(got, "&") {
+		t.Fatalf("expected result not to end with '&': %q", got)
+	}
+}
+
+func TestTruncateSnippet_DoesNotReturnPartialTags(t *testing.T) {
+	input := "<b>match</b> trailing"
+	got := truncateSnippet(input, 2)
+	if strings.Contains(got, "<") {
+		t.Fatalf("expected no partial tag fragments in %q", got)
+	}
+}
+
+// isValidUTF8 checks if a string contains valid UTF-8.
+func isValidUTF8(s string) bool {
+	for i := 0; i < len(s); {
+		r, size := decodeRuneAt(s, i)
+		if r == '\uFFFD' && size == 1 {
+			// Invalid UTF-8 sequence
+			return false
+		}
+		i += size
+	}
+	return true
+}
+
+// decodeRuneAt decodes a rune at position i in string s.
+func decodeRuneAt(s string, i int) (rune, int) {
+	if i >= len(s) {
+		return '\uFFFD', 0
+	}
+	b := s[i]
+	if b < 0x80 {
+		return rune(b), 1
+	}
+	if b < 0xC0 {
+		return '\uFFFD', 1
+	}
+	if b < 0xE0 {
+		if i+1 >= len(s) {
+			return '\uFFFD', 1
+		}
+		return rune(b&0x1F)<<6 | rune(s[i+1]&0x3F), 2
+	}
+	if b < 0xF0 {
+		if i+2 >= len(s) {
+			return '\uFFFD', 1
+		}
+		return rune(b&0x0F)<<12 | rune(s[i+1]&0x3F)<<6 | rune(s[i+2]&0x3F), 3
+	}
+	if i+3 >= len(s) {
+		return '\uFFFD', 1
+	}
+	return rune(b&0x07)<<18 | rune(s[i+1]&0x3F)<<12 | rune(s[i+2]&0x3F)<<6 | rune(s[i+3]&0x3F), 4
+}

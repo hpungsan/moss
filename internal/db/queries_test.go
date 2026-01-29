@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -1668,5 +1669,85 @@ func TestPurgeDeleted_NoDeleted(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("purged = %d, want 0", count)
+	}
+}
+
+// =============================================================================
+// isFTSSyntaxError Tests
+// =============================================================================
+
+func TestIsFTSSyntaxError(t *testing.T) {
+	tests := []struct {
+		name     string
+		errMsg   string
+		wantTrue bool
+	}{
+		// User syntax errors - SHOULD return true (400)
+		{
+			name:     "explicit fts5 syntax error",
+			errMsg:   "fts5: syntax error near \"AND\"",
+			wantTrue: true,
+		},
+		{
+			name:     "unterminated string",
+			errMsg:   "SQL logic error: unterminated string (1)",
+			wantTrue: true,
+		},
+		{
+			name:     "unknown special query",
+			errMsg:   "fts5: unknown special query: *",
+			wantTrue: true,
+		},
+		{
+			name:     "near operator error",
+			errMsg:   "fts5: near: syntax error",
+			wantTrue: true,
+		},
+		{
+			name:     "no such column in fts query",
+			errMsg:   "fts5: no such column: badcolumn",
+			wantTrue: true,
+		},
+
+		// Internal errors - SHOULD return false (500)
+		{
+			name:     "database corruption",
+			errMsg:   "fts5: database disk image is malformed",
+			wantTrue: false,
+		},
+		{
+			name:     "out of memory",
+			errMsg:   "fts5: out of memory",
+			wantTrue: false,
+		},
+		{
+			name:     "no such table (schema error)",
+			errMsg:   "SQL logic error: no such table: capsules_fts (1)",
+			wantTrue: false,
+		},
+		{
+			name:     "generic sql error",
+			errMsg:   "SQL logic error: database is locked",
+			wantTrue: false,
+		},
+		{
+			name:     "nil error",
+			errMsg:   "",
+			wantTrue: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			if tt.errMsg != "" {
+				err = fmt.Errorf("%s", tt.errMsg)
+			}
+
+			got := isFTSSyntaxError(err)
+			if got != tt.wantTrue {
+				t.Errorf("isFTSSyntaxError(%q) = %v, want %v", tt.errMsg, got, tt.wantTrue)
+			}
+		})
 	}
 }

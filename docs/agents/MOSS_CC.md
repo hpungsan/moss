@@ -334,7 +334,7 @@ inventory { phase: "research", tag: "oauth" }
 
 // Option 2: Full-text search (finds content, not just metadata)
 search { query: "OAuth provider comparison", phase: "research" }
-// Returns ranked results with match snippets:
+// Returns ranked results with HTML-safe snippets (<b> highlights, user content escaped):
 // [{ name: "provider-comparison", snippet: "...<b>OAuth</b> <b>provider</b>...", ... }]
 
 // Fetch relevant prior research
