@@ -319,7 +319,7 @@ Global list across all workspaces. **Never returns `capsule_text`.**
 
 Full-text search across capsules using SQLite FTS5. Returns results ranked by relevance with match snippets.
 
-**Required:** `query`
+**Required:** `query` (max 1000 chars)
 
 **Optional filters:** `workspace`, `tag`, `run_id`, `phase`, `role`, `include_deleted`, `limit` (default: 20, max: 100), `offset`
 
@@ -333,6 +333,7 @@ Full-text search across capsules using SQLite FTS5. Returns results ranked by re
 - Title matches weighted 5x higher than body (BM25 ranking)
 - Returns `snippet` field with match context (~300 chars, `<b>` highlights, HTML-escaped user content)
 - Empty results returns `[]`, not error
+- Query > 1000 chars → **400 INVALID_REQUEST**
 - Invalid FTS5 syntax → **400 INVALID_REQUEST**
 
 **Output:**

@@ -3,6 +3,7 @@ package ops
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"html"
 	"strings"
 	"unicode/utf8"
@@ -16,6 +17,7 @@ import (
 const (
 	DefaultSearchLimit = 20
 	MaxSearchLimit     = 100
+	MaxQueryLength     = db.MaxSearchQueryChars
 	MaxSnippetChars    = 300
 )
 
@@ -54,6 +56,9 @@ func Search(ctx context.Context, database *sql.DB, input SearchInput) (*SearchOu
 	query := strings.TrimSpace(input.Query)
 	if query == "" {
 		return nil, errors.NewInvalidRequest("query is required")
+	}
+	if utf8.RuneCountInString(query) > MaxQueryLength {
+		return nil, errors.NewInvalidRequest(fmt.Sprintf("query exceeds maximum length of %d characters", MaxQueryLength))
 	}
 
 	// Build filters
@@ -178,7 +183,7 @@ func truncateSnippet(s string, maxChars int) string {
 	unclosedCount := openTags - closeTags
 
 	// Close any unclosed <b> tags
-	for i := 0; i < unclosedCount; i++ {
+	for range unclosedCount {
 		truncated += "</b>"
 	}
 

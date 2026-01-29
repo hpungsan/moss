@@ -362,6 +362,14 @@ For high-concurrency workloads, separate read and write connection pools to redu
 
 **Desired behavior:** Add opt-in `skip_unchanged: true` flag. When set, add WHERE predicates to exclude rows already at target values (`phase IS NULL OR phase != ?` for set, `phase IS NOT NULL` for clear). Tags comparison works via `tags_json IS NULL OR tags_json != ?` since JSON is deterministically serialized.
 
+### Database: FTS Migration Lock Contention
+
+FTS5 migration (`internal/db/db.go`) runs `INSERT INTO capsules_fts(capsules_fts) VALUES('rebuild')` without an explicit transaction or advisory lock. If multiple Moss processes start concurrently (e.g., parallel CI jobs, container restarts), they can fight over SQLite locks and repeatedly trigger rebuilds.
+
+**Current behavior:** Works correctly for single-process use (typical). Concurrent starts may see transient lock errors and retry.
+
+**Desired behavior:** Wrap migration in an exclusive transaction or use an advisory lock file to serialize concurrent startup migrations.
+
 ---
 
 ## Considered & Deferred

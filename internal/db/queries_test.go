@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1670,6 +1671,36 @@ func TestPurgeDeleted_NoDeleted(t *testing.T) {
 	if count != 0 {
 		t.Errorf("purged = %d, want 0", count)
 	}
+}
+
+func TestSearchFullText_QueryBounds(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbConn, err := Init(tmpDir)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer dbConn.Close()
+
+	// Insert one capsule so FTS is initialized.
+	c := newTestCapsule("01SRCH001", "default", "Test content for search")
+	if err := Insert(context.Background(), dbConn, c); err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	t.Run("empty query", func(t *testing.T) {
+		_, _, err := SearchFullText(context.Background(), dbConn, "   \t\n  ", SearchFilters{}, 10, 0, false)
+		if !errors.Is(err, errors.ErrInvalidRequest) {
+			t.Fatalf("expected ErrInvalidRequest, got %v", err)
+		}
+	})
+
+	t.Run("query too long", func(t *testing.T) {
+		longQuery := strings.Repeat("a", MaxSearchQueryChars+1)
+		_, _, err := SearchFullText(context.Background(), dbConn, longQuery, SearchFilters{}, 10, 0, false)
+		if !errors.Is(err, errors.ErrInvalidRequest) {
+			t.Fatalf("expected ErrInvalidRequest, got %v", err)
+		}
+	})
 }
 
 // =============================================================================

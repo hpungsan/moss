@@ -81,6 +81,25 @@ func TestSearch_WhitespaceOnlyQuery(t *testing.T) {
 	}
 }
 
+func TestSearch_QueryTooLong(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Create a query that exceeds MaxQueryLength
+	longQuery := strings.Repeat("a", MaxQueryLength+1)
+
+	_, err = Search(context.Background(), database, SearchInput{
+		Query: longQuery,
+	})
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("Search should return ErrInvalidRequest for query > 1000 chars, got: %v", err)
+	}
+}
+
 func TestSearch_WorkspaceFilter(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

@@ -4,12 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/errors"
 )
+
+// MaxSearchQueryChars is the maximum allowed search query length in characters (runes).
+// This is a DoS-ish guardrail: pathological FTS queries can be expensive.
+const MaxSearchQueryChars = 1000
 
 // Querier is an interface satisfied by both *sql.DB and *sql.Tx.
 // This allows functions to work with either a database connection or a transaction.
@@ -1035,6 +1041,14 @@ type SearchResult struct {
 // Returns results ranked by relevance (BM25) with match snippets.
 // Title matches are weighted 5x higher than body matches.
 func SearchFullText(ctx context.Context, db *sql.DB, query string, filters SearchFilters, limit, offset int, includeDeleted bool) ([]SearchResult, int, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, 0, errors.NewInvalidRequest("query is required")
+	}
+	if utf8.RuneCountInString(query) > MaxSearchQueryChars {
+		return nil, 0, errors.NewInvalidRequest(fmt.Sprintf("query exceeds maximum length of %d characters", MaxSearchQueryChars))
+	}
+
 	// Use a read-only transaction to ensure COUNT and page results come from the
 	// same snapshot (prevents inconsistencies under concurrent writes).
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
