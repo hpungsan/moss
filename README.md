@@ -87,6 +87,12 @@ fetch { "workspace": "myproject", "name": "auth" }
 inventory {}
 ```
 
+### Search Capsules
+
+```
+search { "query": "authentication", "workspace": "myproject" }
+```
+
 ### Get Latest in Workspace
 
 ```
@@ -111,6 +117,7 @@ export {}
 | `latest` | Most recent in workspace |
 | `list` | List capsules in workspace |
 | `inventory` | List all capsules globally |
+| `search` | Full-text search across capsules |
 | `export` | JSONL backup |
 | `import` | JSONL restore |
 | `purge` | Permanent delete |

@@ -234,13 +234,34 @@ diff {
 
 ## Future Ideas
 
-### `search` Tool (FTS5)
+### Search Enhancements
 
-SQLite FTS5 for full-text search across capsules:
+#### `has_more` Only Mode
 
-```json
-{ "query": "authentication JWT" }
-```
+Replace COUNT query with `limit+1` fetch for faster pagination when exact totals aren't needed.
+
+**Current behavior:** Returns exact `total` count (extra query).
+**Enhancement:** Add `count_total: false` option to skip COUNT and use `limit+1` for `has_more` detection.
+
+#### Safe Query Mode
+
+Add `safe_query: true` option that auto-escapes special FTS5 characters in user input.
+
+**Current behavior:** `query` is passed directly to FTS5 (supports full syntax but can error).
+**Enhancement:** When `safe_query: true`, escape quotes/operators so plain text "just works".
+
+#### Code-Aware Tokenization
+
+Configure FTS5 tokenizer to handle code paths and symbols better:
+- `tokenchars='_/-.'` to keep `src/auth/session.go` as searchable unit
+- Trade-off: affects word boundaries for natural language
+
+**Decision:** Defer until real usage patterns emerge. Document workaround: use AND (e.g., `src AND auth AND session`).
+
+#### Configurable Snippet Length
+
+Add `snippet_tokens` parameter (default: 64, max: 128) for FTS5.
+Add `snippet_chars` parameter (default: 300, max: 500) for Go truncation.
 
 ### Semantic Search (Vector)
 
@@ -248,7 +269,7 @@ Embeddings-based similarity search for finding capsules by meaning rather than e
 
 **Use case:** "Find the capsule where I decided to use JWT" — without knowing the capsule name.
 
-```json
+```
 search { "query": "JWT authentication decision", "limit": 5 }
 ```
 
@@ -276,7 +297,7 @@ search { "query": "JWT authentication decision", "limit": 5 }
 > - Cross-run knowledge discovery with poor tagging discipline
 > - Capsule count exceeds 500+ and keyword search isn't finding things
 >
-> **Recommended path:** Filters (now) → FTS5 (next) → Vector (when users hit the wall with keyword search)
+> **Recommended path:** Filters (done) → FTS5 (done) → Vector (when users hit the wall with keyword search)
 
 ### Versioning
 
@@ -340,6 +361,14 @@ For high-concurrency workloads, separate read and write connection pools to redu
 **Current behavior (keep as default):** Consistent with single-item `update`, simple "rows matched" count semantics.
 
 **Desired behavior:** Add opt-in `skip_unchanged: true` flag. When set, add WHERE predicates to exclude rows already at target values (`phase IS NULL OR phase != ?` for set, `phase IS NOT NULL` for clear). Tags comparison works via `tags_json IS NULL OR tags_json != ?` since JSON is deterministically serialized.
+
+### Database: FTS Migration Lock Contention
+
+FTS5 migration (`internal/db/db.go`) runs `INSERT INTO capsules_fts(capsules_fts) VALUES('rebuild')` without an explicit transaction or advisory lock. If multiple Moss processes start concurrently (e.g., parallel CI jobs, container restarts), they can fight over SQLite locks and repeatedly trigger rebuilds.
+
+**Current behavior:** Works correctly for single-process use (typical). Concurrent starts may see transient lock errors and retry.
+
+**Desired behavior:** Wrap migration in an exclusive transaction or use an advisory lock file to serialize concurrent startup migrations.
 
 ---
 

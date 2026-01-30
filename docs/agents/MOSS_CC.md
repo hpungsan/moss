@@ -328,13 +328,14 @@ Query capsules from *prior* workflow runs to inform new ones. Unlike `run_id` sc
 
 ```
 // New OAuth implementation starting
-// Check if anyone's done OAuth research before
+// Option 1: Filter by metadata
 inventory { phase: "research", tag: "oauth" }
-// Returns capsules from ANY prior run tagged "oauth" in research phase:
-// [
-//   { workspace: "feature-oauth-v1", name: "research", run_id: "pr-87", ... },
-//   { workspace: "feature-oauth-v2", name: "provider-comparison", run_id: "pr-142", ... }
-// ]
+// Returns capsules from ANY prior run tagged "oauth" in research phase
+
+// Option 2: Full-text search (finds content, not just metadata)
+search { query: "OAuth provider comparison", phase: "research" }
+// Returns ranked results with HTML-safe snippets (<b> highlights, user content escaped):
+// [{ name: "provider-comparison", snippet: "...<b>OAuth</b> <b>provider</b>...", ... }]
 
 // Fetch relevant prior research
 fetch { workspace: "feature-oauth-v1", name: "research" }
@@ -387,6 +388,7 @@ store { "run_id": "pr-123", "phase": "security", "role": "reviewer", ... }
 list { run_id: "pr-123" }                    // All capsules from this run
 list { run_id: "pr-123", phase: "research" } // Just research phase
 latest { run_id: "pr-123", role: "architect" } // Latest from architect
+search { query: "security", run_id: "pr-123" } // Search within run
 ```
 
 ---

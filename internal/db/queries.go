@@ -4,12 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hpungsan/moss/internal/capsule"
 	"github.com/hpungsan/moss/internal/errors"
 )
+
+// MaxSearchQueryChars is the maximum allowed search query length in characters (runes).
+// This is a DoS-ish guardrail: pathological FTS queries can be expensive.
+const MaxSearchQueryChars = 1000
 
 // Querier is an interface satisfied by both *sql.DB and *sql.Tx.
 // This allows functions to work with either a database connection or a transaction.
@@ -1014,6 +1020,225 @@ type BulkUpdateFields struct {
 	Phase *string
 	Role  *string
 	Tags  *[]string
+}
+
+// SearchFilters contains optional filters for search operations.
+type SearchFilters struct {
+	Workspace *string
+	Tag       *string
+	RunID     *string
+	Phase     *string
+	Role      *string
+}
+
+// SearchResult contains a capsule summary with match snippet.
+type SearchResult struct {
+	Summary capsule.CapsuleSummary
+	Snippet string // Highlighted match context (~300 chars max)
+}
+
+// SearchFullText performs full-text search across capsules.
+// Returns results ranked by relevance (BM25) with match snippets.
+// Title matches are weighted 5x higher than body matches.
+func SearchFullText(ctx context.Context, db *sql.DB, query string, filters SearchFilters, limit, offset int, includeDeleted bool) ([]SearchResult, int, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, 0, errors.NewInvalidRequest("query is required")
+	}
+	if utf8.RuneCountInString(query) > MaxSearchQueryChars {
+		return nil, 0, errors.NewInvalidRequest(fmt.Sprintf("query exceeds maximum length of %d characters", MaxSearchQueryChars))
+	}
+
+	// Use a read-only transaction to ensure COUNT and page results come from the
+	// same snapshot (prevents inconsistencies under concurrent writes).
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Build WHERE conditions
+	// FTS5 MATCH is required for the JOIN to work
+	conditions := []string{"capsules_fts MATCH ?"}
+	args := []any{query}
+
+	if !includeDeleted {
+		conditions = append(conditions, "c.deleted_at IS NULL")
+	}
+	if filters.Workspace != nil {
+		conditions = append(conditions, "c.workspace_norm = ?")
+		args = append(args, *filters.Workspace)
+	}
+	if filters.Tag != nil {
+		conditions = append(conditions, "EXISTS(SELECT 1 FROM json_each(c.tags_json) WHERE value = ?)")
+		args = append(args, *filters.Tag)
+	}
+	if filters.RunID != nil {
+		conditions = append(conditions, "c.run_id = ?")
+		args = append(args, *filters.RunID)
+	}
+	if filters.Phase != nil {
+		conditions = append(conditions, "c.phase = ?")
+		args = append(args, *filters.Phase)
+	}
+	if filters.Role != nil {
+		conditions = append(conditions, "c.role = ?")
+		args = append(args, *filters.Role)
+	}
+
+	whereClause := " WHERE " + strings.Join(conditions, " AND ")
+
+	// Count query
+	countQuery := `
+		SELECT COUNT(*)
+		FROM capsules c
+		INNER JOIN capsules_fts ON c.rowid = capsules_fts.rowid` + whereClause
+
+	var total int
+	if err := tx.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		// Check for FTS5 syntax errors
+		if isFTSSyntaxError(err) {
+			return nil, 0, errors.NewInvalidRequest("invalid search syntax")
+		}
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	// Search query with snippets
+	// snippet() params: table, column (-1 for all), start mark, end mark, ellipsis, max tokens
+	// bm25() params: table, weight for capsule_text, weight for title (higher = more important)
+	// ORDER BY bm25 ASC because bm25() returns negative values (more negative = better match)
+	searchQuery := `
+		SELECT c.id, c.workspace_raw, c.workspace_norm, c.name_raw, c.name_norm,
+			c.title, c.capsule_chars, c.tokens_estimate, c.tags_json, c.source,
+			c.run_id, c.phase, c.role, c.created_at, c.updated_at, c.deleted_at,
+			snippet(capsules_fts, -1, '[[[B]]]', '[[[/B]]]', '...', 64) as snippet
+		FROM capsules c
+		INNER JOIN capsules_fts ON c.rowid = capsules_fts.rowid` + whereClause + `
+		ORDER BY bm25(capsules_fts, 1.0, 5.0) ASC, c.updated_at DESC, c.id DESC
+		LIMIT ? OFFSET ?`
+
+	searchArgs := append(args, limit, offset)
+	rows, err := tx.QueryContext(ctx, searchQuery, searchArgs...)
+	if err != nil {
+		if isFTSSyntaxError(err) {
+			return nil, 0, errors.NewInvalidRequest("invalid search syntax")
+		}
+		return nil, 0, errors.NewInternal(err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var (
+			s         capsule.CapsuleSummary
+			nameRaw   sql.NullString
+			nameNorm  sql.NullString
+			title     sql.NullString
+			tagsJSON  sql.NullString
+			source    sql.NullString
+			runID     sql.NullString
+			phase     sql.NullString
+			role      sql.NullString
+			deletedAt sql.NullInt64
+			snippet   string
+		)
+
+		err := rows.Scan(
+			&s.ID, &s.Workspace, &s.WorkspaceNorm, &nameRaw, &nameNorm,
+			&title, &s.CapsuleChars, &s.TokensEstimate,
+			&tagsJSON, &source, &runID, &phase, &role,
+			&s.CreatedAt, &s.UpdatedAt, &deletedAt,
+			&snippet,
+		)
+		if err != nil {
+			return nil, 0, errors.NewInternal(err)
+		}
+
+		// Convert nullable fields
+		s.Name = fromNullString(nameRaw)
+		s.NameNorm = fromNullString(nameNorm)
+		s.Title = fromNullString(title)
+		s.Source = fromNullString(source)
+		s.RunID = fromNullString(runID)
+		s.Phase = fromNullString(phase)
+		s.Role = fromNullString(role)
+
+		// Convert deleted_at
+		if deletedAt.Valid {
+			s.DeletedAt = &deletedAt.Int64
+		}
+
+		// Parse tags JSON
+		if tagsJSON.Valid && tagsJSON.String != "" {
+			if err := json.Unmarshal([]byte(tagsJSON.String), &s.Tags); err != nil {
+				return nil, 0, errors.NewInternal(err)
+			}
+		}
+
+		results = append(results, SearchResult{
+			Summary: s,
+			Snippet: snippet,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, 0, errors.NewInternal(err)
+	}
+
+	return results, total, nil
+}
+
+// isFTSSyntaxError checks if an error is an FTS5 user syntax error.
+// Only matches errors caused by invalid query syntax from user input.
+// Does NOT match internal errors (corruption, OOM, schema issues) which should
+// surface as 500 INTERNAL, not 400 INVALID_REQUEST.
+func isFTSSyntaxError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+
+	// Explicit syntax errors from FTS5 query parser
+	// e.g., "fts5: syntax error near X"
+	if strings.Contains(msg, "fts5: syntax error") {
+		return true
+	}
+
+	// Unclosed quotes in query
+	// e.g., `"unclosed quote` → "unterminated string"
+	if strings.Contains(msg, "unterminated string") {
+		return true
+	}
+
+	// Invalid special queries (e.g., standalone "*", "* ")
+	// e.g., "unknown special query: *"
+	if strings.Contains(msg, "unknown special query") {
+		return true
+	}
+
+	// NEAR operator errors
+	// e.g., "fts5: near: syntax error" for malformed NEAR queries
+	if strings.Contains(msg, "fts5: near") {
+		return true
+	}
+
+	// Column filter errors (user trying to search non-existent column)
+	// e.g., "fts5: no such column: badcolumn"
+	// Note: This is different from "no such table" which is a schema error
+	if strings.Contains(msg, "fts5: no such column") {
+		return true
+	}
+
+	// DO NOT match:
+	// - Generic "fts5:" prefix - too broad, catches internal errors like:
+	//   "fts5: database disk image is malformed"
+	//   "fts5: out of memory"
+	// - "no such table: capsules_fts" - schema error, not user input error
+
+	return false
 }
 
 // BulkUpdate updates metadata on all active capsules matching the given filters.

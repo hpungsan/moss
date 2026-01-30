@@ -1278,6 +1278,7 @@ func TestServerRegistration(t *testing.T) {
 		"latest",
 		"list",
 		"inventory",
+		"search",
 		"export",
 		"import",
 		"purge",
