@@ -1,102 +1,52 @@
 # Moss Overview
 
-## Why Moss?
+Moss is a local store for **capsules**: distilled context snapshots for AI session handoffs and multi-agent workflows.
 
-AI coding sessions (Claude Code, Codex, etc.) lose context when you switch tools or start fresh. Copy-pasting full chat history is bloated and noisy. Moss solves this with **capsules**—distilled context snapshots that preserve what matters.
+A capsule is **not** a chat log. It’s a structured summary that preserves:
+- what you’re doing (objective)
+- where things stand (status)
+- what choices were made (decisions)
+- what’s next (actions)
+- where the relevant code/docs live (key locations)
+- unresolved risks/questions
 
-## Core Concept: Capsules
+## When Moss Helps Most
 
-A capsule is not a chat log. It's a **structured summary** of current state:
+- **Session handoff**: stop, store, later fetch and continue (across tools like Claude Code/Codex).
+- **Parallel work (fan-out/fan-in)**: multiple agents work in isolation; each stores results; orchestrator fetches many and synthesizes.
+- **Pipeline workflows**: chain capsules across phases (research → plan → implement → review) without re-discovering context.
+- **Re-review / audit**: find prior decisions and verify what was addressed before changing direction.
 
-| Section | Purpose |
-|---------|---------|
-| Objective | What you're trying to accomplish |
-| Current status | Where things stand now |
-| Decisions/constraints | Choices made and why |
-| Next actions | What to do next |
-| Key locations | Files, URLs, commands |
-| Open questions | Unresolved issues |
+## Core Workflow (Typical)
 
-Capsules are size-bounded and linted to ensure they stay useful.
+1. **Store** a capsule when you reach a stable checkpoint.
+2. **Browse** (`list` / `inventory`) to find candidates without pulling full text.
+3. **Fetch** the exact capsule(s) you need.
+4. **Search** to find prior art by content.
+5. **Export/import** for backup and portability.
 
-## Use Cases
+## Tools at a Glance
 
-### Session Handoffs
-```
-Session A (Claude Code) → store capsule → Session B (Codex) fetches → continues work
-```
+High-signal mental model:
+- `store` / `update` / `delete` change state
+- `fetch` loads full capsule text (unless `include_text:false`)
+- `list` / `inventory` are summaries only
+- `search` finds by content (FTS5) and returns ranked snippets
+- `fetch_many` is for fan-in; `compose` is for bundling capsules into one artifact
 
-### Multi-Agent Orchestration & Swarms
+## Multi-Agent Metadata (Optional)
 
-Sub-agents spawned via Task tool are **isolated**—each gets its own 200k context window. Tasks share status (`pending` → `done`), but not decisions, findings, or reasoning.
+Use these when you want workflow scoping:
+- `run_id`: group capsules for one run/work item (e.g. a PR)
+- `phase`: stage in the workflow (research/implement/review)
+- `role`: who produced it (architect/security-reviewer/etc.)
 
-**Without Moss vs With Moss:**
+This enables patterns like “latest review capsule for run X” or “inventory all security reviews”.
 
-| Pattern | Without Moss | With Moss |
-|---------|--------------|-----------|
-| **Fan-out** | Sub-agents start cold, duplicate discovery | `fetch` base capsule → shared starting point |
-| **Fan-in** | Orchestrator only knows "done" | `fetch_many` results → synthesize findings |
-| **Pipeline** | Each stage re-discovers prior work | Chain capsules: research → impl → test |
-| **Re-review** | Start fresh, may miss what was addressed | `fetch` prior review → verify fixes |
+## Next Docs
 
-**Swarm Architecture:**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     ORCHESTRATOR                            │
-│  - Creates task graph with dependencies                     │
-│  - store base context capsule                          │
-│  - Spawns sub-agents for unblocked tasks                    │
-│  - fetch_many to gather results                        │
-└─────────────────────────────────────────────────────────────┘
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-│  SUB-AGENT 1  │  │  SUB-AGENT 2  │  │  SUB-AGENT 3  │
-│  (200k ctx)   │  │  (200k ctx)   │  │  (200k ctx)   │
-│               │  │               │  │               │
-│ fetch    │  │ fetch    │  │ fetch    │
-│ do work       │  │ do work       │  │ do work       │
-│ store    │  │ store    │  │ store    │
-└───────────────┘  └───────────────┘  └───────────────┘
-```
-
-Moss bridges the isolation gap—sub-agents share structured context without polluting each other's windows.
-
-### Integration with Claude Code Tasks
-
-Claude Code Tasks handle **coordination** (what to do, dependencies, status). Moss Capsules handle **context** (why, decisions, key locations). They're complementary—Tasks are ephemeral work items, Capsules are durable knowledge artifacts.
-
-See [MOSS_CC.md](agents/MOSS_CC.md) for details on integration patterns.
-
-## Design Principles
-
-- **Local-first:** SQLite at `~/.moss/moss.db`, no external services
-- **MCP-first:** Native tool for AI agents, CLI for debugging
-- **Explicit only:** No auto-save, no auto-load
-- **Low-bloat:** Size limits + lint rules enforce quality
-- **Human-friendly:** Name capsules like `auth` or `pr-123-base`
-
-## How It Works
-
-MCP tools (one per operation):
-
-| Tool | Purpose |
-|------|---------|
-| `store` | Create capsule (with upsert mode) |
-| `fetch` | Load capsule by id or name |
-| `fetch_many` | Batch load multiple capsules |
-| `update` | Update capsule content |
-| `delete` | Soft delete (recoverable) |
-| `list` | List capsules in workspace |
-| `inventory` | List all capsules globally |
-| `search` | Full-text search across capsules |
-| `latest` | Get most recent capsule |
-| `export` | JSONL backup |
-| `import` | JSONL restore |
-| `purge` | Permanently delete soft-deleted |
-| `bulk_delete` | Soft-delete multiple capsules by filter |
-| `bulk_update` | Update metadata on multiple capsules |
-| `compose` | Assemble multiple capsules into bundle |
-
-See [v1/DESIGN.md](v1/DESIGN.md) for full specification.
+- [README.md](../README.md) — product intro + quick start
+- [DESIGN.md](DESIGN.md) — full API/spec and precise behaviors
+- [RUNBOOK.md](RUNBOOK.md) — install/config/run/troubleshoot
+- [agents/MOSS_CC.md](agents/MOSS_CC.md) — integration patterns for agent workflows
+- [examples/capsule.md](../examples/capsule.md) — capsule structure example

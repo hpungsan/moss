@@ -65,13 +65,8 @@ internal/
 | Doc | Purpose |
 |-----|---------|
 | `docs/OVERVIEW.md` | Concepts, use cases |
-| `docs/v1/DESIGN.md` | API spec + implementation details (v1) |
+| `docs/DESIGN.md` | API spec + implementation details |
+| `docs/BACKLOG.md` | Post-v1 features |
 | `docs/RUNBOOK.md` | Build, configure, run, troubleshoot |
-| `docs/v1/BACKLOG.md` | Post-v1 features |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/MOSS_CC.md` | Claude Code integration |
-
-## Dev (gitignored)
-| Doc | Purpose |
-|-----|---------|
-| `dev/build/v1/BUILD.md` | Build phases + task checklist |

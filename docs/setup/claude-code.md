@@ -115,10 +115,10 @@ context capsules using list and fetch.
 
 The `moss` skill teaches Claude Code how to use Moss tools correctly. It covers capsule format (6 required sections), addressing modes, output bloat rules, and error handling.
 
-To set up the skill, create `.claude/skills/moss/` in your project with a `SKILL.md` file. See the [Moss skill repository](https://github.com/hpungsan/moss) for a reference implementation, or write your own based on the [DESIGN spec](../v1/DESIGN.md).
+To set up the skill, create `.claude/skills/moss/` in your project with a `SKILL.md` file. See the [Moss skill repository](https://github.com/hpungsan/moss) for a reference implementation, or write your own based on the [DESIGN spec](../DESIGN.md).
 
 ## Further Reading
 
 - [MOSS_CC.md](../agents/MOSS_CC.md) — Capsule patterns for sessions, tasks, and swarms
 - [RUNBOOK](../RUNBOOK.md) — Building, configuring, and running Moss
-- [DESIGN](../v1/DESIGN.md) — Full API spec
+- [DESIGN](../DESIGN.md) — Full API spec

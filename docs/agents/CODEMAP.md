@@ -53,10 +53,9 @@ moss/
 │       └── fileopen_windows.go    # File open fallback (Windows)
 ├── docs/
 │   ├── OVERVIEW.md                # Concepts, use cases
+│   ├── DESIGN.md                  # API spec + implementation details
+│   ├── BACKLOG.md                 # Post-v1 features
 │   ├── RUNBOOK.md                 # Build, configure, run, troubleshoot
-│   ├── v1/
-│   │   ├── DESIGN.md              # API spec + implementation details
-│   │   └── BACKLOG.md             # Post-v1 features
 │   ├── agents/
 │   │   ├── CODEMAP.md             # This file
 │   │   ├── MOSS_CC.md             # Claude Code integration
@@ -84,7 +83,7 @@ moss/
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/499/500) |
 | `internal/mcp/` | MCP server exposing 15 tools via stdio transport |
 | `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Search, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
-| `docs/v1/DESIGN.md` | Full v1 spec |
+| `docs/DESIGN.md` | Full spec |
 
 ## Notes
 

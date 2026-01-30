@@ -156,8 +156,9 @@ Run `moss --help` for all commands.
 ## Documentation
 
 - [Overview & Use Cases](docs/OVERVIEW.md)
-- [Design Spec](docs/v1/DESIGN.md)
+- [Design Spec](docs/DESIGN.md)
 - [Runbook](docs/RUNBOOK.md) — Installation, configuration, troubleshooting
+- [Backlog](docs/BACKLOG.md) — Future features
 
 ## License
 

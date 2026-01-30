@@ -11,8 +11,9 @@
 Moss is a **local "context capsule" store** that lets you **store/fetch/update/delete** a *strictly size-bounded* distilled handoff across Claude Code, Codex, etc., with **batch fetch (`fetch_many`)**, **upsert mode**, **latest/list**, **global inventory**, **human-friendly `name` handles**, **export/import** for portability, **soft-delete** for safety, and **guardrails (capsule lint + size limits)** to prevent both **context bloat** *and* **low-value capsules**.
 
 **Related docs:**
-- [OVERVIEW.md](../OVERVIEW.md) — Concepts and use cases
+- [OVERVIEW.md](OVERVIEW.md) — Concepts and use cases
 - [BACKLOG.md](BACKLOG.md) — Future features
+- [RUNBOOK.md](RUNBOOK.md) — Build, configure, run, troubleshoot
 
 ---
 
