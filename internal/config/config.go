@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Config holds application configuration.
@@ -151,19 +152,21 @@ func Merge(base, overlay *Config) *Config {
 	return result
 }
 
-// mergeStringSlice combines two slices and removes duplicates.
+// mergeStringSlice combines two slices, trims whitespace, and removes duplicates.
 func mergeStringSlice(a, b []string) []string {
 	seen := make(map[string]bool)
 	result := make([]string, 0, len(a)+len(b))
 
 	for _, s := range a {
-		if !seen[s] {
+		s = strings.TrimSpace(s)
+		if s != "" && !seen[s] {
 			seen[s] = true
 			result = append(result, s)
 		}
 	}
 	for _, s := range b {
-		if !seen[s] {
+		s = strings.TrimSpace(s)
+		if s != "" && !seen[s] {
 			seen[s] = true
 			result = append(result, s)
 		}

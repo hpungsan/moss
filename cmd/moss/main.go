@@ -78,7 +78,7 @@ func main() {
 
 	// Handle --help/--version before DB init (no DB needed)
 	if isHelpOrVersion() {
-		app := newCLIApp(nil, nil)
+		app := newCLIApp(nil, config.DefaultConfig())
 		if err := app.Run(os.Args); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
