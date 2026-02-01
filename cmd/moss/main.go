@@ -92,19 +92,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	baseDir := filepath.Join(homeDir, ".moss")
+	globalDir := filepath.Join(homeDir, ".moss")
 
-	database, err := db.Init(baseDir)
+	database, err := db.Init(globalDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: failed to initialize database: %v\n", err)
 		os.Exit(1)
 	}
 	defer database.Close()
 
-	cfg, err := config.Load(baseDir)
+	// Load config from global (~/.moss) and repo (.moss/config.json, walking upward)
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: could not determine working directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg, err := config.LoadWithRepo(globalDir, cwd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: failed to load config: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Warn about unknown disabled_tools entries
+	if unknown := mcp.ValidateDisabledTools(cfg.DisabledTools); len(unknown) > 0 {
+		fmt.Fprintf(os.Stderr, "warning: unknown disabled_tools: %v\n", unknown)
 	}
 
 	// Apply database pool settings from config (if configured)

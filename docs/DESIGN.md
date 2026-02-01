@@ -526,7 +526,19 @@ MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
 
 ## 8.1) Configuration file
 
-Location: `~/.moss/config.json`
+Moss loads config from two locations (merged):
+
+| Location | Scope | Priority |
+|----------|-------|----------|
+| `~/.moss/config.json` | Global (user) | Lower |
+| `.moss/config.json` | Repo (project) | Higher |
+
+**Repo config discovery:** Moss walks upward from the current working directory to find the nearest `.moss/config.json`. This means running from a subdirectory still finds the repo root config.
+
+**Merge behavior:**
+- Scalars: repo overrides global (if non-zero)
+- Booleans: OR (either true → true)
+- Arrays: merged and deduplicated
 
 ```json
 {
@@ -534,7 +546,8 @@ Location: `~/.moss/config.json`
   "allowed_paths": ["/tmp/my-exports"],
   "allow_unsafe_paths": false,
   "db_max_open_conns": 0,
-  "db_max_idle_conns": 0
+  "db_max_idle_conns": 0,
+  "disabled_tools": []
 }
 ```
 
@@ -547,6 +560,7 @@ Location: `~/.moss/config.json`
 | `allow_unsafe_paths` | `false` | Bypass directory restrictions for import/export (symlink checks still apply) |
 | `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
 | `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
+| `disabled_tools` | `[]` | MCP tool names to exclude from registration (see §5.1 for tool list) |
 
 ### Import/export path security
 

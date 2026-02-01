@@ -1298,6 +1298,120 @@ func TestServerRegistration(t *testing.T) {
 	}
 }
 
+func TestServerRegistration_WithDisabledTools(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	cfg.DisabledTools = []string{"purge", "bulk_delete", "bulk_update"}
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	// Should have 12 tools (15 - 3 disabled)
+	if len(tools) != 12 {
+		t.Errorf("registered tool count = %d, want 12", len(tools))
+	}
+
+	// Disabled tools should not be registered
+	for _, name := range []string{"purge", "bulk_delete", "bulk_update"} {
+		if _, ok := tools[name]; ok {
+			t.Errorf("disabled tool %q should not be registered", name)
+		}
+	}
+
+	// Core tools should still be registered
+	for _, name := range []string{"store", "fetch", "list", "inventory"} {
+		if _, ok := tools[name]; !ok {
+			t.Errorf("core tool %q should be registered", name)
+		}
+	}
+}
+
+func TestServerRegistration_AllToolsDisabled(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	// Disable all tools
+	cfg.DisabledTools = AllToolNames()
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	if len(tools) != 0 {
+		t.Errorf("registered tool count = %d, want 0 (all disabled)", len(tools))
+	}
+}
+
+func TestServerRegistration_DuplicateDisabled(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	// Duplicates should be handled gracefully (map lookup)
+	cfg.DisabledTools = []string{"purge", "purge", "purge"}
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	// Should have 14 tools (15 - 1 disabled, duplicates ignored)
+	if len(tools) != 14 {
+		t.Errorf("registered tool count = %d, want 14", len(tools))
+	}
+
+	if _, ok := tools["purge"]; ok {
+		t.Error("disabled tool 'purge' should not be registered")
+	}
+}
+
+func TestValidateDisabledTools(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []string
+		wantLen int
+	}{
+		{
+			name:    "all valid",
+			input:   []string{"purge", "bulk_delete"},
+			wantLen: 0,
+		},
+		{
+			name:    "one unknown",
+			input:   []string{"purge", "fake_tool"},
+			wantLen: 1,
+		},
+		{
+			name:    "all unknown",
+			input:   []string{"foo", "bar", "baz"},
+			wantLen: 3,
+		},
+		{
+			name:    "empty list",
+			input:   []string{},
+			wantLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			unknown := ValidateDisabledTools(tt.input)
+			if len(unknown) != tt.wantLen {
+				t.Errorf("ValidateDisabledTools() returned %d unknown, want %d", len(unknown), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestAllToolNames(t *testing.T) {
+	names := AllToolNames()
+
+	// Should return 15 tool names
+	if len(names) != 15 {
+		t.Errorf("AllToolNames() returned %d names, want 15", len(names))
+	}
+
+	// All returned names should be valid
+	unknown := ValidateDisabledTools(names)
+	if len(unknown) != 0 {
+		t.Errorf("AllToolNames() returned invalid names: %v", unknown)
+	}
+}
+
 func TestErrorResult_InternalDoesNotExposeDetails(t *testing.T) {
 	r := errorResult(errors.NewInternal(fmt.Errorf("sql error: open /tmp/secret.db: permission denied")))
 	if !r.IsError {

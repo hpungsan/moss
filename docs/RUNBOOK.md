@@ -209,7 +209,19 @@ moss purge --older-than=7d
 
 ### Config File
 
-Location: `~/.moss/config.json`
+Moss loads config from two locations:
+
+| Location | Scope | Priority |
+|----------|-------|----------|
+| `~/.moss/config.json` | Global (user) | Lower |
+| `.moss/config.json` | Repo (project) | Higher |
+
+**Repo config discovery:** Moss walks upward from the current working directory to find the nearest `.moss/config.json`. This means running from a subdirectory (e.g., `src/`) still finds the repo root config.
+
+**Merge behavior:**
+- Scalars: repo overrides global (if non-zero)
+- Booleans: OR (either true → true)
+- Arrays (`allowed_paths`, `disabled_tools`): merged and deduplicated
 
 ```json
 {
@@ -217,7 +229,8 @@ Location: `~/.moss/config.json`
   "allowed_paths": [],
   "allow_unsafe_paths": false,
   "db_max_open_conns": 0,
-  "db_max_idle_conns": 0
+  "db_max_idle_conns": 0,
+  "disabled_tools": []
 }
 ```
 
@@ -228,8 +241,25 @@ Location: `~/.moss/config.json`
 | `allow_unsafe_paths` | `false` | Bypass directory restrictions (symlink checks still apply) |
 | `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
 | `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
+| `disabled_tools` | `[]` | MCP tool names to exclude from registration |
 
 If the file doesn't exist, defaults are used.
+
+### Tool Filtering
+
+Disable specific MCP tools by adding their names to `disabled_tools`. This is useful for hiding destructive tools like `purge` or `bulk_delete` from agents.
+
+```json
+{
+  "disabled_tools": ["purge", "bulk_delete", "bulk_update"]
+}
+```
+
+**Behavior:**
+- All 15 tools are enabled by default (see [Available Tools](#available-tools))
+- Disabled tools are not registered with the MCP server
+- Unknown tool names trigger a warning on startup
+- New tools added in future versions are auto-enabled (blocklist approach)
 
 ### Import/Export Path Security
 
