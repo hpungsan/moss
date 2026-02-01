@@ -184,6 +184,9 @@ moss import --path=~/.moss/exports/backup.jsonl --mode=replace
 
 # Purge deleted capsules
 moss purge --older-than=7d
+
+# List MCP tools with enabled/disabled status
+moss tools
 ```
 
 ### Common Flags

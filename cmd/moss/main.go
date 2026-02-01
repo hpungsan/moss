@@ -18,7 +18,7 @@ var cliCommands = map[string]bool{
 	"store": true, "fetch": true, "update": true, "delete": true,
 	"list": true, "inventory": true, "latest": true,
 	"export": true, "import": true, "purge": true,
-	"help": true,
+	"tools": true, "help": true,
 }
 
 // isCLIMode determines if we should run CLI vs MCP server.
