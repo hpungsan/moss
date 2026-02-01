@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/hpungsan/moss/internal/config"
 	"github.com/hpungsan/moss/internal/errors"
+	"github.com/hpungsan/moss/internal/mcp"
 	"github.com/hpungsan/moss/internal/ops"
 )
 
@@ -34,6 +36,7 @@ func newCLIApp(db *sql.DB, cfg *config.Config) *cli.App {
 			exportCmd(db, cfg),
 			importCmd(db, cfg),
 			purgeCmd(db),
+			toolsCmd(cfg),
 		},
 	}
 	// Disable default exit error handler to allow proper error return in tests
@@ -393,6 +396,55 @@ func purgeCmd(db *sql.DB) *cli.Command {
 			output, err := ops.Purge(c.Context, db, input)
 			if err != nil {
 				return outputError(err)
+			}
+
+			return outputJSON(output)
+		},
+	}
+}
+
+// toolsCmd creates the tools command.
+func toolsCmd(cfg *config.Config) *cli.Command {
+	return &cli.Command{
+		Name:  "tools",
+		Usage: "List available MCP tools",
+		Action: func(c *cli.Context) error {
+			// Get all tool names and sort them
+			allNames := mcp.AllToolNames()
+			sort.Strings(allNames)
+
+			// Build disabled set for O(1) lookup
+			disabled := make(map[string]bool, len(cfg.DisabledTools))
+			for _, name := range cfg.DisabledTools {
+				disabled[name] = true
+			}
+
+			// Build tool list with status
+			type toolStatus struct {
+				Name    string `json:"name"`
+				Enabled bool   `json:"enabled"`
+			}
+
+			tools := make([]toolStatus, 0, len(allNames))
+			enabledCount := 0
+			for _, name := range allNames {
+				enabled := !disabled[name]
+				tools = append(tools, toolStatus{Name: name, Enabled: enabled})
+				if enabled {
+					enabledCount++
+				}
+			}
+
+			output := struct {
+				Tools    []toolStatus `json:"tools"`
+				Total    int          `json:"total"`
+				Enabled  int          `json:"enabled"`
+				Disabled int          `json:"disabled"`
+			}{
+				Tools:    tools,
+				Total:    len(tools),
+				Enabled:  enabledCount,
+				Disabled: len(tools) - enabledCount,
 			}
 
 			return outputJSON(output)

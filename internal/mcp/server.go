@@ -1,14 +1,107 @@
 package mcp
 
 import (
+	"context"
 	"database/sql"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/hpungsan/moss/internal/config"
 )
 
-// NewServer creates a new MCP server with all Moss tools registered.
+// toolEntry pairs a tool definition with a handler factory.
+type toolEntry struct {
+	def     mcp.Tool
+	handler func(*Handlers) server.ToolHandlerFunc
+}
+
+// toolRegistry maps tool names to their definitions and handler factories.
+var toolRegistry = map[string]toolEntry{
+	"store": {
+		def:     storeToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleStore },
+	},
+	"fetch": {
+		def:     fetchToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleFetch },
+	},
+	"fetch_many": {
+		def:     fetchManyToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleFetchMany },
+	},
+	"update": {
+		def:     updateToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleUpdate },
+	},
+	"delete": {
+		def:     deleteToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleDelete },
+	},
+	"latest": {
+		def:     latestToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleLatest },
+	},
+	"list": {
+		def:     listToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleList },
+	},
+	"inventory": {
+		def:     inventoryToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleInventory },
+	},
+	"search": {
+		def:     searchToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleSearch },
+	},
+	"export": {
+		def:     exportToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleExport },
+	},
+	"import": {
+		def:     importToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleImport },
+	},
+	"purge": {
+		def:     purgeToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandlePurge },
+	},
+	"bulk_delete": {
+		def:     bulkDeleteToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleBulkDelete },
+	},
+	"bulk_update": {
+		def:     bulkUpdateToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleBulkUpdate },
+	},
+	"compose": {
+		def:     composeToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleCompose },
+	},
+}
+
+// AllToolNames returns a list of all valid tool names.
+func AllToolNames() []string {
+	names := make([]string, 0, len(toolRegistry))
+	for name := range toolRegistry {
+		names = append(names, name)
+	}
+	return names
+}
+
+// ValidateDisabledTools returns a list of unknown tool names from the given list.
+func ValidateDisabledTools(names []string) []string {
+	unknown := make([]string, 0)
+	for _, name := range names {
+		if _, ok := toolRegistry[name]; !ok {
+			unknown = append(unknown, name)
+		}
+	}
+	return unknown
+}
+
+// NewServer creates a new MCP server with Moss tools registered.
+// Tools listed in cfg.DisabledTools are excluded from registration.
 func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer {
 	s := server.NewMCPServer(
 		"moss",
@@ -18,22 +111,19 @@ func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer
 
 	h := NewHandlers(db, cfg)
 
-	// Register all 15 tools
-	s.AddTool(storeToolDef, h.HandleStore)
-	s.AddTool(fetchToolDef, h.HandleFetch)
-	s.AddTool(fetchManyToolDef, h.HandleFetchMany)
-	s.AddTool(updateToolDef, h.HandleUpdate)
-	s.AddTool(deleteToolDef, h.HandleDelete)
-	s.AddTool(latestToolDef, h.HandleLatest)
-	s.AddTool(listToolDef, h.HandleList)
-	s.AddTool(inventoryToolDef, h.HandleInventory)
-	s.AddTool(searchToolDef, h.HandleSearch)
-	s.AddTool(exportToolDef, h.HandleExport)
-	s.AddTool(importToolDef, h.HandleImport)
-	s.AddTool(purgeToolDef, h.HandlePurge)
-	s.AddTool(bulkDeleteToolDef, h.HandleBulkDelete)
-	s.AddTool(bulkUpdateToolDef, h.HandleBulkUpdate)
-	s.AddTool(composeToolDef, h.HandleCompose)
+	// Build set of disabled tools
+	disabled := make(map[string]bool, len(cfg.DisabledTools))
+	for _, name := range cfg.DisabledTools {
+		disabled[name] = true
+	}
+
+	// Register tools (skip disabled)
+	for name, entry := range toolRegistry {
+		if disabled[name] {
+			continue
+		}
+		s.AddTool(entry.def, entry.handler(h))
+	}
 
 	return s
 }
@@ -43,3 +133,6 @@ func Run(db *sql.DB, cfg *config.Config, version string) error {
 	s := NewServer(db, cfg, version)
 	return server.ServeStdio(s)
 }
+
+// ToolHandlerFunc is the signature for tool handlers.
+type ToolHandlerFunc func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)

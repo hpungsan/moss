@@ -42,3 +42,6 @@ dev/
 # Claude Code
 .claude/
 .mcp.json
+
+# Moss local config
+.moss/
