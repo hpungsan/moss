@@ -6,7 +6,7 @@ import "github.com/mark3labs/mcp-go/mcp"
 // Addressing params (id, workspace, name) are all optional in schema;
 // "exactly one addressing mode" rule is enforced by handlers via ops.ValidateAddress().
 
-var storeToolDef = mcp.NewTool("store",
+var storeToolDef = mcp.NewTool("capsule_store",
 	mcp.WithDescription("Store a new context capsule (max 12K chars). Creates a distilled context snapshot for AI session handoffs."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("capsule_text",
@@ -47,7 +47,7 @@ var storeToolDef = mcp.NewTool("store",
 	),
 )
 
-var fetchToolDef = mcp.NewTool("fetch",
+var fetchToolDef = mcp.NewTool("capsule_fetch",
 	mcp.WithDescription("Fetch a single capsule by ID or name. Use exactly one addressing mode: id OR (workspace+name)."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -68,7 +68,7 @@ var fetchToolDef = mcp.NewTool("fetch",
 	),
 )
 
-var fetchManyToolDef = mcp.NewTool("fetch_many",
+var fetchManyToolDef = mcp.NewTool("capsule_fetch_many",
 	mcp.WithDescription("Fetch multiple capsules in a single request. Returns partial success with items and errors arrays."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -92,7 +92,7 @@ var fetchManyToolDef = mcp.NewTool("fetch_many",
 	),
 )
 
-var updateToolDef = mcp.NewTool("update",
+var updateToolDef = mcp.NewTool("capsule_update",
 	mcp.WithDescription("Update an existing capsule. Address by id OR (workspace+name). At least one editable field required."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("id",
@@ -131,7 +131,7 @@ var updateToolDef = mcp.NewTool("update",
 	),
 )
 
-var deleteToolDef = mcp.NewTool("delete",
+var deleteToolDef = mcp.NewTool("capsule_delete",
 	mcp.WithDescription("Soft-delete a capsule. Address by id OR (workspace+name). Can be recovered with include_deleted."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("id",
@@ -145,7 +145,7 @@ var deleteToolDef = mcp.NewTool("delete",
 	),
 )
 
-var latestToolDef = mcp.NewTool("latest",
+var latestToolDef = mcp.NewTool("capsule_latest",
 	mcp.WithDescription("Get the most recently updated capsule in a workspace. Quick way to resume work."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -169,7 +169,7 @@ var latestToolDef = mcp.NewTool("latest",
 	),
 )
 
-var listToolDef = mcp.NewTool("list",
+var listToolDef = mcp.NewTool("capsule_list",
 	mcp.WithDescription("List capsule summaries in a workspace with pagination. Sorted by updated_at descending."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -196,7 +196,7 @@ var listToolDef = mcp.NewTool("list",
 	),
 )
 
-var inventoryToolDef = mcp.NewTool("inventory",
+var inventoryToolDef = mcp.NewTool("capsule_inventory",
 	mcp.WithDescription("List capsule summaries across all workspaces with optional filters. Use for discovery and search."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -229,7 +229,7 @@ var inventoryToolDef = mcp.NewTool("inventory",
 	),
 )
 
-var exportToolDef = mcp.NewTool("export",
+var exportToolDef = mcp.NewTool("capsule_export",
 	mcp.WithDescription("Export capsules to a JSONL file for backup or migration."),
 	mcp.WithReadOnlyHintAnnotation(false), // Writes files to disk
 	mcp.WithDestructiveHintAnnotation(false),
@@ -244,7 +244,7 @@ var exportToolDef = mcp.NewTool("export",
 	),
 )
 
-var importToolDef = mcp.NewTool("import",
+var importToolDef = mcp.NewTool("capsule_import",
 	mcp.WithDescription("Import capsules from a JSONL export file."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("path",
@@ -257,7 +257,7 @@ var importToolDef = mcp.NewTool("import",
 	),
 )
 
-var purgeToolDef = mcp.NewTool("purge",
+var purgeToolDef = mcp.NewTool("capsule_purge",
 	mcp.WithDescription("Permanently delete soft-deleted capsules. Irreversible."),
 	mcp.WithDestructiveHintAnnotation(true),
 	mcp.WithString("workspace",
@@ -268,7 +268,7 @@ var purgeToolDef = mcp.NewTool("purge",
 	),
 )
 
-var bulkDeleteToolDef = mcp.NewTool("bulk_delete",
+var bulkDeleteToolDef = mcp.NewTool("capsule_bulk_delete",
 	mcp.WithDescription("Soft-delete multiple capsules matching filters. Requires at least one filter. Only targets active capsules."),
 	mcp.WithReadOnlyHintAnnotation(false),
 	mcp.WithDestructiveHintAnnotation(true),
@@ -292,7 +292,7 @@ var bulkDeleteToolDef = mcp.NewTool("bulk_delete",
 	),
 )
 
-var bulkUpdateToolDef = mcp.NewTool("bulk_update",
+var bulkUpdateToolDef = mcp.NewTool("capsule_bulk_update",
 	mcp.WithDescription("Update metadata on multiple capsules matching filters. Requires at least one filter and one update field. Only targets active capsules."),
 	mcp.WithReadOnlyHintAnnotation(false),
 	mcp.WithDestructiveHintAnnotation(true),
@@ -328,7 +328,7 @@ var bulkUpdateToolDef = mcp.NewTool("bulk_update",
 	),
 )
 
-var searchToolDef = mcp.NewTool("search",
+var searchToolDef = mcp.NewTool("capsule_search",
 	mcp.WithDescription("Full-text search across capsules. Returns results ranked by relevance with match snippets."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
@@ -362,7 +362,7 @@ var searchToolDef = mcp.NewTool("search",
 	),
 )
 
-var composeToolDef = mcp.NewTool("compose",
+var composeToolDef = mcp.NewTool("capsule_compose",
 	mcp.WithDescription("Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing."),
 	mcp.WithReadOnlyHintAnnotation(false), // May write if store_as provided
 	mcp.WithDestructiveHintAnnotation(false),

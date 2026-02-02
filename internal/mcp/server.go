@@ -18,63 +18,63 @@ type toolEntry struct {
 
 // toolRegistry maps tool names to their definitions and handler factories.
 var toolRegistry = map[string]toolEntry{
-	"store": {
+	"capsule_store": {
 		def:     storeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleStore },
 	},
-	"fetch": {
+	"capsule_fetch": {
 		def:     fetchToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleFetch },
 	},
-	"fetch_many": {
+	"capsule_fetch_many": {
 		def:     fetchManyToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleFetchMany },
 	},
-	"update": {
+	"capsule_update": {
 		def:     updateToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleUpdate },
 	},
-	"delete": {
+	"capsule_delete": {
 		def:     deleteToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleDelete },
 	},
-	"latest": {
+	"capsule_latest": {
 		def:     latestToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleLatest },
 	},
-	"list": {
+	"capsule_list": {
 		def:     listToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleList },
 	},
-	"inventory": {
+	"capsule_inventory": {
 		def:     inventoryToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleInventory },
 	},
-	"search": {
+	"capsule_search": {
 		def:     searchToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleSearch },
 	},
-	"export": {
+	"capsule_export": {
 		def:     exportToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleExport },
 	},
-	"import": {
+	"capsule_import": {
 		def:     importToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleImport },
 	},
-	"purge": {
+	"capsule_purge": {
 		def:     purgeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandlePurge },
 	},
-	"bulk_delete": {
+	"capsule_bulk_delete": {
 		def:     bulkDeleteToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleBulkDelete },
 	},
-	"bulk_update": {
+	"capsule_bulk_update": {
 		def:     bulkUpdateToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleBulkUpdate },
 	},
-	"compose": {
+	"capsule_compose": {
 		def:     composeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleCompose },
 	},

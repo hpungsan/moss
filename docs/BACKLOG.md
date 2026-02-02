@@ -8,7 +8,7 @@ Features and enhancements for future versions.
 
 ### Optimistic Concurrency
 
-Add `if_updated_at` to `update`:
+Add `if_updated_at` to `capsule_update`:
 
 ```json
 {
@@ -20,24 +20,24 @@ Add `if_updated_at` to `update`:
 
 Rejects if capsule was modified since timestamp (prevents overwrites).
 
-**Context:** `Update` is a read-modify-write operation (fetch then `UpdateByID`) and can lose concurrent updates. `Delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but Moss does not enforce this, and humans/CLIs/orchestrators can still collide. Since `update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won’t merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
+**Context:** `capsule_update` is a read-modify-write operation (`capsule_fetch` then `UpdateByID`) and can lose concurrent updates. `capsule_delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but Moss does not enforce this, and humans/CLIs/orchestrators can still collide. Since `capsule_update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won’t merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
 
 ### Multi-Run Queries
 
 Allow `run_id` filter to accept an array for querying across multiple runs:
 
 ```json
-inventory { "run_id": ["run-001", "run-002"] }
+capsule_inventory { "run_id": ["run-001", "run-002"] }
 ```
 
 Use case: Comparing capsules from related runs or aggregating results from parallel workflows.
 
 ### Run-Scoped Purge
 
-Add `run_id` filter to `purge` for cleaning up completed workflows:
+Add `run_id` filter to `capsule_purge` for cleaning up completed workflows:
 
 ```json
-purge { "run_id": "pr-review-abc123" }
+capsule_purge { "run_id": "pr-review-abc123" }
 ```
 
 Permanently deletes all capsules (including active) matching the run. Requires explicit confirmation param to prevent accidents.
@@ -87,7 +87,7 @@ Currently: use export/import.
 Track which capsules informed the creation of a new capsule:
 
 ```json
-store {
+capsule_store {
   "name": "implementation-plan",
   "based_on": [
     { "workspace": "default", "name": "research-findings" },
@@ -100,8 +100,8 @@ store {
 **Storage:** New `based_on` JSON column (nullable array of refs).
 
 **Behavior:**
-- `fetch` returns `based_on` array if present
-- `list`/`inventory` include `based_on` in summaries
+- `capsule_fetch` returns `based_on` array if present
+- `capsule_list`/`capsule_inventory` include `based_on` in summaries
 - No validation that referenced capsules exist (allows cross-workspace refs, deleted capsules)
 
 **Use case:** Pipeline traceability. "This plan was based on that research." Audit trail for "why was this decision made?"
@@ -270,7 +270,7 @@ Embeddings-based similarity search for finding capsules by meaning rather than e
 **Use case:** "Find the capsule where I decided to use JWT" — without knowing the capsule name.
 
 ```
-search { "query": "JWT authentication decision", "limit": 5 }
+capsule_search { "query": "JWT authentication decision", "limit": 5 }
 ```
 
 **Implementation options:**

@@ -1,10 +1,18 @@
 # Moss
 
-Local context capsule store for portable AI handoffs, multi-agent orchestration, and cross-tool context sharing.
+Local context primitive store for AI session handoffs, multi-agent orchestration, and cross-tool context sharing.
 
 ## The Problem
 
-AI coding sessions lose context when you switch tools or start fresh. Copy-pasting full chat history is bloated and noisy. Moss solves this with **capsules**—distilled context snapshots that preserve what matters.
+AI coding sessions lose context when you switch tools or start fresh. Copy-pasting full chat history is bloated and noisy. Moss solves this with **primitives**—structured context objects optimized for different consumers.
+
+## Primitives
+
+| Primitive | Consumer | Format | Status |
+|-----------|----------|--------|--------|
+| **Capsule** | LLMs | Markdown (6 sections) | ✓ Available |
+| **Artifact** | Code/orchestration | JSON (schema-validated) | Planned |
+| **Pod** | TBD | TBD | Planned |
 
 ## What Moss Does
 
@@ -46,88 +54,44 @@ go build ./cmd/moss
 
 See [Claude Code Setup](docs/setup/claude-code.md) for full setup including skills and subagents.
 
-## Capsule Structure
+## Capsule
 
-A capsule is not a chat log. It's a structured summary:
-
-| Section | Purpose |
-|---------|---------|
-| Objective | What you're trying to accomplish |
-| Current status | Where things stand now |
-| Decisions/constraints | Choices made and why |
-| Next actions | What to do next |
-| Key locations | Files, URLs, commands |
-| Open questions | Unresolved issues |
-
-Capsules are size-bounded and linted to stay useful. See [examples/capsule.md](examples/capsule.md) for a complete example.
-
-**Orchestration fields** (MCP only): `run_id`, `phase`, `role` enable multi-agent workflow scoping.
-
-## Quick Start
-
-### Store a Capsule
+A distilled context snapshot for LLM consumption. Not a chat log—a structured summary with 6 required sections: Objective, Status, Decisions, Next actions, Key locations, Open questions.
 
 ```
-store {
-  "workspace": "myproject",
-  "name": "auth",
-  "capsule_text": "## Objective\nImplement JWT auth\n## Current status\nMiddleware done\n## Decisions\nUsing RS256\n## Next actions\nAdd refresh tokens\n## Key locations\nsrc/auth/\n## Open questions\nToken expiry policy?"
-}
+capsule_store { "workspace": "myproject", "name": "auth", "capsule_text": "## Objective\n..." }
+capsule_fetch { "workspace": "myproject", "name": "auth" }
 ```
-
-### Fetch by Name
-
-```
-fetch { "workspace": "myproject", "name": "auth" }
-```
-
-### List All Capsules
-
-```
-inventory {}
-```
-
-### Search Capsules
-
-```
-search { "query": "authentication", "workspace": "myproject" }
-```
-
-### Get Latest in Workspace
-
-```
-latest { "workspace": "myproject", "include_text": true }
-```
-
-### Export for Backup
-
-```
-export {}
-```
-
-## MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `store` | Create a new capsule |
-| `fetch` | Retrieve by ID or name |
-| `fetch_many` | Batch fetch multiple |
-| `update` | Update existing capsule |
-| `delete` | Soft-delete (recoverable) |
-| `latest` | Most recent in workspace |
-| `list` | List capsules in workspace |
-| `inventory` | List all capsules globally |
-| `search` | Full-text search across capsules |
-| `export` | JSONL backup |
-| `import` | JSONL restore |
-| `purge` | Permanent delete |
-| `bulk_delete` | Soft-delete multiple by filter |
-| `bulk_update` | Update metadata on multiple |
-| `compose` | Assemble multiple capsules |
+| `capsule_store` | Create a new capsule |
+| `capsule_fetch` | Retrieve by ID or name |
+| `capsule_fetch_many` | Batch fetch multiple |
+| `capsule_update` | Update existing capsule |
+| `capsule_delete` | Soft-delete (recoverable) |
+| `capsule_latest` | Most recent in workspace |
+| `capsule_list` | List capsules in workspace |
+| `capsule_inventory` | List all capsules globally |
+| `capsule_search` | Full-text search |
+| `capsule_compose` | Assemble multiple capsules |
+| `capsule_export` | JSONL backup |
+| `capsule_import` | JSONL restore |
+| `capsule_purge` | Permanent delete |
+| `capsule_bulk_delete` | Soft-delete by filter |
+| `capsule_bulk_update` | Update metadata by filter |
+
+See [Capsule Runbook](docs/capsule/RUNBOOK.md) for full usage, addressing modes, and error handling.
+
+## Artifact
+
+Structured JSON data for code and orchestration. Schema-validated, optimized for programmatic access.
+
+*Coming in v1.1.* See [Artifact Runbook](docs/artifact/RUNBOOK.md) *(TBA)*
 
 ## CLI
 
-The CLI mirrors MCP operations for debugging and scripting. Note: orchestration fields (`run_id`, `phase`, `role`) are MCP-only.
+The CLI mirrors MCP capsule operations for debugging and scripting. Note: orchestration fields (`run_id`, `phase`, `role`) are MCP-only.
 
 ```bash
 # Store (reads capsule from stdin)
@@ -152,6 +116,7 @@ Run `moss --help` for all commands.
 - **MCP-first:** Native tool for AI agents, CLI for debugging
 - **Explicit only:** No auto-save, no auto-load
 - **Low-bloat:** Size limits + lint rules enforce quality
+- **Primitive-typed:** Each primitive optimized for its consumer (LLM vs code)
 
 ## Documentation
 

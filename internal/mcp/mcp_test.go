@@ -1270,21 +1270,21 @@ func TestServerRegistration(t *testing.T) {
 	}
 
 	expectedTools := []string{
-		"store",
-		"fetch",
-		"fetch_many",
-		"update",
-		"delete",
-		"latest",
-		"list",
-		"inventory",
-		"search",
-		"export",
-		"import",
-		"purge",
-		"bulk_delete",
-		"bulk_update",
-		"compose",
+		"capsule_store",
+		"capsule_fetch",
+		"capsule_fetch_many",
+		"capsule_update",
+		"capsule_delete",
+		"capsule_latest",
+		"capsule_list",
+		"capsule_inventory",
+		"capsule_search",
+		"capsule_export",
+		"capsule_import",
+		"capsule_purge",
+		"capsule_bulk_delete",
+		"capsule_bulk_update",
+		"capsule_compose",
 	}
 
 	if len(tools) != len(expectedTools) {
@@ -1302,7 +1302,7 @@ func TestServerRegistration_WithDisabledTools(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
 
-	cfg.DisabledTools = []string{"purge", "bulk_delete", "bulk_update"}
+	cfg.DisabledTools = []string{"capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"}
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
@@ -1312,14 +1312,14 @@ func TestServerRegistration_WithDisabledTools(t *testing.T) {
 	}
 
 	// Disabled tools should not be registered
-	for _, name := range []string{"purge", "bulk_delete", "bulk_update"} {
+	for _, name := range []string{"capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"} {
 		if _, ok := tools[name]; ok {
 			t.Errorf("disabled tool %q should not be registered", name)
 		}
 	}
 
 	// Core tools should still be registered
-	for _, name := range []string{"store", "fetch", "list", "inventory"} {
+	for _, name := range []string{"capsule_store", "capsule_fetch", "capsule_list", "capsule_inventory"} {
 		if _, ok := tools[name]; !ok {
 			t.Errorf("core tool %q should be registered", name)
 		}
@@ -1345,7 +1345,7 @@ func TestServerRegistration_DuplicateDisabled(t *testing.T) {
 	defer cleanup()
 
 	// Duplicates should be handled gracefully (map lookup)
-	cfg.DisabledTools = []string{"purge", "purge", "purge"}
+	cfg.DisabledTools = []string{"capsule_purge", "capsule_purge", "capsule_purge"}
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
@@ -1354,8 +1354,8 @@ func TestServerRegistration_DuplicateDisabled(t *testing.T) {
 		t.Errorf("registered tool count = %d, want 14", len(tools))
 	}
 
-	if _, ok := tools["purge"]; ok {
-		t.Error("disabled tool 'purge' should not be registered")
+	if _, ok := tools["capsule_purge"]; ok {
+		t.Error("disabled tool 'capsule_purge' should not be registered")
 	}
 }
 
@@ -1367,12 +1367,12 @@ func TestValidateDisabledTools(t *testing.T) {
 	}{
 		{
 			name:    "all valid",
-			input:   []string{"purge", "bulk_delete"},
+			input:   []string{"capsule_purge", "capsule_bulk_delete"},
 			wantLen: 0,
 		},
 		{
 			name:    "one unknown",
-			input:   []string{"purge", "fake_tool"},
+			input:   []string{"capsule_purge", "fake_tool"},
 			wantLen: 1,
 		},
 		{

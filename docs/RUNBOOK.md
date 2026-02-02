@@ -105,9 +105,9 @@ This allows all Moss MCP tools without prompting. For finer control:
 | Permission | Effect |
 |------------|--------|
 | `mcp__moss__*` | All Moss tools (recommended for orchestration) |
-| `mcp__moss__fetch` | Only fetch |
-| `mcp__moss__store` | Only store |
-| `mcp__moss__list` | Only list |
+| `mcp__moss__capsule_fetch` | Only capsule_fetch |
+| `mcp__moss__capsule_store` | Only capsule_store |
+| `mcp__moss__capsule_list` | Only capsule_list |
 
 **Why this matters:** In swarm patterns, workers run autonomously in background. Manual approval would block the workflow. Pre-approving Moss lets agents share context without human intervention.
 
@@ -122,21 +122,21 @@ This allows all Moss MCP tools without prompting. For finer control:
 
 | Tool | Description |
 |------|-------------|
-| `store` | Create a new capsule |
-| `fetch` | Retrieve a capsule by ID or name |
-| `fetch_many` | Batch fetch multiple capsules |
-| `update` | Update an existing capsule |
-| `delete` | Soft-delete a capsule |
-| `latest` | Get most recent capsule in workspace |
-| `list` | List capsules in a workspace |
-| `inventory` | List all capsules across workspaces |
-| `search` | Full-text search across capsules |
-| `export` | Export capsules to JSONL file |
-| `import` | Import capsules from JSONL file |
-| `purge` | Permanently delete soft-deleted capsules |
-| `bulk_delete` | Soft-delete multiple capsules by filter |
-| `bulk_update` | Update metadata on multiple capsules |
-| `compose` | Assemble multiple capsules into bundle |
+| `capsule_store` | Create a new capsule |
+| `capsule_fetch` | Retrieve a capsule by ID or name |
+| `capsule_fetch_many` | Batch fetch multiple capsules |
+| `capsule_update` | Update an existing capsule |
+| `capsule_delete` | Soft-delete a capsule |
+| `capsule_latest` | Get most recent capsule in workspace |
+| `capsule_list` | List capsules in a workspace |
+| `capsule_inventory` | List all capsules across workspaces |
+| `capsule_search` | Full-text search across capsules |
+| `capsule_export` | Export capsules to JSONL file |
+| `capsule_import` | Import capsules from JSONL file |
+| `capsule_purge` | Permanently delete soft-deleted capsules |
+| `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
+| `capsule_bulk_update` | Update metadata on multiple capsules |
+| `capsule_compose` | Assemble multiple capsules into bundle |
 
 ---
 
@@ -250,11 +250,11 @@ If the file doesn't exist, defaults are used.
 
 ### Tool Filtering
 
-Disable specific MCP tools by adding their names to `disabled_tools`. This is useful for hiding destructive tools like `purge` or `bulk_delete` from agents.
+Disable specific MCP tools by adding their names to `disabled_tools`. This is useful for hiding destructive tools like `capsule_purge` or `capsule_bulk_delete` from agents.
 
 ```json
 {
-  "disabled_tools": ["purge", "bulk_delete", "bulk_update"]
+  "disabled_tools": ["capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"]
 }
 ```
 
@@ -322,7 +322,7 @@ Expected: JSON response listing 15 tools.
 ### 2. Inventory (Empty Store)
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"inventory","arguments":{}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_inventory","arguments":{}}}' | ./moss
 ```
 
 Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"total":0},"sort":"updated_at_desc"}`
@@ -331,24 +331,24 @@ Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"to
 
 ```bash
 # Store a capsule
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | ./moss
 
 # Fetch it back
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fetch","arguments":{"workspace":"default","name":"test"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"workspace":"default","name":"test"}}}' | ./moss
 ```
 
 ### 4. Error Cases
 
 **Missing sections (422):**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store","arguments":{"capsule_text":"too short"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"too short"}}}' | ./moss
 ```
 
 Expected: `isError: true` with `code: "CAPSULE_TOO_THIN"`
 
 **Ambiguous addressing (400):**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | ./moss
 ```
 
 Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
@@ -360,7 +360,7 @@ Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
 ### Store a Capsule
 
 ```
-store {
+capsule_store {
   "workspace": "myproject",
   "name": "auth",
   "capsule_text": "## Objective\n...\n## Current status\n...\n## Decisions\n...\n## Next actions\n...\n## Key locations\n...\n## Open questions\n..."
@@ -370,19 +370,19 @@ store {
 ### Fetch by Name
 
 ```
-fetch { "workspace": "myproject", "name": "auth" }
+capsule_fetch { "workspace": "myproject", "name": "auth" }
 ```
 
 ### Fetch by ID
 
 ```
-fetch { "id": "01KFPRNV1JEK4F870H1K84XS6S" }
+capsule_fetch { "id": "01KFPRNV1JEK4F870H1K84XS6S" }
 ```
 
 ### Batch Fetch Multiple Capsules
 
 ```
-fetch_many {
+capsule_fetch_many {
   "items": [
     { "workspace": "myproject", "name": "research" },
     { "workspace": "myproject", "name": "design" },
@@ -396,25 +396,25 @@ Partial success is allowed — found capsules in `items`, failures in `errors`.
 ### List All Capsules
 
 ```
-inventory {}
+capsule_inventory {}
 ```
 
 ### Export for Backup
 
 ```
-export { "path": "~/.moss/exports/moss-backup.jsonl" }
+capsule_export { "path": "~/.moss/exports/moss-backup.jsonl" }
 ```
 
 ### Import from Backup
 
 ```
-import { "path": "~/.moss/exports/moss-backup.jsonl", "mode": "error" }
+capsule_import { "path": "~/.moss/exports/moss-backup.jsonl", "mode": "error" }
 ```
 
 ### Compose Multiple Capsules
 
 ```
-compose {
+capsule_compose {
   "items": [
     { "workspace": "myproject", "name": "research" },
     { "workspace": "myproject", "name": "design" }
@@ -426,7 +426,7 @@ compose {
 With optional storage:
 
 ```
-compose {
+capsule_compose {
   "items": [
     { "workspace": "myproject", "name": "research" },
     { "workspace": "myproject", "name": "design" }
@@ -444,13 +444,13 @@ compose {
 ### Search Capsules
 
 ```
-search { "query": "authentication" }
+capsule_search { "query": "authentication" }
 ```
 
 With filters:
 
 ```
-search {
+capsule_search {
   "query": "JWT OR OAuth",
   "workspace": "myproject",
   "phase": "design"
@@ -468,7 +468,7 @@ Results are ranked by relevance (title matches weighted 5x higher). Snippets are
 ### Bulk Delete by Filter
 
 ```
-bulk_delete { "workspace": "scratch" }
+capsule_bulk_delete { "workspace": "scratch" }
 ```
 
 Expected:
@@ -482,7 +482,7 @@ Expected:
 Multiple filters (AND semantics):
 
 ```
-bulk_delete {
+capsule_bulk_delete {
   "workspace": "myproject",
   "tag": "stale",
   "phase": "research"
@@ -492,7 +492,7 @@ bulk_delete {
 At least one filter is required. Calling with no filters returns an error:
 
 ```
-bulk_delete {}
+capsule_bulk_delete {}
 ```
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`
@@ -502,7 +502,7 @@ Note: whitespace-only filters are treated as empty and rejected.
 ### Bulk Update by Filter
 
 ```
-bulk_update { "workspace": "myproject", "set_phase": "archived" }
+capsule_bulk_update { "workspace": "myproject", "set_phase": "archived" }
 ```
 
 Expected:
@@ -516,7 +516,7 @@ Expected:
 Multiple filters and updates:
 
 ```
-bulk_update {
+capsule_bulk_update {
   "workspace": "myproject",
   "tag": "completed",
   "set_phase": "archived",
@@ -527,14 +527,14 @@ bulk_update {
 Clear a field with empty string:
 
 ```
-bulk_update { "workspace": "scratch", "set_phase": "" }
+capsule_bulk_update { "workspace": "scratch", "set_phase": "" }
 ```
 
 At least one filter AND one update field is required:
 
 ```
-bulk_update { "workspace": "test" }  // Error: no update fields
-bulk_update { "set_phase": "done" }  // Error: no filters
+capsule_bulk_update { "workspace": "test" }  // Error: no update fields
+capsule_bulk_update { "set_phase": "done" }  // Error: no filters
 ```
 
 Expected: `isError: true` with `code: "INVALID_REQUEST"`
@@ -550,7 +550,7 @@ Multi-agent workflows can use `run_id`, `phase`, and `role` to scope capsules.
 ### Store with Orchestration
 
 ```
-store {
+capsule_store {
   "workspace": "myproject",
   "name": "design-intent",
   "run_id": "pr-review-abc123",
@@ -563,7 +563,7 @@ store {
 ### Filter by Run ID
 
 ```
-list {
+capsule_list {
   "workspace": "myproject",
   "run_id": "pr-review-abc123"
 }
@@ -572,7 +572,7 @@ list {
 ### Latest Design Capsule from Run
 
 ```
-latest {
+capsule_latest {
   "workspace": "myproject",
   "run_id": "pr-review-abc123",
   "phase": "design",
@@ -583,7 +583,7 @@ latest {
 ### Cross-Workspace Run Query
 
 ```
-inventory {
+capsule_inventory {
   "run_id": "pr-review-abc123"
 }
 ```

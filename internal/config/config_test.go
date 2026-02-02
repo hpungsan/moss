@@ -52,7 +52,7 @@ func TestLoad_DisabledTools(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
-	if err := os.WriteFile(configPath, []byte(`{"disabled_tools": ["purge", "bulk_delete"]}`), 0600); err != nil {
+	if err := os.WriteFile(configPath, []byte(`{"disabled_tools": ["capsule_purge", "capsule_bulk_delete"]}`), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -64,11 +64,11 @@ func TestLoad_DisabledTools(t *testing.T) {
 	if len(cfg.DisabledTools) != 2 {
 		t.Fatalf("DisabledTools length = %d, want 2", len(cfg.DisabledTools))
 	}
-	if cfg.DisabledTools[0] != "purge" {
-		t.Errorf("DisabledTools[0] = %q, want %q", cfg.DisabledTools[0], "purge")
+	if cfg.DisabledTools[0] != "capsule_purge" {
+		t.Errorf("DisabledTools[0] = %q, want %q", cfg.DisabledTools[0], "capsule_purge")
 	}
-	if cfg.DisabledTools[1] != "bulk_delete" {
-		t.Errorf("DisabledTools[1] = %q, want %q", cfg.DisabledTools[1], "bulk_delete")
+	if cfg.DisabledTools[1] != "capsule_bulk_delete" {
+		t.Errorf("DisabledTools[1] = %q, want %q", cfg.DisabledTools[1], "capsule_bulk_delete")
 	}
 }
 
@@ -95,7 +95,7 @@ func TestLoadWithRepo_BothPresent(t *testing.T) {
 	repoRoot := t.TempDir()
 
 	// Global config
-	globalConfig := `{"capsule_max_chars": 8000, "disabled_tools": ["purge"]}`
+	globalConfig := `{"capsule_max_chars": 8000, "disabled_tools": ["capsule_purge"]}`
 	if err := os.WriteFile(filepath.Join(globalDir, "config.json"), []byte(globalConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -105,7 +105,7 @@ func TestLoadWithRepo_BothPresent(t *testing.T) {
 	if err := os.MkdirAll(mossDir, 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	repoConfig := `{"capsule_max_chars": 5000, "disabled_tools": ["bulk_delete"]}`
+	repoConfig := `{"capsule_max_chars": 5000, "disabled_tools": ["capsule_bulk_delete"]}`
 	if err := os.WriteFile(filepath.Join(mossDir, "config.json"), []byte(repoConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -130,7 +130,7 @@ func TestLoadWithRepo_OnlyGlobal(t *testing.T) {
 	globalDir := t.TempDir()
 	repoDir := t.TempDir() // No config file
 
-	globalConfig := `{"capsule_max_chars": 8000, "disabled_tools": ["purge"]}`
+	globalConfig := `{"capsule_max_chars": 8000, "disabled_tools": ["capsule_purge"]}`
 	if err := os.WriteFile(filepath.Join(globalDir, "config.json"), []byte(globalConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -143,8 +143,8 @@ func TestLoadWithRepo_OnlyGlobal(t *testing.T) {
 	if cfg.CapsuleMaxChars != 8000 {
 		t.Errorf("CapsuleMaxChars = %d, want 8000", cfg.CapsuleMaxChars)
 	}
-	if len(cfg.DisabledTools) != 1 || cfg.DisabledTools[0] != "purge" {
-		t.Errorf("DisabledTools = %v, want [purge]", cfg.DisabledTools)
+	if len(cfg.DisabledTools) != 1 || cfg.DisabledTools[0] != "capsule_purge" {
+		t.Errorf("DisabledTools = %v, want [capsule_purge]", cfg.DisabledTools)
 	}
 }
 
@@ -157,7 +157,7 @@ func TestLoadWithRepo_OnlyRepo(t *testing.T) {
 	if err := os.MkdirAll(mossDir, 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	repoConfig := `{"disabled_tools": ["bulk_delete", "bulk_update"]}`
+	repoConfig := `{"disabled_tools": ["capsule_bulk_delete", "capsule_bulk_update"]}`
 	if err := os.WriteFile(filepath.Join(mossDir, "config.json"), []byte(repoConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -220,8 +220,8 @@ func TestMerge_BooleanOr(t *testing.T) {
 }
 
 func TestMerge_ArrayMergeDedup(t *testing.T) {
-	base := &Config{DisabledTools: []string{"purge", "bulk_delete"}}
-	overlay := &Config{DisabledTools: []string{"bulk_delete", "bulk_update"}}
+	base := &Config{DisabledTools: []string{"capsule_purge", "capsule_bulk_delete"}}
+	overlay := &Config{DisabledTools: []string{"capsule_bulk_delete", "capsule_bulk_update"}}
 
 	result := Merge(base, overlay)
 
@@ -234,7 +234,7 @@ func TestMerge_ArrayMergeDedup(t *testing.T) {
 	for _, s := range result.DisabledTools {
 		has[s] = true
 	}
-	for _, want := range []string{"purge", "bulk_delete", "bulk_update"} {
+	for _, want := range []string{"capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"} {
 		if !has[want] {
 			t.Errorf("DisabledTools missing %q", want)
 		}
@@ -303,7 +303,7 @@ func TestLoadWithRepo_WalksUpward(t *testing.T) {
 	if err := os.MkdirAll(mossDir, 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	repoConfig := `{"disabled_tools": ["purge"]}`
+	repoConfig := `{"disabled_tools": ["capsule_purge"]}`
 	if err := os.WriteFile(filepath.Join(mossDir, "config.json"), []byte(repoConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -319,7 +319,7 @@ func TestLoadWithRepo_WalksUpward(t *testing.T) {
 		t.Fatalf("LoadWithRepo() error = %v", err)
 	}
 
-	if len(cfg.DisabledTools) != 1 || cfg.DisabledTools[0] != "purge" {
-		t.Errorf("DisabledTools = %v, want [purge]", cfg.DisabledTools)
+	if len(cfg.DisabledTools) != 1 || cfg.DisabledTools[0] != "capsule_purge" {
+		t.Errorf("DisabledTools = %v, want [capsule_purge]", cfg.DisabledTools)
 	}
 }

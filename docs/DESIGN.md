@@ -8,7 +8,7 @@
 
 ## 0) One-line summary
 
-Moss is a **local "context capsule" store** that lets you **store/fetch/update/delete** a *strictly size-bounded* distilled handoff across Claude Code, Codex, etc., with **batch fetch (`fetch_many`)**, **upsert mode**, **latest/list**, **global inventory**, **human-friendly `name` handles**, **export/import** for portability, **soft-delete** for safety, and **guardrails (capsule lint + size limits)** to prevent both **context bloat** *and* **low-value capsules**.
+Moss is a **local "context capsule" store** that lets you **`capsule_store`/`capsule_fetch`/`capsule_update`/`capsule_delete`** a *strictly size-bounded* distilled handoff across Claude Code, Codex, etc., with **batch fetch (`capsule_fetch_many`)**, **upsert mode**, **`capsule_latest`/`capsule_list`**, **global `capsule_inventory`**, **human-friendly `name` handles**, **`capsule_export`/`capsule_import`** for portability, **soft-delete** for safety, and **guardrails (capsule lint + size limits)** to prevent both **context bloat** *and* **low-value capsules**.
 
 **Related docs:**
 - [OVERVIEW.md](OVERVIEW.md) — Concepts and use cases
@@ -67,7 +67,7 @@ Moss ensures capsule usefulness via **workflow + validation**, without needing L
 
 ## 3.1 Distill-before-save workflow (recommended)
 
-Before `store` or `update`, the client (you or agent) produces a capsule:
+Before `capsule_store` or `capsule_update`, the client (you or agent) produces a capsule:
 
 > “Distill into Moss capsule under X chars. State not story. Must include Objective, Current status, Decisions/Constraints, Next actions, Key locations, Open questions/Risks. Max 1–3 tiny snippets only if critical. If too long, compress—do not omit decisions or next actions.”
 
@@ -75,7 +75,7 @@ Moss stores the result.
 
 ## 3.2 Moss capsule linter (non-LLM)
 
-On `store` and on `update` (when capsule content changes), Moss validates minimum structure.
+On `capsule_store` and on `capsule_update` (when capsule content changes), Moss validates minimum structure.
 
 ### Lint rules
 
@@ -140,7 +140,7 @@ Display uses raw; lookup uses normalized.
 
 ## 4.3 Deterministic resolution rule
 
-For `fetch/update/delete`:
+For `capsule_fetch`/`capsule_update`/`capsule_delete`:
 
 * Must specify **exactly one** addressing mode:
 
@@ -160,30 +160,30 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 
 | Tool | Description |
 |------|-------------|
-| `store` | Create new capsule (supports upsert via `mode`) |
-| `fetch` | Read capsule by id OR by name |
-| `fetch_many` | Batch fetch multiple capsules |
-| `update` | Update capsule content/metadata |
-| `delete` | Soft delete (recoverable) |
-| `latest` | Most recent capsule in workspace |
-| `list` | List capsule summaries in workspace |
-| `inventory` | List capsule summaries globally |
-| `search` | Full-text search across capsules |
-| `export` | JSONL backup |
-| `import` | JSONL restore |
-| `purge` | Permanently delete soft-deleted |
-| `bulk_delete` | Soft-delete multiple capsules by filter |
-| `bulk_update` | Update metadata on multiple capsules |
-| `compose` | Assemble multiple capsules into bundle |
+| `capsule_store` | Create new capsule (supports upsert via `mode`) |
+| `capsule_fetch` | Read capsule by id OR by name |
+| `capsule_fetch_many` | Batch fetch multiple capsules |
+| `capsule_update` | Update capsule content/metadata |
+| `capsule_delete` | Soft delete (recoverable) |
+| `capsule_latest` | Most recent capsule in workspace |
+| `capsule_list` | List capsule summaries in workspace |
+| `capsule_inventory` | List capsule summaries globally |
+| `capsule_search` | Full-text search across capsules |
+| `capsule_export` | JSONL backup |
+| `capsule_import` | JSONL restore |
+| `capsule_purge` | Permanently delete soft-deleted |
+| `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
+| `capsule_bulk_update` | Update metadata on multiple capsules |
+| `capsule_compose` | Assemble multiple capsules into bundle |
 
 Each tool has a focused schema — no `action` dispatch needed.
 
 ### Output bloat rules
 
-* `list` **never** returns `capsule_text`
-* `inventory` **never** returns `capsule_text`
-* `latest` returns **summary by default**; requires `include_text:true` for full capsule
-* `fetch` returns full capsule text (explicit load primitive)
+* `capsule_list` **never** returns `capsule_text`
+* `capsule_inventory` **never** returns `capsule_text`
+* `capsule_latest` returns **summary by default**; requires `include_text:true` for full capsule
+* `capsule_fetch` returns full capsule text (explicit load primitive)
 
   * Optional: support `include_text:false` as a “peek” without bloat
 
@@ -193,7 +193,7 @@ Each tool has a focused schema — no `action` dispatch needed.
 
 Tool schemas are defined in code (`internal/mcp/tools.go`). This section documents key behaviors.
 
-## 6.1 `store`
+## 6.1 `capsule_store`
 
 **Required:** `capsule_text`
 
@@ -212,7 +212,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 ---
 
-## 6.2 `fetch`
+## 6.2 `capsule_fetch`
 
 **Addressing:** `id` OR (`workspace` + `name`) — not both
 
@@ -225,7 +225,7 @@ Tool schemas are defined in code (`internal/mcp/tools.go`). This section documen
 
 ---
 
-## 6.3 `fetch_many`
+## 6.3 `capsule_fetch_many`
 
 Batch fetch multiple capsules in a single call. Useful for fan-in patterns where an orchestrator gathers results from parallel workers.
 
@@ -266,7 +266,7 @@ Batch fetch multiple capsules in a single call. Useful for fan-in patterns where
 
 ---
 
-## 6.4 `update`
+## 6.4 `capsule_update`
 
 **Addressing:** `id` OR (`workspace` + `name`)
 
@@ -282,13 +282,13 @@ Batch fetch multiple capsules in a single call. Useful for fan-in patterns where
 
 ---
 
-## 6.5 `delete`
+## 6.5 `capsule_delete`
 
 Soft-deletes by setting `deleted_at` and bumping `updated_at` to reflect deletion in "latest" ordering. Capsule recoverable via `include_deleted` or export/import.
 
 ---
 
-## 6.6 `latest`
+## 6.6 `capsule_latest`
 
 Returns most recent capsule in workspace.
 
@@ -298,7 +298,7 @@ Returns most recent capsule in workspace.
 
 ---
 
-## 6.7 `list`
+## 6.7 `capsule_list`
 
 List summaries in workspace. **Never returns `capsule_text`.**
 
@@ -308,7 +308,7 @@ List summaries in workspace. **Never returns `capsule_text`.**
 
 ---
 
-## 6.8 `inventory`
+## 6.8 `capsule_inventory`
 
 Global list across all workspaces. **Never returns `capsule_text`.**
 
@@ -316,7 +316,7 @@ Global list across all workspaces. **Never returns `capsule_text`.**
 
 ---
 
-## 6.9 `search`
+## 6.9 `capsule_search`
 
 Full-text search across capsules using SQLite FTS5. Returns results ranked by relevance with match snippets.
 
@@ -356,7 +356,7 @@ Full-text search across capsules using SQLite FTS5. Returns results ranked by re
 
 ---
 
-## 6.10 `export`
+## 6.10 `capsule_export`
 
 Export to JSONL file.
 
@@ -364,7 +364,7 @@ Export to JSONL file.
 
 ---
 
-## 6.11 `import`
+## 6.11 `capsule_import`
 
 Import from JSONL file.
 
@@ -376,7 +376,7 @@ Import from JSONL file.
 
 ---
 
-## 6.12 `purge`
+## 6.12 `capsule_purge`
 
 Permanently delete soft-deleted capsules.
 
@@ -384,7 +384,7 @@ Permanently delete soft-deleted capsules.
 
 ---
 
-## 6.13 `compose`
+## 6.13 `capsule_compose`
 
 Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing.
 
@@ -402,7 +402,7 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 - All-or-nothing: if any item missing → **404 NOT_FOUND**
 - Too large → **413 COMPOSE_TOO_LARGE**
 - `format:"json"` + `store_as` → **400 INVALID_REQUEST** (JSON lacks section headers)
-- If `store_as` provided: lint + store via `store` operation
+- If `store_as` provided: lint + store via `capsule_store` operation
 - `store_as.name` required when `store_as` provided
 
 **Output:**
@@ -417,7 +417,7 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 
 ---
 
-## 6.14 `bulk_delete`
+## 6.14 `capsule_bulk_delete`
 
 Soft-delete multiple active capsules matching filters. Requires at least one filter (safety guard). Only targets active capsules (`deleted_at IS NULL` is hardcoded).
 
@@ -441,7 +441,7 @@ Soft-delete multiple active capsules matching filters. Requires at least one fil
 
 ---
 
-## 6.15 `bulk_update`
+## 6.15 `capsule_bulk_update`
 
 Update metadata (phase, role, tags) on multiple active capsules matching filters. Requires at least one filter AND at least one update field (safety guard). Only targets active capsules (`deleted_at IS NULL` is hardcoded).
 
@@ -508,17 +508,17 @@ MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
 
 | Operation | Cancellation point |
 |-----------|-------------------|
-| `fetch_many` | Before each item fetch |
-| `compose` | Before each item fetch |
-| `export` | Before each row write |
-| `import` | Before each record insert (all 3 modes) |
+| `capsule_fetch_many` | Before each item fetch |
+| `capsule_compose` | Before each item fetch |
+| `capsule_export` | Before each row write |
+| `capsule_import` | Before each record insert (all 3 modes) |
 
 **On cancellation:**
 - The loop exits immediately and returns a **499 CANCELLED** error with the operation name (e.g., `"import cancelled"`)
-- `import` runs within a transaction — cancellation triggers rollback with no partial writes
-- `export` writes to a temp file and finalizes via atomic rename; failures clean up the temp file and preserve any existing destination file
+- `capsule_import` runs within a transaction — cancellation triggers rollback with no partial writes
+- `capsule_export` writes to a temp file and finalizes via atomic rename; failures clean up the temp file and preserve any existing destination file
 
-**Single-query operations** (`store`, `fetch`, `update`, `delete`, `list`, `latest`, `inventory`, `purge`, `bulk_delete`, `bulk_update`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
+**Single-query operations** (`capsule_store`, `capsule_fetch`, `capsule_update`, `capsule_delete`, `capsule_list`, `capsule_latest`, `capsule_inventory`, `capsule_purge`, `capsule_bulk_delete`, `capsule_bulk_update`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
 
 ---
 
@@ -564,7 +564,7 @@ Moss loads config from two locations (merged):
 
 ### Import/export path security
 
-By default, `export` and `import` operations are restricted to `~/.moss/exports/`. This prevents accidental writes to sensitive locations and limits exposure from symlink attacks.
+By default, `capsule_export` and `capsule_import` operations are restricted to `~/.moss/exports/`. This prevents accidental writes to sensitive locations and limits exposure from symlink attacks.
 
 **Restrictions enforced:**
 - `.jsonl` extension required
@@ -621,9 +621,9 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 
 ## Required fields
 
-* `workspace` required for `store/list/latest` and name addressing (defaults to `"default"` if omitted)
-* `capsule_text` required for `store`; optional for `update` (lint runs only if provided)
-* For `fetch/update/delete`: either `id` OR (`workspace`+`name`), not both
+* `workspace` required for `capsule_store`/`capsule_list`/`capsule_latest` and name addressing (defaults to `"default"` if omitted)
+* `capsule_text` required for `capsule_store`; optional for `capsule_update` (lint runs only if provided)
+* For `capsule_fetch`/`capsule_update`/`capsule_delete`: either `id` OR (`workspace`+`name`), not both
 
 ## Hard limits
 
@@ -633,7 +633,7 @@ CLI mirrors MCP operations for debugging and scripting. See [RUNBOOK.md](RUNBOOK
 
 ## Mode validation
 
-* `store.mode` must be `"error"` (default) or `"replace"`
+* `capsule_store.mode` must be `"error"` (default) or `"replace"`
 * `mode:"replace"` overwrites existing active capsule; creates new if none exists
 * Soft-delete interaction: `mode:"replace"` targets active rows only (`deleted_at IS NULL`); if none exists, it creates a new capsule rather than reviving a deleted one.
 
@@ -653,7 +653,7 @@ See section 3.2 for lint rules, section 4.2 for normalization.
 | AMBIGUOUS_ADDRESSING | 400 | Both `id` and `name` provided |
 | INVALID_REQUEST | 400 | Invalid fields or malformed request |
 | NOT_FOUND | 404 | Capsule doesn't exist (or is soft-deleted) |
-| NAME_ALREADY_EXISTS | 409 | Name collision on store with mode:"error" |
+| NAME_ALREADY_EXISTS | 409 | Name collision on capsule_store with mode:"error" |
 | CAPSULE_TOO_LARGE | 413 | Exceeds `capsule_max_chars` |
 | FILE_TOO_LARGE | 413 | Import file exceeds max size limit |
 | COMPOSE_TOO_LARGE | 413 | Composed bundle exceeds `capsule_max_chars` |
@@ -685,42 +685,42 @@ The `details` field varies by error code (e.g., `max_chars`/`actual_chars` for C
 ## Flow A — Save (Session A → Moss)
 
 1. Distill to capsule under limit using the capsule contract
-2. Call `store`
+2. Call `capsule_store`
 3. Moss validates size + lint, saves, returns id
 
 ## Flow B — Continue (Moss → Session B)
 
-1. Call `fetch` by name or `latest include_text:true`
+1. Call `capsule_fetch` by name or `capsule_latest include_text:true`
 2. Paste `capsule_text` into new session
 3. Continue work
 
 ## Flow C — Browse (no bloat)
 
-* `inventory` to see everything stored (no text)
-* `list` for workspace
-* `latest` summary, then `fetch` to load
+* `capsule_inventory` to see everything stored (no text)
+* `capsule_list` for workspace
+* `capsule_latest` summary, then `capsule_fetch` to load
 
 ## Flow D — Refresh (rolling state)
 
-* Distill updated state → `update`
+* Distill updated state → `capsule_update`
 * Capsule stays evergreen
 
 ## Flow E — Cleanup
 
-* `delete`
+* `capsule_delete`
 
 ## Flow F — Backup & Restore
 
 ```
 1. Export all capsules:
-   export { path: "~/.moss/exports/backup.jsonl" }
+   capsule_export { path: "~/.moss/exports/backup.jsonl" }
 
 2. Export specific workspace:
-   export { path: "~/.moss/exports/projectA.jsonl", workspace: "projectA" }
+   capsule_export { path: "~/.moss/exports/projectA.jsonl", workspace: "projectA" }
 
 3. Restore to new machine:
-   import { path: "~/.moss/exports/backup.jsonl", mode: "error" }
+   capsule_import { path: "~/.moss/exports/backup.jsonl", mode: "error" }
 
 4. Merge with existing:
-   import { path: "~/.moss/exports/backup.jsonl", mode: "replace" }
+   capsule_import { path: "~/.moss/exports/backup.jsonl", mode: "replace" }
 ```
