@@ -1,6 +1,6 @@
 # Capsule Runbook
 
-Operational guide for the Capsule primitive: MCP tools, common operations, orchestration patterns, and troubleshooting.
+Operational guide for the Capsule type: MCP tools, common operations, orchestration patterns, and troubleshooting.
 
 **Prereq:** Install and configure Moss first via [SETUP.md](../SETUP.md).
 

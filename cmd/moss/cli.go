@@ -413,11 +413,11 @@ func toolsCmd(cfg *config.Config) *cli.Command {
 			allNames := mcp.AllToolNames()
 			sort.Strings(allNames)
 
-			// Build disabled set from primitives + individual tools
-			// Track reason for disabling: "primitive" or "tool"
-			disabledByPrimitive := make(map[string]bool)
-			for _, tool := range mcp.ExpandPrimitivesToTools(cfg.DisabledPrimitives) {
-				disabledByPrimitive[tool] = true
+			// Build disabled set from types + individual tools
+			// Track reason for disabling: "type" or "tool"
+			disabledByType := make(map[string]bool)
+			for _, tool := range mcp.ExpandTypesToTools(cfg.DisabledTypes) {
+				disabledByType[tool] = true
 			}
 
 			disabledByTool := make(map[string]bool)
@@ -427,26 +427,26 @@ func toolsCmd(cfg *config.Config) *cli.Command {
 
 			// Build tool list with status
 			type toolStatus struct {
-				Name      string `json:"name"`
-				Primitive string `json:"primitive"`
-				Enabled   bool   `json:"enabled"`
-				Reason    string `json:"reason,omitempty"`
+				Name    string `json:"name"`
+				Type    string `json:"type"`
+				Enabled bool   `json:"enabled"`
+				Reason  string `json:"reason,omitempty"`
 			}
 
 			tools := make([]toolStatus, 0, len(allNames))
 			enabledCount := 0
 			for _, name := range allNames {
-				prim := mcp.GetPrimitiveForTool(name)
+				typ := mcp.GetTypeForTool(name)
 				ts := toolStatus{
-					Name:      name,
-					Primitive: prim,
-					Enabled:   true,
+					Name:    name,
+					Type:    typ,
+					Enabled: true,
 				}
 
-				// Check if disabled (primitive takes precedence in reason)
-				if disabledByPrimitive[name] {
+				// Check if disabled (type takes precedence in reason)
+				if disabledByType[name] {
 					ts.Enabled = false
-					ts.Reason = "primitive"
+					ts.Reason = "type"
 				} else if disabledByTool[name] {
 					ts.Enabled = false
 					ts.Reason = "tool"

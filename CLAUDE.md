@@ -1,32 +1,28 @@
 # Claude Code Instructions
 
 ## Project: Moss
-Local context primitive store for AI session handoffs and multi-agent orchestration.
+Local context store for AI session handoffs and multi-agent orchestration.
 
 ## Tech Stack
 Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.com/urfave/cli/v2)
 
 ## Key Concepts
-- **Primitive**: Typed context object (capsule, artifact)
+- **Type**: Category of stored object (capsule)
 - **Capsule**: Markdown-based context for LLM consumption (6 required sections)
-- **Artifact**: JSON-based structured data for code/orchestration
 - **Workspace**: Namespace (default: "default")
 - **Name**: Unique handle within workspace
 - **Orchestration**: `run_id`, `phase`, `role` for multi-agent workflow scoping
 
 ## MCP Tools
 
-### Capsule (available)
+### Capsule
 `capsule_store` `capsule_fetch` `capsule_fetch_many` `capsule_update` `capsule_delete` `capsule_list` `capsule_inventory` `capsule_search` `capsule_latest` `capsule_export` `capsule_import` `capsule_purge` `capsule_bulk_delete` `capsule_bulk_update` `capsule_compose`
-
-### Artifact
-`artifact_store` `artifact_fetch` `artifact_list` `artifact_compose` ...
 
 ## Guidelines
 - MCP-first (CLI is secondary)
 - Explicit only (no auto-save/load)
 - Low-bloat (size limits + lint)
-- Primitive-typed (each optimized for its consumer)
+- Type-specific (each type optimized for its consumer)
 
 ## Commands
 ```
@@ -78,8 +74,6 @@ internal/
 | `docs/capsule/DESIGN.md` | Capsule API spec + implementation |
 | `docs/capsule/BACKLOG.md` | Post-v1 capsule features |
 | `docs/capsule/RUNBOOK.md` | Capsule operations guide |
-| `docs/artifact/DESIGN.md` | Artifact spec |
-| `docs/artifact/BACKLOG.md` | Post-v1 artifact features |
 | `docs/integrations/claude-code.md` | Claude Code integration |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/MOSS_CC.md` | Claude Code patterns |

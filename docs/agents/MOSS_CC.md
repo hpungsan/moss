@@ -4,9 +4,9 @@ How Moss Capsules integrate with Claude Code for context persistence across sess
 
 > **For full swarm orchestration reference:** See [`dev/vault/skillVault/swarm/SKILL.md`](../../dev/vault/skillVault/swarm/SKILL.md) for Teams, Teammates, Inboxes, Backends, and orchestration patterns.
 
-## The Two Primitives
+## The Two Building Blocks
 
-| Primitive | Purpose | Persistence |
+| Concept | Purpose | Persistence |
 |-----------|---------|-------------|
 | **Tasks** | Coordination: what to do, dependencies, status | `~/.claude/tasks/` |
 | **Capsules** | Context: why, decisions, key locations, open questions | `~/.moss/moss.db` |

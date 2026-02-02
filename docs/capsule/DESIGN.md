@@ -2,7 +2,7 @@
 
 ## Summary
 
-Capsule primitive spec for Moss: 15 MCP tools, CLI parity, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
+Capsule type spec for Moss: 15 MCP tools, CLI parity, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -183,7 +183,7 @@ Each tool has a focused schema — no `action` dispatch needed.
 * `capsule_list` **never** returns `capsule_text`
 * `capsule_inventory` **never** returns `capsule_text`
 * `capsule_latest` returns **summary by default**; requires `include_text:true` for full capsule
-* `capsule_fetch` returns full capsule text (explicit load primitive)
+* `capsule_fetch` returns full capsule text (explicit load operation)
 
   * Optional: support `include_text:false` as a “peek” without bloat
 
@@ -548,7 +548,7 @@ Moss loads config from two locations (merged):
   "db_max_open_conns": 0,
   "db_max_idle_conns": 0,
   "disabled_tools": [],
-  "disabled_primitives": []
+  "disabled_types": []
 }
 ```
 
@@ -562,7 +562,7 @@ Moss loads config from two locations (merged):
 | `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
 | `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 | `disabled_tools` | `[]` | MCP tool names to exclude from registration (see §5.1 for tool list) |
-| `disabled_primitives` | `[]` | Primitive names to disable entirely (e.g., `["capsule"]` disables all capsule tools) |
+| `disabled_types` | `[]` | Type names to disable entirely (e.g., `["capsule"]` disables all capsule tools) |
 
 ### Import/export path security
 

@@ -11,9 +11,8 @@ import (
 	"github.com/hpungsan/moss/internal/config"
 )
 
-// KnownPrimitives lists all valid primitive names.
-// Add "artifact" when implemented.
-var KnownPrimitives = []string{"capsule"}
+// KnownTypes lists all valid type names.
+var KnownTypes = []string{"capsule"}
 
 // toolEntry pairs a tool definition with a handler factory.
 type toolEntry struct {
@@ -105,11 +104,11 @@ func ValidateDisabledTools(names []string) []string {
 	return unknown
 }
 
-// ValidateDisabledPrimitives returns a list of unknown primitive names from the given list.
-func ValidateDisabledPrimitives(names []string) []string {
-	known := make(map[string]bool, len(KnownPrimitives))
-	for _, p := range KnownPrimitives {
-		known[p] = true
+// ValidateDisabledTypes returns a list of unknown type names from the given list.
+func ValidateDisabledTypes(names []string) []string {
+	known := make(map[string]bool, len(KnownTypes))
+	for _, t := range KnownTypes {
+		known[t] = true
 	}
 
 	unknown := make([]string, 0)
@@ -121,32 +120,32 @@ func ValidateDisabledPrimitives(names []string) []string {
 	return unknown
 }
 
-// GetPrimitiveForTool extracts the primitive name from a tool name.
-// Tool names follow the pattern "primitive_action" (e.g., "capsule_store" → "capsule").
-func GetPrimitiveForTool(toolName string) string {
+// GetTypeForTool extracts the type name from a tool name.
+// Tool names follow the pattern "type_action" (e.g., "capsule_store" → "capsule").
+func GetTypeForTool(toolName string) string {
 	if idx := strings.Index(toolName, "_"); idx > 0 {
 		return toolName[:idx]
 	}
 	return ""
 }
 
-// ExpandPrimitivesToTools returns all tool names belonging to the given primitives.
-func ExpandPrimitivesToTools(primitives []string) []string {
-	if len(primitives) == 0 {
+// ExpandTypesToTools returns all tool names belonging to the given types.
+func ExpandTypesToTools(types []string) []string {
+	if len(types) == 0 {
 		return nil
 	}
 
-	// Build set of primitives for O(1) lookup
-	primSet := make(map[string]bool, len(primitives))
-	for _, p := range primitives {
-		primSet[p] = true
+	// Build set of types for O(1) lookup
+	typeSet := make(map[string]bool, len(types))
+	for _, t := range types {
+		typeSet[t] = true
 	}
 
-	// Collect tools belonging to disabled primitives
+	// Collect tools belonging to disabled types
 	tools := make([]string, 0)
 	for name := range toolRegistry {
-		prim := GetPrimitiveForTool(name)
-		if primSet[prim] {
+		typ := GetTypeForTool(name)
+		if typeSet[typ] {
 			tools = append(tools, name)
 		}
 	}
@@ -154,7 +153,7 @@ func ExpandPrimitivesToTools(primitives []string) []string {
 }
 
 // NewServer creates a new MCP server with Moss tools registered.
-// Tools listed in cfg.DisabledTools or belonging to cfg.DisabledPrimitives
+// Tools listed in cfg.DisabledTools or belonging to cfg.DisabledTypes
 // are excluded from registration.
 func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer {
 	s := server.NewMCPServer(
@@ -165,9 +164,9 @@ func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer
 
 	h := NewHandlers(db, cfg)
 
-	// Build set of disabled tools: first expand primitives, then add individual tools
+	// Build set of disabled tools: first expand types, then add individual tools
 	disabled := make(map[string]bool)
-	for _, tool := range ExpandPrimitivesToTools(cfg.DisabledPrimitives) {
+	for _, tool := range ExpandTypesToTools(cfg.DisabledTypes) {
 		disabled[tool] = true
 	}
 	for _, name := range cfg.DisabledTools {

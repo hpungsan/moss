@@ -324,11 +324,11 @@ func TestLoadWithRepo_WalksUpward(t *testing.T) {
 	}
 }
 
-func TestLoad_DisabledPrimitives(t *testing.T) {
+func TestLoad_DisabledTypes(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
-	if err := os.WriteFile(configPath, []byte(`{"disabled_primitives": ["capsule"]}`), 0600); err != nil {
+	if err := os.WriteFile(configPath, []byte(`{"disabled_types": ["capsule"]}`), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -337,52 +337,52 @@ func TestLoad_DisabledPrimitives(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if len(cfg.DisabledPrimitives) != 1 {
-		t.Fatalf("DisabledPrimitives length = %d, want 1", len(cfg.DisabledPrimitives))
+	if len(cfg.DisabledTypes) != 1 {
+		t.Fatalf("DisabledTypes length = %d, want 1", len(cfg.DisabledTypes))
 	}
-	if cfg.DisabledPrimitives[0] != "capsule" {
-		t.Errorf("DisabledPrimitives[0] = %q, want %q", cfg.DisabledPrimitives[0], "capsule")
+	if cfg.DisabledTypes[0] != "capsule" {
+		t.Errorf("DisabledTypes[0] = %q, want %q", cfg.DisabledTypes[0], "capsule")
 	}
 }
 
-func TestMerge_DisabledPrimitivesMerge(t *testing.T) {
-	base := &Config{DisabledPrimitives: []string{"capsule"}}
-	overlay := &Config{DisabledPrimitives: []string{"capsule", "artifact"}}
+func TestMerge_DisabledTypesMerge(t *testing.T) {
+	base := &Config{DisabledTypes: []string{"capsule"}}
+	overlay := &Config{DisabledTypes: []string{"capsule", "pod"}}
 
 	result := Merge(base, overlay)
 
-	if len(result.DisabledPrimitives) != 2 {
-		t.Errorf("DisabledPrimitives length = %d, want 2 (merged, deduped)", len(result.DisabledPrimitives))
+	if len(result.DisabledTypes) != 2 {
+		t.Errorf("DisabledTypes length = %d, want 2 (merged, deduped)", len(result.DisabledTypes))
 	}
 
 	// Check both are present
 	has := make(map[string]bool)
-	for _, s := range result.DisabledPrimitives {
+	for _, s := range result.DisabledTypes {
 		has[s] = true
 	}
-	for _, want := range []string{"capsule", "artifact"} {
+	for _, want := range []string{"capsule", "pod"} {
 		if !has[want] {
-			t.Errorf("DisabledPrimitives missing %q", want)
+			t.Errorf("DisabledTypes missing %q", want)
 		}
 	}
 }
 
-func TestLoadWithRepo_DisabledPrimitivesMerge(t *testing.T) {
+func TestLoadWithRepo_DisabledTypesMerge(t *testing.T) {
 	globalDir := t.TempDir()
 	repoRoot := t.TempDir()
 
-	// Global config with one primitive
-	globalConfig := `{"disabled_primitives": ["artifact"]}`
+	// Global config with one type
+	globalConfig := `{"disabled_types": ["pod"]}`
 	if err := os.WriteFile(filepath.Join(globalDir, "config.json"), []byte(globalConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	// Repo config with another primitive
+	// Repo config with another type
 	mossDir := filepath.Join(repoRoot, ".moss")
 	if err := os.MkdirAll(mossDir, 0755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
-	repoConfig := `{"disabled_primitives": ["capsule"]}`
+	repoConfig := `{"disabled_types": ["capsule"]}`
 	if err := os.WriteFile(filepath.Join(mossDir, "config.json"), []byte(repoConfig), 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -393,17 +393,17 @@ func TestLoadWithRepo_DisabledPrimitivesMerge(t *testing.T) {
 	}
 
 	// Arrays merged
-	if len(cfg.DisabledPrimitives) != 2 {
-		t.Errorf("DisabledPrimitives length = %d, want 2", len(cfg.DisabledPrimitives))
+	if len(cfg.DisabledTypes) != 2 {
+		t.Errorf("DisabledTypes length = %d, want 2", len(cfg.DisabledTypes))
 	}
 
 	has := make(map[string]bool)
-	for _, s := range cfg.DisabledPrimitives {
+	for _, s := range cfg.DisabledTypes {
 		has[s] = true
 	}
-	for _, want := range []string{"artifact", "capsule"} {
+	for _, want := range []string{"pod", "capsule"} {
 		if !has[want] {
-			t.Errorf("DisabledPrimitives missing %q", want)
+			t.Errorf("DisabledTypes missing %q", want)
 		}
 	}
 }

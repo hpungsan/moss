@@ -1412,7 +1412,7 @@ func TestAllToolNames(t *testing.T) {
 	}
 }
 
-func TestValidateDisabledPrimitives(t *testing.T) {
+func TestValidateDisabledTypes(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   []string
@@ -1442,15 +1442,15 @@ func TestValidateDisabledPrimitives(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			unknown := ValidateDisabledPrimitives(tt.input)
+			unknown := ValidateDisabledTypes(tt.input)
 			if len(unknown) != tt.wantLen {
-				t.Errorf("ValidateDisabledPrimitives() returned %d unknown, want %d", len(unknown), tt.wantLen)
+				t.Errorf("ValidateDisabledTypes() returned %d unknown, want %d", len(unknown), tt.wantLen)
 			}
 		})
 	}
 }
 
-func TestGetPrimitiveForTool(t *testing.T) {
+func TestGetTypeForTool(t *testing.T) {
 	tests := []struct {
 		name     string
 		toolName string
@@ -1465,11 +1465,6 @@ func TestGetPrimitiveForTool(t *testing.T) {
 			name:     "capsule_bulk_delete",
 			toolName: "capsule_bulk_delete",
 			want:     "capsule",
-		},
-		{
-			name:     "artifact_store",
-			toolName: "artifact_store",
-			want:     "artifact",
 		},
 		{
 			name:     "no underscore",
@@ -1490,73 +1485,73 @@ func TestGetPrimitiveForTool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetPrimitiveForTool(tt.toolName)
+			got := GetTypeForTool(tt.toolName)
 			if got != tt.want {
-				t.Errorf("GetPrimitiveForTool(%q) = %q, want %q", tt.toolName, got, tt.want)
+				t.Errorf("GetTypeForTool(%q) = %q, want %q", tt.toolName, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestExpandPrimitivesToTools(t *testing.T) {
+func TestExpandTypesToTools(t *testing.T) {
 	tests := []struct {
-		name       string
-		primitives []string
-		wantLen    int
+		name    string
+		types   []string
+		wantLen int
 	}{
 		{
-			name:       "capsule primitive",
-			primitives: []string{"capsule"},
-			wantLen:    15, // All current tools are capsule_*
+			name:    "capsule type",
+			types:   []string{"capsule"},
+			wantLen: 15, // All current tools are capsule_*
 		},
 		{
-			name:       "unknown primitive",
-			primitives: []string{"unknown"},
-			wantLen:    0,
+			name:    "unknown type",
+			types:   []string{"unknown"},
+			wantLen: 0,
 		},
 		{
-			name:       "empty list",
-			primitives: []string{},
-			wantLen:    0,
+			name:    "empty list",
+			types:   []string{},
+			wantLen: 0,
 		},
 		{
-			name:       "nil",
-			primitives: nil,
-			wantLen:    0,
+			name:    "nil",
+			types:   nil,
+			wantLen: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ExpandPrimitivesToTools(tt.primitives)
+			got := ExpandTypesToTools(tt.types)
 			if len(got) != tt.wantLen {
-				t.Errorf("ExpandPrimitivesToTools(%v) returned %d tools, want %d", tt.primitives, len(got), tt.wantLen)
+				t.Errorf("ExpandTypesToTools(%v) returned %d tools, want %d", tt.types, len(got), tt.wantLen)
 			}
 		})
 	}
 }
 
-func TestServerRegistration_DisabledPrimitive(t *testing.T) {
+func TestServerRegistration_DisabledType(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
 
-	// Disable entire capsule primitive
-	cfg.DisabledPrimitives = []string{"capsule"}
+	// Disable entire capsule type
+	cfg.DisabledTypes = []string{"capsule"}
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
 	// All tools should be disabled (all are capsule_*)
 	if len(tools) != 0 {
-		t.Errorf("registered tool count = %d, want 0 (capsule primitive disabled)", len(tools))
+		t.Errorf("registered tool count = %d, want 0 (capsule type disabled)", len(tools))
 	}
 }
 
-func TestServerRegistration_DisabledPrimitiveAndTool(t *testing.T) {
+func TestServerRegistration_DisabledTypeAndTool(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
 
-	// Disable primitive and also list a tool (redundant but valid)
-	cfg.DisabledPrimitives = []string{"capsule"}
+	// Disable type and also list a tool (redundant but valid)
+	cfg.DisabledTypes = []string{"capsule"}
 	cfg.DisabledTools = []string{"capsule_store"}
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()

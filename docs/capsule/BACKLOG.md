@@ -1,6 +1,6 @@
 # Capsule Backlog
 
-Features and enhancements for the Capsule primitive.
+Features and enhancements for the Capsule type.
 
 ---
 

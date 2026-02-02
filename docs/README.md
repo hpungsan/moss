@@ -1,12 +1,12 @@
 # Moss Documentation
 
-Reference documentation for Moss primitives and integrations.
+Reference documentation for Moss types and integrations.
 
 ## Overview
 
-Moss is a local store for **primitives**: typed context objects optimized for different consumers.
+Moss is a local store for **types**: structured context objects optimized for different consumers.
 
-The primary primitive today is the **capsule**: a distilled context snapshot for AI session handoffs and multi-agent workflows. A capsule is **not** a chat log — it’s a structured summary that preserves:
+The primary type today is the **capsule**: a distilled context snapshot for AI session handoffs and multi-agent workflows. A capsule is **not** a chat log — it’s a structured summary that preserves:
 
 - what you’re doing (objective)
 - where things stand (status)
@@ -30,14 +30,13 @@ The primary primitive today is the **capsule**: a distilled context snapshot for
 4. **Search** to find prior art by content
 5. **Export/import** for backup and portability
 
-## Primitives
+## Types
 
-Moss stores typed **primitives**—context objects optimized for different consumers.
+Moss stores **types**—structured context objects optimized for different consumers.
 
-| Primitive | Consumer | Format | Docs |
+| Type | Consumer | Format | Docs |
 |-----------|----------|--------|------|
 | **Capsule** | LLMs | Markdown (6 sections) | [capsule/](capsule/) |
-| **Artifact** | Code/orchestration | JSON (structured) | [artifact/](artifact/) |
 
 ### Capsule
 
@@ -46,13 +45,6 @@ Distilled context snapshots for LLM consumption. Markdown-based with 6 required 
 - [DESIGN.md](capsule/DESIGN.md) — API spec, tool reference, error codes
 - [RUNBOOK.md](capsule/RUNBOOK.md) — Operations guide, configuration, troubleshooting
 - [BACKLOG.md](capsule/BACKLOG.md) — Future features
-
-### Artifact
-
-Structured JSON data for code and orchestration. Schema-validated, optimized for programmatic access. Enables deterministic fan-in (sort, filter, dedupe by fields).
-
-- [DESIGN.md](artifact/DESIGN.md) — API spec
-- [BACKLOG.md](artifact/BACKLOG.md) — Future features
 
 ## Integration
 

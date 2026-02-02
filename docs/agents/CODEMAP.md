@@ -57,9 +57,6 @@ moss/
 │   │   ├── DESIGN.md              # Capsule API spec + implementation
 │   │   ├── BACKLOG.md             # Post-v1 capsule features
 │   │   └── RUNBOOK.md             # Capsule operations guide
-│   ├── artifact/
-│   │   ├── DESIGN.md              # Artifact spec
-│   │   └── BACKLOG.md             # Post-v1 artifact features
 │   ├── agents/
 │   │   ├── CODEMAP.md             # This file
 │   │   ├── MOSS_CC.md             # Claude Code integration
@@ -89,7 +86,6 @@ moss/
 | `internal/mcp/` | MCP server exposing 15 tools via stdio transport |
 | `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Search, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
 | `docs/capsule/DESIGN.md` | Capsule API spec |
-| `docs/artifact/DESIGN.md` | Artifact spec |
 
 ## Notes
 

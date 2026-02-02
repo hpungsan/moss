@@ -1,17 +1,16 @@
 # Moss
 
-Local context primitive store for AI session handoffs, multi-agent orchestration, and cross-tool context sharing.
+Local context store for AI session handoffs, multi-agent orchestration, and cross-tool context sharing.
 
 ## The Problem
 
-AI coding sessions lose context when you switch tools or start fresh. Copy-pasting full chat history is bloated and noisy. Moss solves this with **primitives**—structured context objects optimized for different consumers.
+AI coding sessions lose context when you switch tools or start fresh. Copy-pasting full chat history is bloated and noisy. Moss solves this with **types**—structured context objects optimized for different consumers.
 
-## Primitives
+## Types
 
-| Primitive | Consumer | Format |
+| Type | Consumer | Format |
 |-----------|----------|--------|
 | **Capsule** | LLMs | Markdown (6 sections) |
-| **Artifact** | Code/orchestration | JSON (schema-validated) |
 
 ## What Moss Does
 
@@ -82,12 +81,6 @@ capsule_fetch { "workspace": "myproject", "name": "auth" }
 
 See [Capsule Runbook](docs/capsule/RUNBOOK.md) for full usage, addressing modes, and error handling.
 
-## Artifact
-
-Structured JSON data for code and orchestration. Schema-validated, optimized for programmatic access.
-
-See [Artifact Design Spec](docs/artifact/DESIGN.md).
-
 ## CLI
 
 The CLI mirrors MCP capsule operations for debugging and scripting. Note: orchestration fields (`run_id`, `phase`, `role`) are MCP-only.
@@ -115,7 +108,7 @@ Run `moss --help` for all commands.
 - **MCP-first:** Native tool for AI agents, CLI for debugging
 - **Explicit only:** No auto-save, no auto-load
 - **Low-bloat:** Size limits + lint rules enforce quality
-- **Primitive-typed:** Each primitive optimized for its consumer (LLM vs code)
+- **Type-specific:** Each type optimized for its consumer (LLM vs code)
 
 ## Documentation
 
@@ -124,8 +117,6 @@ Run `moss --help` for all commands.
 - [Capsule Design Spec](docs/capsule/DESIGN.md)
 - [Capsule Runbook](docs/capsule/RUNBOOK.md) — Operations, configuration, troubleshooting
 - [Capsule Backlog](docs/capsule/BACKLOG.md) — Future capsule features
-- [Artifact Design Spec](docs/artifact/DESIGN.md)
-- [Artifact Backlog](docs/artifact/BACKLOG.md)
 
 ## License
 

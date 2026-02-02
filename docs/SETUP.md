@@ -1,6 +1,6 @@
 # Moss Setup
 
-Installation, configuration, and CLI usage. Primitive-specific operations live in the primitive runbooks.
+Installation, configuration, and CLI usage. Type-specific operations live in the type runbooks.
 
 ## Install
 
@@ -214,7 +214,7 @@ Moss loads config from two locations:
 **Merge behavior:**
 - Scalars: repo overrides global (if non-zero)
 - Booleans: OR (either true → true)
-- Arrays (`allowed_paths`, `disabled_tools`, `disabled_primitives`): merged and deduplicated
+- Arrays (`allowed_paths`, `disabled_tools`, `disabled_types`): merged and deduplicated
 
 ### Config Fields
 
@@ -226,7 +226,7 @@ Moss loads config from two locations:
   "db_max_open_conns": 0,
   "db_max_idle_conns": 0,
   "disabled_tools": [],
-  "disabled_primitives": []
+  "disabled_types": []
 }
 ```
 
@@ -238,7 +238,7 @@ Moss loads config from two locations:
 | `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
 | `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 | `disabled_tools` | `[]` | MCP tool names to exclude from registration |
-| `disabled_primitives` | `[]` | Primitive names to disable entirely (e.g., `["capsule"]` disables all capsule tools) |
+| `disabled_types` | `[]` | Type names to disable entirely (e.g., `["capsule"]` disables all capsule tools) |
 
 If the file doesn't exist, defaults are used.
 
@@ -258,30 +258,30 @@ Disable specific MCP tools by adding their names to `disabled_tools`. This is us
 - Unknown tool names trigger a warning on startup
 - New tools added in future versions are auto-enabled (blocklist approach)
 
-### Primitive Filtering
+### Type Filtering
 
-Disable entire primitive types by adding their names to `disabled_primitives`. This disables all tools belonging to that primitive.
+Disable entire types by adding their names to `disabled_types`. This disables all tools belonging to that type.
 
 ```json
 {
-  "disabled_primitives": ["capsule"]
+  "disabled_types": ["capsule"]
 }
 ```
 
-Known primitives: `capsule` (artifact coming soon).
+Known types: `capsule`.
 
 **Behavior:**
-- Primitives are extracted from tool names (e.g., `capsule_store` → `capsule`)
-- All tools belonging to disabled primitives are excluded from registration
-- Unknown primitive names trigger a warning on startup
+- Types are extracted from tool names (e.g., `capsule_store` → `capsule`)
+- All tools belonging to disabled types are excluded from registration
+- Unknown type names trigger a warning on startup
 - Can be combined with `disabled_tools` for fine-grained control
 
-**Example: disable primitive, but also block a specific tool:**
+**Example: disable type, but also block a specific tool:**
 
 ```json
 {
-  "disabled_primitives": ["capsule"],
-  "disabled_tools": ["artifact_purge"]
+  "disabled_types": ["capsule"],
+  "disabled_tools": ["capsule_purge"]
 }
 ```
 
@@ -389,6 +389,6 @@ tee input.log | moss 2>error.log | tee output.log
 
 ---
 
-## Primitive Runbooks
+## Type Runbooks
 
 - Capsules: [docs/capsule/RUNBOOK.md](capsule/RUNBOOK.md)
