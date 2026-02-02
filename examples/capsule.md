@@ -16,7 +16,7 @@ This is a template showing capsule structure. Replace with your actual status.
 
 ## Key locations
 - `examples/capsule.md` - this file
-- `docs/DESIGN.md` - full specification
+- `docs/capsule/DESIGN.md` - full specification
 
 ## Open questions
 - None for this example

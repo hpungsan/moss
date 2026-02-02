@@ -52,16 +52,21 @@ moss/
 │       ├── fileopen_unix.go       # O_NOFOLLOW file open (Unix/Darwin/Linux)
 │       └── fileopen_windows.go    # File open fallback (Windows)
 ├── docs/
-│   ├── OVERVIEW.md                # Concepts, use cases
-│   ├── DESIGN.md                  # API spec + implementation details
-│   ├── BACKLOG.md                 # Post-v1 features
-│   ├── RUNBOOK.md                 # Build, configure, run, troubleshoot
+│   ├── README.md                  # Concepts, use cases, workflow overview
+│   ├── capsule/
+│   │   ├── DESIGN.md              # Capsule API spec + implementation
+│   │   ├── BACKLOG.md             # Post-v1 capsule features
+│   │   └── RUNBOOK.md             # Capsule operations guide
+│   ├── artifact/
+│   │   ├── DESIGN.md              # Artifact spec
+│   │   └── BACKLOG.md             # Post-v1 artifact features
 │   ├── agents/
 │   │   ├── CODEMAP.md             # This file
 │   │   ├── MOSS_CC.md             # Claude Code integration
 │   │   └── upgrade.md             # Agent upgrade notes
-│   └── setup/
-│       └── claude-code.md         # Claude Code setup guide
+│   ├── SETUP.md                   # Installation and paths
+│   └── integrations/
+│       └── claude-code.md         # Claude Code MCP integration
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # CI pipeline
@@ -83,7 +88,8 @@ moss/
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/499/500) |
 | `internal/mcp/` | MCP server exposing 15 tools via stdio transport |
 | `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Search, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
-| `docs/DESIGN.md` | Full spec |
+| `docs/capsule/DESIGN.md` | Capsule API spec |
+| `docs/artifact/DESIGN.md` | Artifact spec |
 
 ## Notes
 

@@ -4,7 +4,7 @@ How to use Moss with Claude Code sessions and subagents.
 
 ## Prerequisites
 
-1. Moss MCP server is built and available (see [RUNBOOK](../RUNBOOK.md))
+1. Moss is built and available (see [SETUP](../SETUP.md))
 2. Claude Code is installed
 
 ## MCP Configuration
@@ -115,10 +115,10 @@ context capsules using capsule_list and capsule_fetch.
 
 The `moss-capsule` skill teaches Claude Code how to use Moss tools correctly. It covers capsule format (6 required sections), addressing modes, output bloat rules, and error handling.
 
-To set up the skill, create `.claude/skills/moss-capsule/` in your project with a `SKILL.md` file. See the [Moss skill repository](https://github.com/hpungsan/moss) for a reference implementation, or write your own based on the [DESIGN spec](../DESIGN.md).
+To set up the skill, create `.claude/skills/moss-capsule/` in your project with a `SKILL.md` file. See the [Moss skill repository](https://github.com/hpungsan/moss) for a reference implementation, or write your own based on the [DESIGN spec](../capsule/DESIGN.md).
 
 ## Further Reading
 
 - [MOSS_CC.md](../agents/MOSS_CC.md) — Capsule patterns for sessions, tasks, and swarms
-- [RUNBOOK](../RUNBOOK.md) — Building, configuring, and running Moss
-- [DESIGN](../DESIGN.md) — Full API spec
+- [SETUP](../SETUP.md) — Installation and paths
+- [DESIGN](../capsule/DESIGN.md) — Capsule API spec

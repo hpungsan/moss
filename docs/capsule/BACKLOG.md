@@ -1,6 +1,6 @@
-# Moss Post-v1 Backlog
+# Capsule Backlog
 
-Features and enhancements for future versions.
+Features and enhancements for the Capsule primitive.
 
 ---
 
@@ -20,7 +20,7 @@ Add `if_updated_at` to `capsule_update`:
 
 Rejects if capsule was modified since timestamp (prevents overwrites).
 
-**Context:** `capsule_update` is a read-modify-write operation (`capsule_fetch` then `UpdateByID`) and can lose concurrent updates. `capsule_delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but Moss does not enforce this, and humans/CLIs/orchestrators can still collide. Since `capsule_update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won’t merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
+**Context:** `capsule_update` is a read-modify-write operation (`capsule_fetch` then `UpdateByID`) and can lose concurrent updates. `capsule_delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but the system does not enforce this, and humans/CLIs/orchestrators can still collide. Since `capsule_update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won’t merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
 
 ### Multi-Run Queries
 

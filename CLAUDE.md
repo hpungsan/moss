@@ -7,9 +7,9 @@ Local context primitive store for AI session handoffs and multi-agent orchestrat
 Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.com/urfave/cli/v2)
 
 ## Key Concepts
-- **Primitive**: Typed context object (capsule, artifact, pod)
+- **Primitive**: Typed context object (capsule, artifact)
 - **Capsule**: Markdown-based context for LLM consumption (6 required sections)
-- **Artifact**: JSON-based structured data for code/orchestration (planned)
+- **Artifact**: JSON-based structured data for code/orchestration
 - **Workspace**: Namespace (default: "default")
 - **Name**: Unique handle within workspace
 - **Orchestration**: `run_id`, `phase`, `role` for multi-agent workflow scoping
@@ -19,7 +19,7 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 ### Capsule (available)
 `capsule_store` `capsule_fetch` `capsule_fetch_many` `capsule_update` `capsule_delete` `capsule_list` `capsule_inventory` `capsule_search` `capsule_latest` `capsule_export` `capsule_import` `capsule_purge` `capsule_bulk_delete` `capsule_bulk_update` `capsule_compose`
 
-### Artifact (planned)
+### Artifact
 `artifact_store` `artifact_fetch` `artifact_list` `artifact_compose` ...
 
 ## Guidelines
@@ -49,7 +49,7 @@ moss inventory                     # List all
 moss --help                        # All commands
 ```
 
-Also: `Makefile` (human convenience), `docs/RUNBOOK.md` (operational guide).
+Also: `Makefile` (human convenience), `docs/capsule/RUNBOOK.md` (operational guide).
 
 ## Package Structure
 ```
@@ -73,10 +73,13 @@ internal/
 
 | Doc | Purpose |
 |-----|---------|
-| `docs/OVERVIEW.md` | Concepts, use cases |
-| `docs/DESIGN.md` | API spec + implementation details |
-| `docs/BACKLOG.md` | Post-v1 features |
-| `docs/RUNBOOK.md` | Build, configure, run, troubleshoot |
-| `docs/setup/claude-code.md` | Claude Code integration |
+| `docs/README.md` | Concepts, use cases, workflow overview |
+| `docs/SETUP.md` | Installation and paths |
+| `docs/capsule/DESIGN.md` | Capsule API spec + implementation |
+| `docs/capsule/BACKLOG.md` | Post-v1 capsule features |
+| `docs/capsule/RUNBOOK.md` | Capsule operations guide |
+| `docs/artifact/DESIGN.md` | Artifact spec |
+| `docs/artifact/BACKLOG.md` | Post-v1 artifact features |
+| `docs/integrations/claude-code.md` | Claude Code integration |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/MOSS_CC.md` | Claude Code patterns |

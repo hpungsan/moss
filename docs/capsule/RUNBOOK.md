@@ -1,71 +1,16 @@
-# Moss v1 Runbook
+# Capsule Runbook
 
-Operational guide for building, configuring, and running Moss.
+Operational guide for using the Capsule primitive (via Moss): connect via MCP/CLI, operate capsules, and troubleshoot capsule-specific issues.
 
-## Building
+**Prereq:** Install and verify Moss first via [SETUP.md](../SETUP.md).
 
-### From Source
-
-```bash
-git clone https://github.com/hpungsan/moss.git
-cd moss
-```
-
-Then choose one:
-
-| Goal | Command |
-|------|---------|
-| Build locally | `go build -o bin/moss ./cmd/moss` |
-| Install to PATH | `go install ./cmd/moss` |
-
-**Alternative: Using Makefile**
-
-| Goal | Command |
-|------|---------|
-| Build locally | `make build` → `bin/moss` |
-| Install to PATH | `make install` → `$GOPATH/bin/moss` |
-| Build with version | `make build-release VERSION=1.0.0` |
-| Cross-compile all platforms | `make build-all VERSION=1.0.0` |
-| Cross-compile + checksums | `make build-checksums VERSION=1.0.0` |
-
-### Pre-built Binaries
-
-Download from [GitHub Releases](https://github.com/hpungsan/moss/releases):
-
-| Platform | Binary |
-|----------|--------|
-| macOS (Apple Silicon) | `moss-darwin-arm64` |
-| macOS (Intel) | `moss-darwin-amd64` |
-| Linux (x64) | `moss-linux-amd64` |
-| Linux (ARM64) | `moss-linux-arm64` |
-| Windows (x64) | `moss-windows-amd64.exe` |
-
-```bash
-# Example: macOS Apple Silicon
-curl -LO https://github.com/hpungsan/moss/releases/latest/download/moss-darwin-arm64
-chmod +x moss-darwin-arm64
-sudo mv moss-darwin-arm64 /usr/local/bin/moss
-```
-
-### Verify Build
-
-```bash
-# Check version
-./moss --version
-
-# Show help
-./moss --help
-
-# Test MCP protocol (piped input = MCP server mode)
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | ./moss
-# Expected: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05",...}}
-```
+**Note:** Examples use `moss` assuming it’s on your `PATH`. If you built locally without installing, use `./bin/moss` (or the absolute path to the binary).
 
 ---
 
-## Claude Code Integration
+## Claude Code Integration (Capsule MCP tools)
 
-Add Moss as an MCP server via `.mcp.json` in your project root.
+Add Moss as an MCP server via `.mcp.json` in your project root. This is what exposes the `capsule_*` MCP tools to Claude Code.
 
 ### Configuration
 
@@ -75,8 +20,7 @@ Create `.mcp.json` in your project root:
 {
   "mcpServers": {
     "moss": {
-      "command": "/path/to/moss",
-      "args": ["mcp"]
+      "command": "/path/to/moss"
     }
   }
 }
@@ -114,7 +58,7 @@ This allows all Moss MCP tools without prompting. For finer control:
 ### Verify Integration
 
 1. **Restart Claude Code** (or start a new session) to load the MCP server
-2. Ask: "Use inventory to list all capsules"
+2. Ask: "Use `capsule_inventory` to list all capsules"
 3. Expected: Tool call succeeds with `items: []` (empty store) or list of existing capsules
 
 
@@ -142,7 +86,7 @@ This allows all Moss MCP tools without prompting. For finer control:
 
 ## CLI Usage
 
-The CLI provides direct command-line access to all Moss operations. Output is JSON.
+The CLI provides direct command-line access to capsule operations. Output is JSON.
 
 ### Commands
 
@@ -266,7 +210,7 @@ Disable specific MCP tools by adding their names to `disabled_tools`. This is us
 
 ### Import/Export Path Security
 
-By default, `export` and `import` are restricted to `~/.moss/exports/` to prevent accidental writes to sensitive locations.
+By default, `capsule_export` and `capsule_import` (and the CLI `moss export` / `moss import`) are restricted to `~/.moss/exports/` to prevent accidental writes to sensitive locations.
 
 **To allow additional directories:**
 
@@ -314,7 +258,7 @@ Files are named: `<workspace>-<timestamp>.jsonl` or `all-<timestamp>.jsonl`
 ### 1. List Tools
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | moss
 ```
 
 Expected: JSON response listing 15 tools.
@@ -322,7 +266,7 @@ Expected: JSON response listing 15 tools.
 ### 2. Inventory (Empty Store)
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_inventory","arguments":{}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_inventory","arguments":{}}}' | moss
 ```
 
 Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"total":0},"sort":"updated_at_desc"}`
@@ -331,24 +275,24 @@ Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"to
 
 ```bash
 # Store a capsule
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | moss
 
 # Fetch it back
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"workspace":"default","name":"test"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"workspace":"default","name":"test"}}}' | moss
 ```
 
 ### 4. Error Cases
 
 **Missing sections (422):**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"too short"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"too short"}}}' | moss
 ```
 
 Expected: `isError: true` with `code: "CAPSULE_TOO_THIN"`
 
 **Ambiguous addressing (400):**
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | ./moss
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | moss
 ```
 
 Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
@@ -594,7 +538,7 @@ capsule_inventory {
 
 ### "database is locked"
 
-Moss uses SQLite WAL mode to prevent this. If you see this error:
+The capsule store uses SQLite WAL mode to reduce lock contention. If you see this error:
 1. Ensure only one MCP server instance is running
 2. Check for stale lock files in `~/.moss/`
 
@@ -642,15 +586,15 @@ A new empty database is created automatically on the next command.
 
 ## Logs and Debugging
 
-Moss writes to stderr for errors. To capture:
+The `moss` binary writes to stderr for errors. To capture:
 
 ```bash
-./moss 2>moss.log
+moss 2>moss.log
 ```
 
 For verbose protocol debugging, inspect the JSON-RPC messages directly:
 
 ```bash
 # Wrap moss to log I/O
-tee input.log | ./moss 2>error.log | tee output.log
+tee input.log | moss 2>error.log | tee output.log
 ```

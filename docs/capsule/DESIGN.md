@@ -1,17 +1,17 @@
-# Moss v1 Design Spec
+# Capsule Design Spec (Moss v1)
 
 ## Summary
 
-15 MCP tools, CLI, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
+Capsule primitive spec for Moss: 15 MCP tools, CLI parity, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
 ## 0) One-line summary
 
-Moss is a **local "context capsule" store** that lets you **`capsule_store`/`capsule_fetch`/`capsule_update`/`capsule_delete`** a *strictly size-bounded* distilled handoff across Claude Code, Codex, etc., with **batch fetch (`capsule_fetch_many`)**, **upsert mode**, **`capsule_latest`/`capsule_list`**, **global `capsule_inventory`**, **human-friendly `name` handles**, **`capsule_export`/`capsule_import`** for portability, **soft-delete** for safety, and **guardrails (capsule lint + size limits)** to prevent both **context bloat** *and* **low-value capsules**.
+A **Capsule** is a *strictly size-bounded* distilled handoff across Claude Code, Codex, etc. Moss provides MCP tools to manage capsules (**`capsule_store`/`capsule_fetch`/`capsule_update`/`capsule_delete`**), with **batch fetch (`capsule_fetch_many`)**, **`capsule_latest`/`capsule_list`**, **global `capsule_inventory`**, **`capsule_export`/`capsule_import`** for portability, **soft-delete** for safety, and **guardrails (lint + size limits)** to prevent both **context bloat** *and* **low-value capsules**.
 
 **Related docs:**
-- [OVERVIEW.md](OVERVIEW.md) — Concepts and use cases
+- [README.md](../README.md) — Concepts and use cases
 - [BACKLOG.md](BACKLOG.md) — Future features
 - [RUNBOOK.md](RUNBOOK.md) — Build, configure, run, troubleshoot
 
@@ -21,11 +21,11 @@ Moss is a **local "context capsule" store** that lets you **`capsule_store`/`cap
 
 ## Goals
 
-* **Portable handoff:** Session A → Moss → Session B across IDE/chat tools.
+* **Portable handoff:** Session A → capsule store → Session B across IDE/chat tools.
 * **Orchestration-ready:** batch fetch, deterministic composition, and run-scoping for multi-agent workflows.
 * **Low-bloat by design:** store/load only a **capsule** (distilled state). No full history by default.
 * **High value density:** enforce a **capsule quality bar** (lint rules) so what you fetch is useful.
-* **Explicit only:** Moss never auto-saves or auto-loads.
+* **Explicit only:** no auto-save or auto-load.
 * **Local-first:** single local process + local DB file.
 * **Fast & simple:** minimal actions; no heavy infra.
 * **Human-friendly addressing:** stable `name` handles so you can "fetch `auth`".
@@ -34,7 +34,7 @@ Moss is a **local "context capsule" store** that lets you **`capsule_store`/`cap
 
 ## Non-goals (not in v1.0)
 
-* Moss-generated summarization (Moss doesn't "think"; user/agent distills)
+* Server-side summarization (the user/agent distills; the system stores)
 * Repo indexing / RAG
 * Multi-user / hosted SaaS / roles
 * Integrations (GitHub, Notion, etc.)
@@ -63,19 +63,19 @@ Optional: **1–3 tiny snippets** only if critical (receipts, not transcript).
 
 # 3) Quality: “Capsule must not lose value”
 
-Moss ensures capsule usefulness via **workflow + validation**, without needing LLM intelligence.
+Capsule quality is enforced via **workflow + validation**, without needing LLM intelligence.
 
 ## 3.1 Distill-before-save workflow (recommended)
 
 Before `capsule_store` or `capsule_update`, the client (you or agent) produces a capsule:
 
-> “Distill into Moss capsule under X chars. State not story. Must include Objective, Current status, Decisions/Constraints, Next actions, Key locations, Open questions/Risks. Max 1–3 tiny snippets only if critical. If too long, compress—do not omit decisions or next actions.”
+> “Distill into a capsule under X chars. State not story. Must include Objective, Current status, Decisions/Constraints, Next actions, Key locations, Open questions/Risks. Max 1–3 tiny snippets only if critical. If too long, compress—do not omit decisions or next actions.”
 
-Moss stores the result.
+The system stores the result.
 
-## 3.2 Moss capsule linter (non-LLM)
+## 3.2 Capsule linter (non-LLM)
 
-On `capsule_store` and on `capsule_update` (when capsule content changes), Moss validates minimum structure.
+On `capsule_store` and on `capsule_update` (when capsule content changes), the system validates minimum structure.
 
 ### Lint rules
 

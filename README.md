@@ -8,11 +8,10 @@ AI coding sessions lose context when you switch tools or start fresh. Copy-pasti
 
 ## Primitives
 
-| Primitive | Consumer | Format | Status |
-|-----------|----------|--------|--------|
-| **Capsule** | LLMs | Markdown (6 sections) | ✓ Available |
-| **Artifact** | Code/orchestration | JSON (schema-validated) | Planned |
-| **Pod** | TBD | TBD | Planned |
+| Primitive | Consumer | Format |
+|-----------|----------|--------|
+| **Capsule** | LLMs | Markdown (6 sections) |
+| **Artifact** | Code/orchestration | JSON (schema-validated) |
 
 ## What Moss Does
 
@@ -52,7 +51,7 @@ go build ./cmd/moss
 
 ### Claude Code Integration
 
-See [Claude Code Setup](docs/setup/claude-code.md) for full setup including skills and subagents.
+See [Claude Code Integration](docs/integrations/claude-code.md) for full setup including skills and subagents.
 
 ## Capsule
 
@@ -87,7 +86,7 @@ See [Capsule Runbook](docs/capsule/RUNBOOK.md) for full usage, addressing modes,
 
 Structured JSON data for code and orchestration. Schema-validated, optimized for programmatic access.
 
-*Coming in v1.1.* See [Artifact Runbook](docs/artifact/RUNBOOK.md) *(TBA)*
+See [Artifact Design Spec](docs/artifact/DESIGN.md).
 
 ## CLI
 
@@ -120,10 +119,13 @@ Run `moss --help` for all commands.
 
 ## Documentation
 
-- [Overview & Use Cases](docs/OVERVIEW.md)
-- [Design Spec](docs/DESIGN.md)
-- [Runbook](docs/RUNBOOK.md) — Installation, configuration, troubleshooting
-- [Backlog](docs/BACKLOG.md) — Future features
+- [Overview & Use Cases](docs/README.md)
+- [Moss Setup](docs/SETUP.md) — Installation and paths
+- [Capsule Design Spec](docs/capsule/DESIGN.md)
+- [Capsule Runbook](docs/capsule/RUNBOOK.md) — Operations, configuration, troubleshooting
+- [Capsule Backlog](docs/capsule/BACKLOG.md) — Future capsule features
+- [Artifact Design Spec](docs/artifact/DESIGN.md)
+- [Artifact Backlog](docs/artifact/BACKLOG.md)
 
 ## License
 
