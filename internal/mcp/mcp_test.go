@@ -1412,6 +1412,161 @@ func TestAllToolNames(t *testing.T) {
 	}
 }
 
+func TestValidateDisabledPrimitives(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []string
+		wantLen int
+	}{
+		{
+			name:    "all valid",
+			input:   []string{"capsule"},
+			wantLen: 0,
+		},
+		{
+			name:    "one unknown",
+			input:   []string{"capsule", "unknown"},
+			wantLen: 1,
+		},
+		{
+			name:    "all unknown",
+			input:   []string{"foo", "bar"},
+			wantLen: 2,
+		},
+		{
+			name:    "empty list",
+			input:   []string{},
+			wantLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			unknown := ValidateDisabledPrimitives(tt.input)
+			if len(unknown) != tt.wantLen {
+				t.Errorf("ValidateDisabledPrimitives() returned %d unknown, want %d", len(unknown), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestGetPrimitiveForTool(t *testing.T) {
+	tests := []struct {
+		name     string
+		toolName string
+		want     string
+	}{
+		{
+			name:     "capsule_store",
+			toolName: "capsule_store",
+			want:     "capsule",
+		},
+		{
+			name:     "capsule_bulk_delete",
+			toolName: "capsule_bulk_delete",
+			want:     "capsule",
+		},
+		{
+			name:     "artifact_store",
+			toolName: "artifact_store",
+			want:     "artifact",
+		},
+		{
+			name:     "no underscore",
+			toolName: "noprefix",
+			want:     "",
+		},
+		{
+			name:     "empty string",
+			toolName: "",
+			want:     "",
+		},
+		{
+			name:     "starts with underscore",
+			toolName: "_invalid",
+			want:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetPrimitiveForTool(tt.toolName)
+			if got != tt.want {
+				t.Errorf("GetPrimitiveForTool(%q) = %q, want %q", tt.toolName, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExpandPrimitivesToTools(t *testing.T) {
+	tests := []struct {
+		name       string
+		primitives []string
+		wantLen    int
+	}{
+		{
+			name:       "capsule primitive",
+			primitives: []string{"capsule"},
+			wantLen:    15, // All current tools are capsule_*
+		},
+		{
+			name:       "unknown primitive",
+			primitives: []string{"unknown"},
+			wantLen:    0,
+		},
+		{
+			name:       "empty list",
+			primitives: []string{},
+			wantLen:    0,
+		},
+		{
+			name:       "nil",
+			primitives: nil,
+			wantLen:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExpandPrimitivesToTools(tt.primitives)
+			if len(got) != tt.wantLen {
+				t.Errorf("ExpandPrimitivesToTools(%v) returned %d tools, want %d", tt.primitives, len(got), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestServerRegistration_DisabledPrimitive(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	// Disable entire capsule primitive
+	cfg.DisabledPrimitives = []string{"capsule"}
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	// All tools should be disabled (all are capsule_*)
+	if len(tools) != 0 {
+		t.Errorf("registered tool count = %d, want 0 (capsule primitive disabled)", len(tools))
+	}
+}
+
+func TestServerRegistration_DisabledPrimitiveAndTool(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	// Disable primitive and also list a tool (redundant but valid)
+	cfg.DisabledPrimitives = []string{"capsule"}
+	cfg.DisabledTools = []string{"capsule_store"}
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	// All tools should be disabled
+	if len(tools) != 0 {
+		t.Errorf("registered tool count = %d, want 0", len(tools))
+	}
+}
+
 func TestErrorResult_InternalDoesNotExposeDetails(t *testing.T) {
 	r := errorResult(errors.NewInternal(fmt.Errorf("sql error: open /tmp/secret.db: permission denied")))
 	if !r.IsError {

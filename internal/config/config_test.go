@@ -323,3 +323,87 @@ func TestLoadWithRepo_WalksUpward(t *testing.T) {
 		t.Errorf("DisabledTools = %v, want [capsule_purge]", cfg.DisabledTools)
 	}
 }
+
+func TestLoad_DisabledPrimitives(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	if err := os.WriteFile(configPath, []byte(`{"disabled_primitives": ["capsule"]}`), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(cfg.DisabledPrimitives) != 1 {
+		t.Fatalf("DisabledPrimitives length = %d, want 1", len(cfg.DisabledPrimitives))
+	}
+	if cfg.DisabledPrimitives[0] != "capsule" {
+		t.Errorf("DisabledPrimitives[0] = %q, want %q", cfg.DisabledPrimitives[0], "capsule")
+	}
+}
+
+func TestMerge_DisabledPrimitivesMerge(t *testing.T) {
+	base := &Config{DisabledPrimitives: []string{"capsule"}}
+	overlay := &Config{DisabledPrimitives: []string{"capsule", "artifact"}}
+
+	result := Merge(base, overlay)
+
+	if len(result.DisabledPrimitives) != 2 {
+		t.Errorf("DisabledPrimitives length = %d, want 2 (merged, deduped)", len(result.DisabledPrimitives))
+	}
+
+	// Check both are present
+	has := make(map[string]bool)
+	for _, s := range result.DisabledPrimitives {
+		has[s] = true
+	}
+	for _, want := range []string{"capsule", "artifact"} {
+		if !has[want] {
+			t.Errorf("DisabledPrimitives missing %q", want)
+		}
+	}
+}
+
+func TestLoadWithRepo_DisabledPrimitivesMerge(t *testing.T) {
+	globalDir := t.TempDir()
+	repoRoot := t.TempDir()
+
+	// Global config with one primitive
+	globalConfig := `{"disabled_primitives": ["artifact"]}`
+	if err := os.WriteFile(filepath.Join(globalDir, "config.json"), []byte(globalConfig), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	// Repo config with another primitive
+	mossDir := filepath.Join(repoRoot, ".moss")
+	if err := os.MkdirAll(mossDir, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	repoConfig := `{"disabled_primitives": ["capsule"]}`
+	if err := os.WriteFile(filepath.Join(mossDir, "config.json"), []byte(repoConfig), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	cfg, err := LoadWithRepo(globalDir, repoRoot)
+	if err != nil {
+		t.Fatalf("LoadWithRepo() error = %v", err)
+	}
+
+	// Arrays merged
+	if len(cfg.DisabledPrimitives) != 2 {
+		t.Errorf("DisabledPrimitives length = %d, want 2", len(cfg.DisabledPrimitives))
+	}
+
+	has := make(map[string]bool)
+	for _, s := range cfg.DisabledPrimitives {
+		has[s] = true
+	}
+	for _, want := range []string{"artifact", "capsule"} {
+		if !has[want] {
+			t.Errorf("DisabledPrimitives missing %q", want)
+		}
+	}
+}

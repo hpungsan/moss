@@ -3,12 +3,17 @@ package mcp
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/hpungsan/moss/internal/config"
 )
+
+// KnownPrimitives lists all valid primitive names.
+// Add "artifact" when implemented.
+var KnownPrimitives = []string{"capsule"}
 
 // toolEntry pairs a tool definition with a handler factory.
 type toolEntry struct {
@@ -100,8 +105,57 @@ func ValidateDisabledTools(names []string) []string {
 	return unknown
 }
 
+// ValidateDisabledPrimitives returns a list of unknown primitive names from the given list.
+func ValidateDisabledPrimitives(names []string) []string {
+	known := make(map[string]bool, len(KnownPrimitives))
+	for _, p := range KnownPrimitives {
+		known[p] = true
+	}
+
+	unknown := make([]string, 0)
+	for _, name := range names {
+		if !known[name] {
+			unknown = append(unknown, name)
+		}
+	}
+	return unknown
+}
+
+// GetPrimitiveForTool extracts the primitive name from a tool name.
+// Tool names follow the pattern "primitive_action" (e.g., "capsule_store" → "capsule").
+func GetPrimitiveForTool(toolName string) string {
+	if idx := strings.Index(toolName, "_"); idx > 0 {
+		return toolName[:idx]
+	}
+	return ""
+}
+
+// ExpandPrimitivesToTools returns all tool names belonging to the given primitives.
+func ExpandPrimitivesToTools(primitives []string) []string {
+	if len(primitives) == 0 {
+		return nil
+	}
+
+	// Build set of primitives for O(1) lookup
+	primSet := make(map[string]bool, len(primitives))
+	for _, p := range primitives {
+		primSet[p] = true
+	}
+
+	// Collect tools belonging to disabled primitives
+	tools := make([]string, 0)
+	for name := range toolRegistry {
+		prim := GetPrimitiveForTool(name)
+		if primSet[prim] {
+			tools = append(tools, name)
+		}
+	}
+	return tools
+}
+
 // NewServer creates a new MCP server with Moss tools registered.
-// Tools listed in cfg.DisabledTools are excluded from registration.
+// Tools listed in cfg.DisabledTools or belonging to cfg.DisabledPrimitives
+// are excluded from registration.
 func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer {
 	s := server.NewMCPServer(
 		"moss",
@@ -111,8 +165,11 @@ func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer
 
 	h := NewHandlers(db, cfg)
 
-	// Build set of disabled tools
-	disabled := make(map[string]bool, len(cfg.DisabledTools))
+	// Build set of disabled tools: first expand primitives, then add individual tools
+	disabled := make(map[string]bool)
+	for _, tool := range ExpandPrimitivesToTools(cfg.DisabledPrimitives) {
+		disabled[tool] = true
+	}
 	for _, name := range cfg.DisabledTools {
 		disabled[name] = true
 	}

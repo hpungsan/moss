@@ -547,7 +547,8 @@ Moss loads config from two locations (merged):
   "allow_unsafe_paths": false,
   "db_max_open_conns": 0,
   "db_max_idle_conns": 0,
-  "disabled_tools": []
+  "disabled_tools": [],
+  "disabled_primitives": []
 }
 ```
 
@@ -561,6 +562,7 @@ Moss loads config from two locations (merged):
 | `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
 | `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 | `disabled_tools` | `[]` | MCP tool names to exclude from registration (see §5.1 for tool list) |
+| `disabled_primitives` | `[]` | Primitive names to disable entirely (e.g., `["capsule"]` disables all capsule tools) |
 
 ### Import/export path security
 

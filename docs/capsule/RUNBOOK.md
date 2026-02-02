@@ -1,68 +1,12 @@
 # Capsule Runbook
 
-Operational guide for using the Capsule primitive (via Moss): connect via MCP/CLI, operate capsules, and troubleshoot capsule-specific issues.
+Operational guide for the Capsule primitive: MCP tools, common operations, orchestration patterns, and troubleshooting.
 
-**Prereq:** Install and verify Moss first via [SETUP.md](../SETUP.md).
-
-**Note:** Examples use `moss` assuming it’s on your `PATH`. If you built locally without installing, use `./bin/moss` (or the absolute path to the binary).
+**Prereq:** Install and configure Moss first via [SETUP.md](../SETUP.md).
 
 ---
 
-## Claude Code Integration (Capsule MCP tools)
-
-Add Moss as an MCP server via `.mcp.json` in your project root. This is what exposes the `capsule_*` MCP tools to Claude Code.
-
-### Configuration
-
-Create `.mcp.json` in your project root:
-
-```json
-{
-  "mcpServers": {
-    "moss": {
-      "command": "/path/to/moss"
-    }
-  }
-}
-```
-
-Replace `/path/to/moss` with the actual path to your built binary:
-- If installed via `go install`: use `moss` (must be in PATH)
-- If built locally: use absolute path like `/Users/you/moss/bin/moss`
-
-### Permissions for Multi-Agent Orchestration
-
-By default, Claude Code prompts for approval on each MCP tool call. For autonomous multi-agent workflows (swarms, pipelines), pre-approve Moss tools in `~/.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "mcp__moss__*"
-    ]
-  }
-}
-```
-
-This allows all Moss MCP tools without prompting. For finer control:
-
-| Permission | Effect |
-|------------|--------|
-| `mcp__moss__*` | All Moss tools (recommended for orchestration) |
-| `mcp__moss__capsule_fetch` | Only capsule_fetch |
-| `mcp__moss__capsule_store` | Only capsule_store |
-| `mcp__moss__capsule_list` | Only capsule_list |
-
-**Why this matters:** In swarm patterns, workers run autonomously in background. Manual approval would block the workflow. Pre-approving Moss lets agents share context without human intervention.
-
-### Verify Integration
-
-1. **Restart Claude Code** (or start a new session) to load the MCP server
-2. Ask: "Use `capsule_inventory` to list all capsules"
-3. Expected: Tool call succeeds with `items: []` (empty store) or list of existing capsules
-
-
-### Available Tools
+## Available Tools
 
 | Tool | Description |
 |------|-------------|
@@ -81,221 +25,6 @@ This allows all Moss MCP tools without prompting. For finer control:
 | `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
 | `capsule_bulk_update` | Update metadata on multiple capsules |
 | `capsule_compose` | Assemble multiple capsules into bundle |
-
----
-
-## CLI Usage
-
-The CLI provides direct command-line access to capsule operations. Output is JSON.
-
-### Commands
-
-```bash
-# Store a capsule (reads from stdin)
-echo "## Objective
-..." | moss store --name=auth --workspace=myproject
-
-# Fetch by name
-moss fetch --name=auth --workspace=myproject
-
-# Fetch by ID
-moss fetch 01KFPRNV1JEK4F870H1K84XS6S
-
-# Update (metadata only)
-moss update --name=auth --title="New Title"
-
-# Update with new content (from stdin)
-echo "## Objective
-..." | moss update --name=auth
-
-# Delete (soft delete)
-moss delete --name=auth
-
-# List capsules in workspace
-moss list --workspace=myproject
-
-# List all capsules
-moss inventory
-
-# Get latest in workspace
-moss latest --workspace=myproject --include-text
-
-# Export to file (default-safe location)
-moss export --path=~/.moss/exports/backup.jsonl
-
-# Import from file
-moss import --path=~/.moss/exports/backup.jsonl --mode=replace
-
-# Purge deleted capsules
-moss purge --older-than=7d
-
-# List MCP tools with enabled/disabled status
-moss tools
-```
-
-### Common Flags
-
-| Flag | Description |
-|------|-------------|
-| `--workspace, -w` | Workspace name (default: "default") |
-| `--name, -n` | Capsule name |
-| `--include-deleted` | Include soft-deleted capsules |
-| `--limit, -l` | Max items to return |
-| `--offset, -o` | Items to skip |
-
-### Mode vs MCP
-
-- **No arguments (terminal)**: Shows banner and usage hint
-- **No arguments (piped input)**: Starts MCP server (stdio transport)
-- **Subcommand**: Runs CLI command (e.g., `moss store`, `moss fetch`)
-- **--help / --version**: Shows help or version
-
----
-
-## Configuration
-
-### Config File
-
-Moss loads config from two locations:
-
-| Location | Scope | Priority |
-|----------|-------|----------|
-| `~/.moss/config.json` | Global (user) | Lower |
-| `.moss/config.json` | Repo (project) | Higher |
-
-**Repo config discovery:** Moss walks upward from the current working directory to find the nearest `.moss/config.json`. This means running from a subdirectory (e.g., `src/`) still finds the repo root config.
-
-**Merge behavior:**
-- Scalars: repo overrides global (if non-zero)
-- Booleans: OR (either true → true)
-- Arrays (`allowed_paths`, `disabled_tools`): merged and deduplicated
-
-```json
-{
-  "capsule_max_chars": 12000,
-  "allowed_paths": [],
-  "allow_unsafe_paths": false,
-  "db_max_open_conns": 0,
-  "db_max_idle_conns": 0,
-  "disabled_tools": []
-}
-```
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `capsule_max_chars` | 12000 | Maximum characters per capsule (~3k tokens) |
-| `allowed_paths` | `[]` | Additional directories allowed for import/export |
-| `allow_unsafe_paths` | `false` | Bypass directory restrictions (symlink checks still apply) |
-| `db_max_open_conns` | 0 | Max open DB connections (0 = unlimited; set to 1 if you hit "database is locked") |
-| `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
-| `disabled_tools` | `[]` | MCP tool names to exclude from registration |
-
-If the file doesn't exist, defaults are used.
-
-### Tool Filtering
-
-Disable specific MCP tools by adding their names to `disabled_tools`. This is useful for hiding destructive tools like `capsule_purge` or `capsule_bulk_delete` from agents.
-
-```json
-{
-  "disabled_tools": ["capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"]
-}
-```
-
-**Behavior:**
-- All 15 tools are enabled by default (see [Available Tools](#available-tools))
-- Disabled tools are not registered with the MCP server
-- Unknown tool names trigger a warning on startup
-- New tools added in future versions are auto-enabled (blocklist approach)
-
-### Import/Export Path Security
-
-By default, `capsule_export` and `capsule_import` (and the CLI `moss export` / `moss import`) are restricted to `~/.moss/exports/` to prevent accidental writes to sensitive locations.
-
-**To allow additional directories:**
-
-```json
-{
-  "allowed_paths": ["/tmp/moss-backups", "/home/user/capsule-exports"]
-}
-```
-
-Note: `allowed_paths` entries must be absolute paths (relative paths are ignored).
-
-**To bypass directory restrictions (not recommended):**
-
-```json
-{
-  "allow_unsafe_paths": true
-}
-```
-
-**Security checks performed:**
-- `.jsonl` extension required
-- Directory traversal (`..`) rejected
-- Subdirectories not allowed: files must be directly in an allowed directory (prevents TOCTOU attacks)
-- Symlink files rejected (`O_NOFOLLOW` on Unix; validation check on all platforms)
-- Parent directory symlinks rejected
-
-### Database
-
-Location: `~/.moss/moss.db` (SQLite)
-
-The database is created automatically on first run. Recommended permissions:
-- Directory `~/.moss/`: `0700`
-- Database file: `0600`
-
-### Exports
-
-Default export location: `~/.moss/exports/`
-
-Files are named: `<workspace>-<timestamp>.jsonl` or `all-<timestamp>.jsonl`
-
----
-
-## Verification Tests
-
-### 1. List Tools
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | moss
-```
-
-Expected: JSON response listing 15 tools.
-
-### 2. Inventory (Empty Store)
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_inventory","arguments":{}}}' | moss
-```
-
-Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"total":0},"sort":"updated_at_desc"}`
-
-### 3. Store and Fetch
-
-```bash
-# Store a capsule
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | moss
-
-# Fetch it back
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"workspace":"default","name":"test"}}}' | moss
-```
-
-### 4. Error Cases
-
-**Missing sections (422):**
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"too short"}}}' | moss
-```
-
-Expected: `isError: true` with `code: "CAPSULE_TOO_THIN"`
-
-**Ambiguous addressing (400):**
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | moss
-```
-
-Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
 
 ---
 
@@ -439,7 +168,7 @@ At least one filter is required. Calling with no filters returns an error:
 capsule_bulk_delete {}
 ```
 
-Expected: `isError: true` with `code: "INVALID_REQUEST"`
+Expected: `isError: true` with `code: "INVALID_REQUEST"` and message `"at least one filter is required"`.
 
 Note: whitespace-only filters are treated as empty and rejected.
 
@@ -481,7 +210,9 @@ capsule_bulk_update { "workspace": "test" }  // Error: no update fields
 capsule_bulk_update { "set_phase": "done" }  // Error: no filters
 ```
 
-Expected: `isError: true` with `code: "INVALID_REQUEST"`
+Expected: `isError: true` with `code: "INVALID_REQUEST"` and one of:
+- `"at least one update field is required"` (when no update fields are provided)
+- `"at least one filter is required"` (when no filters are provided)
 
 Note: whitespace-only filters are treated as empty and rejected.
 
@@ -534,19 +265,37 @@ capsule_inventory {
 
 ---
 
+## Verification Tests
+
+### Store and Fetch
+
+```bash
+# Store a capsule
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"## Objective\nTest\n## Current status\nTesting\n## Decisions\nNone\n## Next actions\nVerify\n## Key locations\n./test\n## Open questions\nNone","name":"test","workspace":"default"}}}' | moss
+
+# Fetch it back
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"workspace":"default","name":"test"}}}' | moss
+```
+
+### Error Cases
+
+**Missing sections (422):**
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_store","arguments":{"capsule_text":"too short"}}}' | moss
+```
+
+Expected: `isError: true` with `code: "CAPSULE_TOO_THIN"`
+
+**Ambiguous addressing (400):**
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"capsule_fetch","arguments":{"id":"01ABC","workspace":"default","name":"test"}}}' | moss
+```
+
+Expected: `isError: true` with `code: "AMBIGUOUS_ADDRESSING"`
+
+---
+
 ## Troubleshooting
-
-### "database is locked"
-
-The capsule store uses SQLite WAL mode to reduce lock contention. If you see this error:
-1. Ensure only one MCP server instance is running
-2. Check for stale lock files in `~/.moss/`
-
-### Tool not found in Claude Code
-
-1. Verify `~/.claude/settings.json` has correct path
-2. Restart Claude Code after config changes
-3. Check binary is executable: `chmod +x /path/to/moss`
 
 ### CAPSULE_TOO_THIN errors
 
@@ -571,30 +320,3 @@ Capsule exceeds `capsule_max_chars` (default: 12000). Options:
 - `mode: "error"` (default): Fails on any collision. Use when importing to empty store.
 - `mode: "replace"`: Overwrites existing. Use for merging/syncing.
 - `mode: "rename"`: Auto-suffixes names on collision. Use for preserving both versions.
-
-### Reset Database
-
-To start fresh, delete the database file:
-
-```bash
-rm ~/.moss/moss.db
-```
-
-A new empty database is created automatically on the next command.
-
----
-
-## Logs and Debugging
-
-The `moss` binary writes to stderr for errors. To capture:
-
-```bash
-moss 2>moss.log
-```
-
-For verbose protocol debugging, inspect the JSON-RPC messages directly:
-
-```bash
-# Wrap moss to log I/O
-tee input.log | moss 2>error.log | tee output.log
-```
