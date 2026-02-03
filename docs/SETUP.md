@@ -348,12 +348,6 @@ Expected: `{"items":[],"pagination":{"limit":100,"offset":0,"has_more":false,"to
 
 ## Troubleshooting
 
-### "database is locked"
-
-Moss uses SQLite WAL mode to reduce lock contention. If you see this error:
-1. Ensure only one MCP server instance is running
-2. Check for stale lock files in `~/.moss/`
-
 ### Tool not found in Claude Code
 
 1. Verify `.mcp.json` has correct path
@@ -362,13 +356,13 @@ Moss uses SQLite WAL mode to reduce lock contention. If you see this error:
 
 ### Reset Database
 
-To start fresh, delete the database file:
+To start fresh, delete the database and its WAL journal files:
 
 ```bash
-rm ~/.moss/moss.db
+rm ~/.moss/moss.db*
 ```
 
-A new empty database is created automatically on the next command.
+This removes `moss.db`, `moss.db-shm`, and `moss.db-wal`. A new empty database is created automatically on the next command.
 
 ---
 
