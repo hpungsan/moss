@@ -35,6 +35,11 @@ type Config struct {
 	// DisabledTools is a list of MCP tool names to exclude from registration.
 	// All 15 tools are enabled by default. Unknown tool names are logged as warnings.
 	DisabledTools []string `json:"disabled_tools,omitempty"`
+
+	// DisabledTypes is a list of type names to disable entirely.
+	// All tools belonging to disabled types are excluded from registration.
+	// Known types: "capsule". Unknown type names are logged as warnings.
+	DisabledTypes []string `json:"disabled_types,omitempty"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -148,6 +153,7 @@ func Merge(base, overlay *Config) *Config {
 	// Arrays: merge and deduplicate
 	result.AllowedPaths = mergeStringSlice(base.AllowedPaths, overlay.AllowedPaths)
 	result.DisabledTools = mergeStringSlice(base.DisabledTools, overlay.DisabledTools)
+	result.DisabledTypes = mergeStringSlice(base.DisabledTypes, overlay.DisabledTypes)
 
 	return result
 }

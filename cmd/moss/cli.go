@@ -413,24 +413,47 @@ func toolsCmd(cfg *config.Config) *cli.Command {
 			allNames := mcp.AllToolNames()
 			sort.Strings(allNames)
 
-			// Build disabled set for O(1) lookup
-			disabled := make(map[string]bool, len(cfg.DisabledTools))
+			// Build disabled set from types + individual tools
+			// Track reason for disabling: "type" or "tool"
+			disabledByType := make(map[string]bool)
+			for _, tool := range mcp.ExpandTypesToTools(cfg.DisabledTypes) {
+				disabledByType[tool] = true
+			}
+
+			disabledByTool := make(map[string]bool)
 			for _, name := range cfg.DisabledTools {
-				disabled[name] = true
+				disabledByTool[name] = true
 			}
 
 			// Build tool list with status
 			type toolStatus struct {
 				Name    string `json:"name"`
+				Type    string `json:"type"`
 				Enabled bool   `json:"enabled"`
+				Reason  string `json:"reason,omitempty"`
 			}
 
 			tools := make([]toolStatus, 0, len(allNames))
 			enabledCount := 0
 			for _, name := range allNames {
-				enabled := !disabled[name]
-				tools = append(tools, toolStatus{Name: name, Enabled: enabled})
-				if enabled {
+				typ := mcp.GetTypeForTool(name)
+				ts := toolStatus{
+					Name:    name,
+					Type:    typ,
+					Enabled: true,
+				}
+
+				// Check if disabled (type takes precedence in reason)
+				if disabledByType[name] {
+					ts.Enabled = false
+					ts.Reason = "type"
+				} else if disabledByTool[name] {
+					ts.Enabled = false
+					ts.Reason = "tool"
+				}
+
+				tools = append(tools, ts)
+				if ts.Enabled {
 					enabledCount++
 				}
 			}

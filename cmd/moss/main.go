@@ -119,6 +119,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: unknown disabled_tools: %v\n", unknown)
 	}
 
+	// Warn about unknown disabled_types entries
+	if unknown := mcp.ValidateDisabledTypes(cfg.DisabledTypes); len(unknown) > 0 {
+		fmt.Fprintf(os.Stderr, "warning: unknown disabled_types: %v\n", unknown)
+	}
+
 	// Apply database pool settings from config (if configured)
 	db.ConfigurePool(database, cfg)
 

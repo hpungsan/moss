@@ -4,9 +4,9 @@ How Moss Capsules integrate with Claude Code for context persistence across sess
 
 > **For full swarm orchestration reference:** See [`dev/vault/skillVault/swarm/SKILL.md`](../../dev/vault/skillVault/swarm/SKILL.md) for Teams, Teammates, Inboxes, Backends, and orchestration patterns.
 
-## The Two Primitives
+## The Two Building Blocks
 
-| Primitive | Purpose | Persistence |
+| Concept | Purpose | Persistence |
 |-----------|---------|-------------|
 | **Tasks** | Coordination: what to do, dependencies, status | `~/.claude/tasks/` |
 | **Capsules** | Context: why, decisions, key locations, open questions | `~/.moss/moss.db` |
@@ -36,9 +36,9 @@ For swarm orchestration, Claude Code uses Inbox messages for inter-agent communi
 | Structure | Unstructured text | 6 required sections |
 | Persistence | Session-bound | Survives sessions, /clear, days |
 | Quality | None | Lint + size limits |
-| Queryability | Manual file reading | `list`, `inventory`, `fetch_many` |
+| Queryability | Manual file reading | `capsule_list`, `capsule_inventory`, `capsule_fetch_many` |
 | Scoping | None | `run_id`, `phase`, `role` |
-| Batch retrieval | Read N files | `list` → `fetch_many` |
+| Batch retrieval | Read N files | `capsule_list` → `capsule_fetch_many` |
 
 **When to use:**
 - **Inbox**: Transient coordination ("done", "shutdown approved", "found bug")
@@ -63,7 +63,7 @@ Teammate({ operation: "write", target_agent_id: "team-lead", value: "findings...
 ```
 // Each specialist stores structured findings
 security-reviewer:
-  store {
+  capsule_store {
     name: "security-findings",
     run_id: "pr-review-123",
     role: "security-reviewer",
@@ -71,7 +71,7 @@ security-reviewer:
   }
 
 performance-reviewer:
-  store {
+  capsule_store {
     name: "perf-findings",
     run_id: "pr-review-123",
     role: "performance-reviewer",
@@ -81,11 +81,11 @@ performance-reviewer:
 // Leader gathers ALL findings
 team-lead:
   // Step 1: See what's available (no text, fast)
-  list { run_id: "pr-review-123" }
+  capsule_list { run_id: "pr-review-123" }
   // Returns: [{ name: "security-findings", ... }, { name: "perf-findings", ... }]
 
   // Step 2: Fetch the ones you need
-  fetch_many { items: [
+  capsule_fetch_many { items: [
     { workspace: "default", name: "security-findings" },
     { workspace: "default", name: "perf-findings" }
   ]}
@@ -110,7 +110,7 @@ team-lead:
 ```
 Stage 1 (Research):
   // Do research
-  store {
+  capsule_store {
     name: "research",
     run_id: "feature-oauth",
     phase: "research",
@@ -119,10 +119,10 @@ Stage 1 (Research):
   TaskUpdate { taskId: "1", status: "completed" }
 
 Stage 2 (Plan) - blocked by Stage 1:
-  fetch { name: "research" }
+  capsule_fetch { name: "research" }
   // Now has: WHY Auth0, WHERE existing code lives
   // Create plan informed by research decisions
-  store {
+  capsule_store {
     name: "plan",
     run_id: "feature-oauth",
     phase: "plan",
@@ -131,8 +131,8 @@ Stage 2 (Plan) - blocked by Stage 1:
 
 Stage 3 (Implement) - blocked by Stage 2:
   // Get all context from this workflow
-  list { run_id: "feature-oauth" }
-  fetch_many { items: [
+  capsule_list { run_id: "feature-oauth" }
+  capsule_fetch_many { items: [
     { workspace: "default", name: "research" },
     { workspace: "default", name: "plan" }
   ]}
@@ -157,7 +157,7 @@ Stage 3 (Implement) - blocked by Stage 2:
 ```
 // Workers share discoveries in real-time
 worker-1 (reviewing user.rb):
-  store {
+  capsule_store {
     name: "user-model-review",
     run_id: "codebase-review",
     capsule_text: "## Decisions\n- Found shared validation logic that affects payment.rb..."
@@ -165,15 +165,15 @@ worker-1 (reviewing user.rb):
 
 worker-2 (reviewing payment.rb):
   // Before starting, check what others found
-  list { run_id: "codebase-review" }
+  capsule_list { run_id: "codebase-review" }
   // Sees worker-1 found shared validation logic
-  fetch { name: "user-model-review" }
+  capsule_fetch { name: "user-model-review" }
   // Can now account for the dependency
 
 // Leader synthesizes all findings
 team-lead:
-  capsules = list { run_id: "codebase-review" }
-  fetch_many { items: capsules.map(c => { workspace: c.workspace, name: c.name }) }
+  capsules = capsule_list { run_id: "codebase-review" }
+  capsule_fetch_many { items: capsules.map(c => { workspace: c.workspace, name: c.name }) }
 ```
 
 **Benefits:**
@@ -193,7 +193,7 @@ team-lead:
 ```
 // Research phase
 researcher:
-  store {
+  capsule_store {
     name: "caching-research",
     phase: "research",
     capsule_text: "## Decisions\n- Redis over Memcached because...\n- Cache invalidation strategy: write-through\n## Key locations\n- Existing cache config at config/cache.yml"
@@ -201,12 +201,12 @@ researcher:
 
 // Implementation phase (could be hours/days later)
 implementer:
-  fetch { name: "caching-research" }
+  capsule_fetch { name: "caching-research" }
   // Has full research context even if researcher session is gone
 
 // Review phase (could be different person/session)
 reviewer:
-  fetch { name: "caching-research" }
+  capsule_fetch { name: "caching-research" }
   // Can verify implementation matches research recommendations
 ```
 
@@ -226,17 +226,17 @@ reviewer:
 **With Moss:**
 ```
 architect:
-  store {
+  capsule_store {
     name: "oauth-plan",
     phase: "plan",
     role: "architect",
     capsule_text: "## Objective\nAdd OAuth2 authentication\n## Decisions\n- Use Auth0\n- Store tokens in httpOnly cookies\n## Next actions\n1. Install auth0 SDK\n2. Create callback route..."
   }
   // Capsule is validated: has all 6 required sections
-  Teammate({ operation: "write", target_agent_id: "team-lead", value: "Plan ready: fetch { name: 'oauth-plan' }" })
+  Teammate({ operation: "write", target_agent_id: "team-lead", value: "Plan ready: capsule_fetch { name: 'oauth-plan' }" })
 
 team-lead:
-  fetch { name: "oauth-plan" }
+  capsule_fetch { name: "oauth-plan" }
   // Structured plan with guaranteed sections
   // Can approve knowing it's complete
 ```
@@ -257,7 +257,7 @@ team-lead:
 **With Moss:**
 ```
 model-worker (refactoring User model):
-  store {
+  capsule_store {
     name: "user-refactor",
     run_id: "auth-refactor",
     role: "model-worker",
@@ -265,7 +265,7 @@ model-worker (refactoring User model):
   }
 
 controller-worker (refactoring Session controller):
-  store {
+  capsule_store {
     name: "session-refactor",
     run_id: "auth-refactor",
     role: "controller-worker",
@@ -274,8 +274,8 @@ controller-worker (refactoring Session controller):
 
 spec-worker (blocked by both):
   // Gather all refactoring context
-  list { run_id: "auth-refactor" }
-  fetch_many { items: [
+  capsule_list { run_id: "auth-refactor" }
+  capsule_fetch_many { items: [
     { workspace: "default", name: "user-refactor" },
     { workspace: "default", name: "session-refactor" }
   ]}
@@ -302,11 +302,11 @@ No swarms needed—just persist context across sessions.
 ```
 Session A:
   1. Do work
-  2. store { name: "auth-progress", ... }
+  2. capsule_store { name: "auth-progress", ... }
   3. End session (or /clear)
 
 Session B (hours/days later):
-  1. fetch { name: "auth-progress" }
+  1. capsule_fetch { name: "auth-progress" }
   2. Continue with full context
 ```
 
@@ -317,7 +317,7 @@ Track work with Tasks, persist context with Capsules.
 ```
 1. TaskCreate { subject: "Implement auth" }
 2. Do work, make decisions
-3. store { name: "auth-context", ... } → get fetch_key
+3. capsule_store { name: "auth-context", ... } → get fetch_key
 4. TaskUpdate { taskId: "1", metadata: fetch_key }
 5. Later: pick up task, read metadata, fetch
 ```
@@ -329,16 +329,16 @@ Query capsules from *prior* workflow runs to inform new ones. Unlike `run_id` sc
 ```
 // New OAuth implementation starting
 // Option 1: Filter by metadata
-inventory { phase: "research", tag: "oauth" }
+capsule_inventory { phase: "research", tag: "oauth" }
 // Returns capsules from ANY prior run tagged "oauth" in research phase
 
 // Option 2: Full-text search (finds content, not just metadata)
-search { query: "OAuth provider comparison", phase: "research" }
+capsule_search { query: "OAuth provider comparison", phase: "research" }
 // Returns ranked results with HTML-safe snippets (<b> highlights, user content escaped):
 // [{ name: "provider-comparison", snippet: "...<b>OAuth</b> <b>provider</b>...", ... }]
 
 // Fetch relevant prior research
-fetch { workspace: "feature-oauth-v1", name: "research" }
+capsule_fetch { workspace: "feature-oauth-v1", name: "research" }
 // Get decisions from 6 months ago:
 // "## Decisions
 //  - Auth0 rejected due to cost
@@ -352,12 +352,12 @@ fetch { workspace: "feature-oauth-v1", name: "research" }
 **Use cases:**
 - **Onboarding**: New agent/session queries prior art before starting
 - **Avoiding re-work**: Check if similar research exists
-- **Pattern mining**: `inventory { phase: "security" }` → see all security reviews
-- **Postmortems**: `inventory { tag: "incident" }` → find related incidents
+- **Pattern mining**: `capsule_inventory { phase: "security" }` → see all security reviews
+- **Postmortems**: `capsule_inventory { tag: "incident" }` → find related incidents
 
 **Tagging for discoverability:**
 ```
-store {
+capsule_store {
   name: "oauth-research",
   run_id: "pr-123",
   phase: "research",
@@ -380,15 +380,15 @@ Scope capsules to specific workflow runs:
 
 **Store with scope:**
 ```json
-store { "run_id": "pr-123", "phase": "security", "role": "reviewer", ... }
+capsule_store { "run_id": "pr-123", "phase": "security", "role": "reviewer", ... }
 ```
 
 **Query by scope:**
 ```
-list { run_id: "pr-123" }                    // All capsules from this run
-list { run_id: "pr-123", phase: "research" } // Just research phase
-latest { run_id: "pr-123", role: "architect" } // Latest from architect
-search { query: "security", run_id: "pr-123" } // Search within run
+capsule_list { run_id: "pr-123" }                    // All capsules from this run
+capsule_list { run_id: "pr-123", phase: "research" } // Just research phase
+capsule_latest { run_id: "pr-123", role: "architect" } // Latest from architect
+capsule_search { query: "security", run_id: "pr-123" } // Search within run
 ```
 
 ---
@@ -404,8 +404,8 @@ CLAUDE_CODE_TASK_LIST_ID=my-project claude
 ```
 
 ```
-store { workspace: "my-project", name: "auth", ... }
-list { workspace: "my-project" }
+capsule_store { workspace: "my-project", name: "auth", ... }
+capsule_list { workspace: "my-project" }
 ```
 
 All capsules for a project live in one queryable namespace.
@@ -425,9 +425,9 @@ Moss responses include `fetch_key` for direct Task metadata linking:
 ```
 
 **Workflow:**
-1. `store` → get `fetch_key`
+1. `capsule_store` → get `fetch_key`
 2. `TaskUpdate { metadata: fetch_key }`
-3. Later: read `metadata`, `fetch`
+3. Later: read `metadata`, `capsule_fetch`
 
 ---
 
@@ -438,11 +438,11 @@ Moss responses include `fetch_key` for direct Task metadata linking:
 | Track what to do | Tasks |
 | Enforce execution order | `blockedBy` / `blocks` |
 | Persist decisions and reasoning | Capsules |
-| Context across sessions | `store` → `fetch` |
-| Gather parallel results | `list` → `fetch_many` |
+| Context across sessions | `capsule_store` → `capsule_fetch` |
+| Gather parallel results | `capsule_list` → `capsule_fetch_many` |
 | Scope to workflow run | `run_id` filter |
 | Filter by workflow stage | `phase` filter |
 | Filter by agent role | `role` filter |
 | Link task to context | `fetch_key` in metadata |
-| Query prior art across runs | `inventory` with `phase`/`tag` filters |
+| Query prior art across runs | `capsule_inventory` with `phase`/`tag` filters |
 | Transient agent messages | Inbox (see [`dev/vault/skillVault/swarm/SKILL.md`](../../dev/vault/skillVault/swarm/SKILL.md)) |

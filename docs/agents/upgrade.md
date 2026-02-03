@@ -21,7 +21,7 @@ Integrate Moss into the `/pr-review` → `/fix` skill workflow for seamless cros
 
 **pr-review stores:**
 ```
-store {
+capsule_store {
   workspace: "pr-reviews",
   name: "pr-<number>",
   run_id: "pr-<number>",
@@ -53,10 +53,10 @@ store {
 **/fix fetches:**
 ```
 // Check for recent pr-review findings
-latest { workspace: "pr-reviews", phase: "review" }
+capsule_latest { workspace: "pr-reviews", phase: "review" }
 
 // Or fetch specific PR
-fetch { workspace: "pr-reviews", name: "pr-123" }
+capsule_fetch { workspace: "pr-reviews", name: "pr-123" }
 
 // Parse "Next actions" section for callouts
 // Present to user for triage selection
@@ -66,7 +66,7 @@ fetch { workspace: "pr-reviews", name: "pr-123" }
 - No manual copy-paste between sessions
 - Full findings preserved (user might want to fix more later)
 - Audit trail of what was reviewed
-- Can query past reviews: `list { workspace: "pr-reviews" }`
+- Can query past reviews: `capsule_list { workspace: "pr-reviews" }`
 
 **Cleanup:** After `/fix` completes, optionally delete the pr-review capsule or keep for history.
 
@@ -102,12 +102,12 @@ impl-verifier stores: fix-<slug>-impl (role: "impl-review")
 - Full audit trail (each agent's analysis persisted)
 - Crash resilience (can resume after session dies)
 - Cross-session visibility ("what did verifiers find last time?")
-- Query by role: `list { role: "impl-review" }`
+- Query by role: `capsule_list { role: "impl-review" }`
 
 **Costs:**
 - 3 capsules per workflow instead of 1
-- Cleanup burden (delete 3 vs 1, or use `bulk_update` to archive)
-- More context on `list`
+- Cleanup burden (delete 3 vs 1, or use `capsule_bulk_update` to archive)
+- More context on `capsule_list`
 
 **When to upgrade:**
 - Security-sensitive changes (audit trail required)
@@ -126,9 +126,9 @@ Use `role` to distinguish capsule purposes within a workflow.
 
 **Query patterns:**
 ```
-list { run_id: "fix-auth", role: "plan" }         # just the plan
-list { run_id: "fix-auth", role: "design-review" } # just design feedback
-inventory { role: "impl-review" }                  # all impl reviews across all runs
+capsule_list { run_id: "fix-auth", role: "plan" }         # just the plan
+capsule_list { run_id: "fix-auth", role: "design-review" } # just design feedback
+capsule_inventory { role: "impl-review" }                  # all impl reviews across all runs
 ```
 
 **Note:** Role is only useful if subagents persist. For single-capsule workflows, role adds no value.

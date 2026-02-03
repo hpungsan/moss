@@ -3,12 +3,16 @@ package mcp
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/hpungsan/moss/internal/config"
 )
+
+// KnownTypes lists all valid type names.
+var KnownTypes = []string{"capsule"}
 
 // toolEntry pairs a tool definition with a handler factory.
 type toolEntry struct {
@@ -18,63 +22,63 @@ type toolEntry struct {
 
 // toolRegistry maps tool names to their definitions and handler factories.
 var toolRegistry = map[string]toolEntry{
-	"store": {
+	"capsule_store": {
 		def:     storeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleStore },
 	},
-	"fetch": {
+	"capsule_fetch": {
 		def:     fetchToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleFetch },
 	},
-	"fetch_many": {
+	"capsule_fetch_many": {
 		def:     fetchManyToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleFetchMany },
 	},
-	"update": {
+	"capsule_update": {
 		def:     updateToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleUpdate },
 	},
-	"delete": {
+	"capsule_delete": {
 		def:     deleteToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleDelete },
 	},
-	"latest": {
+	"capsule_latest": {
 		def:     latestToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleLatest },
 	},
-	"list": {
+	"capsule_list": {
 		def:     listToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleList },
 	},
-	"inventory": {
+	"capsule_inventory": {
 		def:     inventoryToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleInventory },
 	},
-	"search": {
+	"capsule_search": {
 		def:     searchToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleSearch },
 	},
-	"export": {
+	"capsule_export": {
 		def:     exportToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleExport },
 	},
-	"import": {
+	"capsule_import": {
 		def:     importToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleImport },
 	},
-	"purge": {
+	"capsule_purge": {
 		def:     purgeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandlePurge },
 	},
-	"bulk_delete": {
+	"capsule_bulk_delete": {
 		def:     bulkDeleteToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleBulkDelete },
 	},
-	"bulk_update": {
+	"capsule_bulk_update": {
 		def:     bulkUpdateToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleBulkUpdate },
 	},
-	"compose": {
+	"capsule_compose": {
 		def:     composeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleCompose },
 	},
@@ -100,8 +104,57 @@ func ValidateDisabledTools(names []string) []string {
 	return unknown
 }
 
+// ValidateDisabledTypes returns a list of unknown type names from the given list.
+func ValidateDisabledTypes(names []string) []string {
+	known := make(map[string]bool, len(KnownTypes))
+	for _, t := range KnownTypes {
+		known[t] = true
+	}
+
+	unknown := make([]string, 0)
+	for _, name := range names {
+		if !known[name] {
+			unknown = append(unknown, name)
+		}
+	}
+	return unknown
+}
+
+// GetTypeForTool extracts the type name from a tool name.
+// Tool names follow the pattern "type_action" (e.g., "capsule_store" → "capsule").
+func GetTypeForTool(toolName string) string {
+	if idx := strings.Index(toolName, "_"); idx > 0 {
+		return toolName[:idx]
+	}
+	return ""
+}
+
+// ExpandTypesToTools returns all tool names belonging to the given types.
+func ExpandTypesToTools(types []string) []string {
+	if len(types) == 0 {
+		return nil
+	}
+
+	// Build set of types for O(1) lookup
+	typeSet := make(map[string]bool, len(types))
+	for _, t := range types {
+		typeSet[t] = true
+	}
+
+	// Collect tools belonging to disabled types
+	tools := make([]string, 0)
+	for name := range toolRegistry {
+		typ := GetTypeForTool(name)
+		if typeSet[typ] {
+			tools = append(tools, name)
+		}
+	}
+	return tools
+}
+
 // NewServer creates a new MCP server with Moss tools registered.
-// Tools listed in cfg.DisabledTools are excluded from registration.
+// Tools listed in cfg.DisabledTools or belonging to cfg.DisabledTypes
+// are excluded from registration.
 func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer {
 	s := server.NewMCPServer(
 		"moss",
@@ -111,8 +164,11 @@ func NewServer(db *sql.DB, cfg *config.Config, version string) *server.MCPServer
 
 	h := NewHandlers(db, cfg)
 
-	// Build set of disabled tools
-	disabled := make(map[string]bool, len(cfg.DisabledTools))
+	// Build set of disabled tools: first expand types, then add individual tools
+	disabled := make(map[string]bool)
+	for _, tool := range ExpandTypesToTools(cfg.DisabledTypes) {
+		disabled[tool] = true
+	}
 	for _, name := range cfg.DisabledTools {
 		disabled[name] = true
 	}

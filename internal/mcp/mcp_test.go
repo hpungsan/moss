@@ -1270,21 +1270,21 @@ func TestServerRegistration(t *testing.T) {
 	}
 
 	expectedTools := []string{
-		"store",
-		"fetch",
-		"fetch_many",
-		"update",
-		"delete",
-		"latest",
-		"list",
-		"inventory",
-		"search",
-		"export",
-		"import",
-		"purge",
-		"bulk_delete",
-		"bulk_update",
-		"compose",
+		"capsule_store",
+		"capsule_fetch",
+		"capsule_fetch_many",
+		"capsule_update",
+		"capsule_delete",
+		"capsule_latest",
+		"capsule_list",
+		"capsule_inventory",
+		"capsule_search",
+		"capsule_export",
+		"capsule_import",
+		"capsule_purge",
+		"capsule_bulk_delete",
+		"capsule_bulk_update",
+		"capsule_compose",
 	}
 
 	if len(tools) != len(expectedTools) {
@@ -1302,7 +1302,7 @@ func TestServerRegistration_WithDisabledTools(t *testing.T) {
 	database, cfg, cleanup := testSetup(t)
 	defer cleanup()
 
-	cfg.DisabledTools = []string{"purge", "bulk_delete", "bulk_update"}
+	cfg.DisabledTools = []string{"capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"}
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
@@ -1312,14 +1312,14 @@ func TestServerRegistration_WithDisabledTools(t *testing.T) {
 	}
 
 	// Disabled tools should not be registered
-	for _, name := range []string{"purge", "bulk_delete", "bulk_update"} {
+	for _, name := range []string{"capsule_purge", "capsule_bulk_delete", "capsule_bulk_update"} {
 		if _, ok := tools[name]; ok {
 			t.Errorf("disabled tool %q should not be registered", name)
 		}
 	}
 
 	// Core tools should still be registered
-	for _, name := range []string{"store", "fetch", "list", "inventory"} {
+	for _, name := range []string{"capsule_store", "capsule_fetch", "capsule_list", "capsule_inventory"} {
 		if _, ok := tools[name]; !ok {
 			t.Errorf("core tool %q should be registered", name)
 		}
@@ -1345,7 +1345,7 @@ func TestServerRegistration_DuplicateDisabled(t *testing.T) {
 	defer cleanup()
 
 	// Duplicates should be handled gracefully (map lookup)
-	cfg.DisabledTools = []string{"purge", "purge", "purge"}
+	cfg.DisabledTools = []string{"capsule_purge", "capsule_purge", "capsule_purge"}
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
@@ -1354,8 +1354,8 @@ func TestServerRegistration_DuplicateDisabled(t *testing.T) {
 		t.Errorf("registered tool count = %d, want 14", len(tools))
 	}
 
-	if _, ok := tools["purge"]; ok {
-		t.Error("disabled tool 'purge' should not be registered")
+	if _, ok := tools["capsule_purge"]; ok {
+		t.Error("disabled tool 'capsule_purge' should not be registered")
 	}
 }
 
@@ -1367,12 +1367,12 @@ func TestValidateDisabledTools(t *testing.T) {
 	}{
 		{
 			name:    "all valid",
-			input:   []string{"purge", "bulk_delete"},
+			input:   []string{"capsule_purge", "capsule_bulk_delete"},
 			wantLen: 0,
 		},
 		{
 			name:    "one unknown",
-			input:   []string{"purge", "fake_tool"},
+			input:   []string{"capsule_purge", "fake_tool"},
 			wantLen: 1,
 		},
 		{
@@ -1409,6 +1409,156 @@ func TestAllToolNames(t *testing.T) {
 	unknown := ValidateDisabledTools(names)
 	if len(unknown) != 0 {
 		t.Errorf("AllToolNames() returned invalid names: %v", unknown)
+	}
+}
+
+func TestValidateDisabledTypes(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []string
+		wantLen int
+	}{
+		{
+			name:    "all valid",
+			input:   []string{"capsule"},
+			wantLen: 0,
+		},
+		{
+			name:    "one unknown",
+			input:   []string{"capsule", "unknown"},
+			wantLen: 1,
+		},
+		{
+			name:    "all unknown",
+			input:   []string{"foo", "bar"},
+			wantLen: 2,
+		},
+		{
+			name:    "empty list",
+			input:   []string{},
+			wantLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			unknown := ValidateDisabledTypes(tt.input)
+			if len(unknown) != tt.wantLen {
+				t.Errorf("ValidateDisabledTypes() returned %d unknown, want %d", len(unknown), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestGetTypeForTool(t *testing.T) {
+	tests := []struct {
+		name     string
+		toolName string
+		want     string
+	}{
+		{
+			name:     "capsule_store",
+			toolName: "capsule_store",
+			want:     "capsule",
+		},
+		{
+			name:     "capsule_bulk_delete",
+			toolName: "capsule_bulk_delete",
+			want:     "capsule",
+		},
+		{
+			name:     "no underscore",
+			toolName: "noprefix",
+			want:     "",
+		},
+		{
+			name:     "empty string",
+			toolName: "",
+			want:     "",
+		},
+		{
+			name:     "starts with underscore",
+			toolName: "_invalid",
+			want:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetTypeForTool(tt.toolName)
+			if got != tt.want {
+				t.Errorf("GetTypeForTool(%q) = %q, want %q", tt.toolName, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExpandTypesToTools(t *testing.T) {
+	tests := []struct {
+		name    string
+		types   []string
+		wantLen int
+	}{
+		{
+			name:    "capsule type",
+			types:   []string{"capsule"},
+			wantLen: 15, // All current tools are capsule_*
+		},
+		{
+			name:    "unknown type",
+			types:   []string{"unknown"},
+			wantLen: 0,
+		},
+		{
+			name:    "empty list",
+			types:   []string{},
+			wantLen: 0,
+		},
+		{
+			name:    "nil",
+			types:   nil,
+			wantLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExpandTypesToTools(tt.types)
+			if len(got) != tt.wantLen {
+				t.Errorf("ExpandTypesToTools(%v) returned %d tools, want %d", tt.types, len(got), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestServerRegistration_DisabledType(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	// Disable entire capsule type
+	cfg.DisabledTypes = []string{"capsule"}
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	// All tools should be disabled (all are capsule_*)
+	if len(tools) != 0 {
+		t.Errorf("registered tool count = %d, want 0 (capsule type disabled)", len(tools))
+	}
+}
+
+func TestServerRegistration_DisabledTypeAndTool(t *testing.T) {
+	database, cfg, cleanup := testSetup(t)
+	defer cleanup()
+
+	// Disable type and also list a tool (redundant but valid)
+	cfg.DisabledTypes = []string{"capsule"}
+	cfg.DisabledTools = []string{"capsule_store"}
+	s := NewServer(database, cfg, "test")
+	tools := s.ListTools()
+
+	// All tools should be disabled
+	if len(tools) != 0 {
+		t.Errorf("registered tool count = %d, want 0", len(tools))
 	}
 }
 
