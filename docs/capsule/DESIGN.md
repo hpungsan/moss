@@ -479,7 +479,7 @@ Update metadata (phase, role, tags) on multiple active capsules matching filters
 
 Append content to a specific section of a capsule without rewriting the entire document. Useful for accumulating history in workflows (design reviews, verification attempts, decisions).
 
-**Addressing:** `id` OR (`workspace` + `name`)
+**Addressing:** `id` OR (`workspace` + `name`); workspace defaults to `"default"` if omitted
 
 **Required:** `section`, `content`
 
@@ -492,11 +492,12 @@ Append content to a specific section of a capsule without rewriting the entire d
 
 **Behaviors:**
 - Markdown format required → **400 INVALID_REQUEST** if no sections found (e.g., JSON capsule)
-- Section not found → **400 INVALID_REQUEST** with section name
+- Section not found → **400 INVALID_REQUEST** with section name and available sections list
 - Empty/whitespace-only content → **400 INVALID_REQUEST**
 - Result exceeds size limit → **413 CAPSULE_TOO_LARGE**
 - No section lint (append may target custom sections not in required 6)
 - Assumes LF line endings; CRLF files may parse incorrectly
+- Concurrent appends use last-write-wins (no locking); acceptable for typical single-agent workflows
 
 **Output:**
 ```json

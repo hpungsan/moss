@@ -33,8 +33,8 @@ type AppendOutput struct {
 }
 
 // Append adds content to a specific section of a capsule.
-// It finds the section by header (case-insensitive, synonym-aware) and either
-// replaces placeholder content or appends after existing content.
+// It finds the section by exact header name (case-insensitive)
+// and either replaces placeholder content or appends after existing content.
 func Append(ctx context.Context, database *sql.DB, cfg *config.Config, input AppendInput) (*AppendOutput, error) {
 	// Validate address
 	addr, err := ValidateAddress(input.ID, input.Workspace, input.Name)
@@ -69,7 +69,7 @@ func Append(ctx context.Context, database *sql.DB, cfg *config.Config, input App
 		return nil, errors.NewInvalidRequest("capsule_append requires markdown format (no sections found)")
 	}
 
-	// Find target section (exact match, no synonym resolution)
+	// Find target section by exact header name
 	section := capsule.FindSectionExact(sections, input.Section)
 	if section == nil {
 		available := capsule.SectionNames(sections)
