@@ -1285,6 +1285,7 @@ func TestServerRegistration(t *testing.T) {
 		"capsule_bulk_delete",
 		"capsule_bulk_update",
 		"capsule_compose",
+		"capsule_append",
 	}
 
 	if len(tools) != len(expectedTools) {
@@ -1306,9 +1307,9 @@ func TestServerRegistration_WithDisabledTools(t *testing.T) {
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
-	// Should have 12 tools (15 - 3 disabled)
-	if len(tools) != 12 {
-		t.Errorf("registered tool count = %d, want 12", len(tools))
+	// Should have 13 tools (16 - 3 disabled)
+	if len(tools) != 13 {
+		t.Errorf("registered tool count = %d, want 13", len(tools))
 	}
 
 	// Disabled tools should not be registered
@@ -1349,9 +1350,9 @@ func TestServerRegistration_DuplicateDisabled(t *testing.T) {
 	s := NewServer(database, cfg, "test")
 	tools := s.ListTools()
 
-	// Should have 14 tools (15 - 1 disabled, duplicates ignored)
-	if len(tools) != 14 {
-		t.Errorf("registered tool count = %d, want 14", len(tools))
+	// Should have 15 tools (16 - 1 disabled, duplicates ignored)
+	if len(tools) != 15 {
+		t.Errorf("registered tool count = %d, want 15", len(tools))
 	}
 
 	if _, ok := tools["capsule_purge"]; ok {
@@ -1400,9 +1401,9 @@ func TestValidateDisabledTools(t *testing.T) {
 func TestAllToolNames(t *testing.T) {
 	names := AllToolNames()
 
-	// Should return 15 tool names
-	if len(names) != 15 {
-		t.Errorf("AllToolNames() returned %d names, want 15", len(names))
+	// Should return 16 tool names
+	if len(names) != 16 {
+		t.Errorf("AllToolNames() returned %d names, want 16", len(names))
 	}
 
 	// All returned names should be valid
@@ -1502,7 +1503,7 @@ func TestExpandTypesToTools(t *testing.T) {
 		{
 			name:    "capsule type",
 			types:   []string{"capsule"},
-			wantLen: 15, // All current tools are capsule_*
+			wantLen: 16, // All current tools are capsule_*
 		},
 		{
 			name:    "unknown type",

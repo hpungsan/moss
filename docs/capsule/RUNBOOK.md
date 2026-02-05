@@ -25,6 +25,7 @@ Operational guide for the Capsule type: MCP tools, common operations, orchestrat
 | `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
 | `capsule_bulk_update` | Update metadata on multiple capsules |
 | `capsule_compose` | Assemble multiple capsules into bundle |
+| `capsule_append` | Append content to a specific section |
 
 ---
 
@@ -113,6 +114,24 @@ capsule_compose {
 ```
 
 **Note:** `store_as` requires `format:"markdown"` (the default). Using `format:"json"` with `store_as` returns an error because JSON output lacks section headers required for capsule lint.
+
+### Append to Section
+
+Append content to a specific section without rewriting the full capsule:
+
+```
+capsule_append {
+  "workspace": "myproject",
+  "name": "auth",
+  "section": "Decisions",
+  "content": "Round 2: Approved JWT over sessions"
+}
+```
+
+- **Section matching:** Exact header name, case-insensitive (use header as written, e.g., `## Status` → `"Status"`)
+- **Placeholder handling:** Replaces `(pending)`, `TBD`, `N/A`, etc. if section is empty
+- **Append behavior:** Otherwise appends after existing content with blank line separator
+- **Error messages:** Lists available sections if target not found
 
 ### Search Capsules
 

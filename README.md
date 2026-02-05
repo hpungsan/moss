@@ -67,6 +67,7 @@ capsule_fetch { "workspace": "myproject", "name": "auth" }
 | `capsule_fetch` | Retrieve by ID or name |
 | `capsule_fetch_many` | Batch fetch multiple |
 | `capsule_update` | Update existing capsule |
+| `capsule_append` | Append to a section |
 | `capsule_delete` | Soft-delete (recoverable) |
 | `capsule_latest` | Most recent in workspace |
 | `capsule_list` | List capsules in workspace |
@@ -78,6 +79,8 @@ capsule_fetch { "workspace": "myproject", "name": "auth" }
 | `capsule_purge` | Permanent delete |
 | `capsule_bulk_delete` | Soft-delete by filter |
 | `capsule_bulk_update` | Update metadata by filter |
+
+**Customize tools:** Disable tools you don't need via config. See [Tool Filtering](docs/SETUP.md#tool-filtering).
 
 See [Capsule Runbook](docs/capsule/RUNBOOK.md) for full usage, addressing modes, and error handling.
 
