@@ -139,6 +139,29 @@ func hasSectionColon(text string, synonyms []string) bool {
 	return false
 }
 
+// GetSectionSynonyms returns the synonym list for a canonical section name.
+// Returns nil if not a canonical section.
+func GetSectionSynonyms(canonical string) []string {
+	return sectionSynonyms[canonical]
+}
+
+// GetCanonicalSections returns the list of canonical section names.
+func GetCanonicalSections() []string {
+	return canonicalSections
+}
+
+// MatchCanonical returns the canonical name if input matches any synonym.
+// Returns empty string if no match.
+func MatchCanonical(input string) string {
+	inputLower := strings.ToLower(strings.TrimSpace(input))
+	for canonical, synonyms := range sectionSynonyms {
+		if slices.Contains(synonyms, inputLower) {
+			return canonical
+		}
+	}
+	return ""
+}
+
 // hasSectionJSON checks if the text is valid JSON and contains any synonym as a key.
 func hasSectionJSON(text string, synonyms []string) bool {
 	trimmed := strings.TrimSpace(text)

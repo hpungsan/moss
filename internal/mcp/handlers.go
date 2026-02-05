@@ -177,6 +177,15 @@ type SearchRequest struct {
 	IncludeDeleted bool    `json:"include_deleted,omitempty"`
 }
 
+// AppendRequest represents the arguments for append.
+type AppendRequest struct {
+	ID        string `json:"id,omitempty"`
+	Workspace string `json:"workspace,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Section   string `json:"section"`
+	Content   string `json:"content"`
+}
+
 // ComposeRequest represents the arguments for compose.
 type ComposeRequest struct {
 	Items   []ComposeRef    `json:"items"`
@@ -527,6 +536,27 @@ func (h *Handlers) HandleSearch(ctx context.Context, req mcp.CallToolRequest) (*
 		Limit:          input.Limit,
 		Offset:         input.Offset,
 		IncludeDeleted: input.IncludeDeleted,
+	})
+	if err != nil {
+		return errorResult(err), nil
+	}
+
+	return successResult(result)
+}
+
+// HandleAppend handles the append tool call.
+func (h *Handlers) HandleAppend(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	input, err := decode[AppendRequest](req)
+	if err != nil {
+		return errorResult(errors.NewInvalidRequest(err.Error())), nil
+	}
+
+	result, err := ops.Append(ctx, h.db, h.cfg, ops.AppendInput{
+		ID:        input.ID,
+		Workspace: input.Workspace,
+		Name:      input.Name,
+		Section:   input.Section,
+		Content:   input.Content,
 	})
 	if err != nil {
 		return errorResult(err), nil

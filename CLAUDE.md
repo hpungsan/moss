@@ -16,7 +16,7 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 ## MCP Tools
 
 ### Capsule
-`capsule_store` `capsule_fetch` `capsule_fetch_many` `capsule_update` `capsule_delete` `capsule_list` `capsule_inventory` `capsule_search` `capsule_latest` `capsule_export` `capsule_import` `capsule_purge` `capsule_bulk_delete` `capsule_bulk_update` `capsule_compose`
+`capsule_store` `capsule_fetch` `capsule_fetch_many` `capsule_update` `capsule_delete` `capsule_list` `capsule_inventory` `capsule_search` `capsule_latest` `capsule_export` `capsule_import` `capsule_purge` `capsule_bulk_delete` `capsule_bulk_update` `capsule_compose` `capsule_append`
 
 ## Guidelines
 - MCP-first (CLI is secondary)

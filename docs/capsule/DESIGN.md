@@ -2,7 +2,7 @@
 
 ## Summary
 
-Capsule type spec for Moss: 15 MCP tools, CLI parity, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
+Capsule type spec for Moss: 16 MCP tools, CLI parity, capsule linting (6 sections), soft-delete, export/import, FTS5 full-text search, orchestration fields (`run_id`, `phase`, `role`).
 
 ---
 
@@ -175,6 +175,7 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 | `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
 | `capsule_bulk_update` | Update metadata on multiple capsules |
 | `capsule_compose` | Assemble multiple capsules into bundle |
+| `capsule_append` | Append content to a specific section |
 
 Each tool has a focused schema — no `action` dispatch needed.
 
@@ -474,6 +475,43 @@ Update metadata (phase, role, tags) on multiple active capsules matching filters
 
 ---
 
+## 6.16 `capsule_append`
+
+Append content to a specific section of a capsule without rewriting the entire document. Useful for accumulating history in workflows (design reviews, verification attempts, decisions).
+
+**Addressing:** `id` OR (`workspace` + `name`)
+
+**Required:** `section`, `content`
+
+**Section matching:**
+- Case-insensitive header match
+- Synonym-aware for canonical sections (e.g., "Status" matches "Current status", "goal" matches "Objective")
+- Custom sections (e.g., "Design Reviews") matched by exact header name
+
+**Placeholder handling:** If section content is only a placeholder (`(pending)`, `TBD`, `N/A`, `-`, `none`, etc.), replaces it entirely. Otherwise appends after existing content with blank line separator.
+
+**Behaviors:**
+- Markdown format required → **400 INVALID_REQUEST** if no sections found (e.g., JSON capsule)
+- Section not found → **400 INVALID_REQUEST** with section name
+- Empty/whitespace-only content → **400 INVALID_REQUEST**
+- Result exceeds size limit → **413 CAPSULE_TOO_LARGE**
+- No section lint (append may target custom sections not in required 6)
+- Assumes LF line endings; CRLF files may parse incorrectly
+
+**Output:**
+```json
+{
+  "id": "01ABC...",
+  "fetch_key": { "moss_capsule": "feat-auth", "moss_workspace": "feat" },
+  "section_hit": "## Design Reviews",
+  "replaced": false
+}
+```
+
+`fetch_key` is omitted if capsule is unnamed (addressed by ID only). `replaced` is true if placeholder content was replaced, false if content was appended.
+
+---
+
 # 7) System architecture (minimal)
 
 1. **Moss service** (single local process)
@@ -498,7 +536,7 @@ No workers, queues, vector DB.
 
 ## 7.1 Context propagation and cancellation
 
-All 15 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
+All 16 ops functions accept `context.Context` as their first parameter. Context originates from the MCP request handler and propagates through the ops layer into database calls:
 
 ```
 MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
@@ -518,7 +556,7 @@ MCP handler → ops.Operation(ctx, ...) → db.Query(ctx, tx, ...)
 - `capsule_import` runs within a transaction — cancellation triggers rollback with no partial writes
 - `capsule_export` writes to a temp file and finalizes via atomic rename; failures clean up the temp file and preserve any existing destination file
 
-**Single-query operations** (`capsule_store`, `capsule_fetch`, `capsule_update`, `capsule_delete`, `capsule_list`, `capsule_latest`, `capsule_inventory`, `capsule_purge`, `capsule_bulk_delete`, `capsule_bulk_update`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
+**Single-query operations** (`capsule_store`, `capsule_fetch`, `capsule_update`, `capsule_delete`, `capsule_list`, `capsule_latest`, `capsule_inventory`, `capsule_purge`, `capsule_bulk_delete`, `capsule_bulk_update`, `capsule_append`) pass context to database calls but do not have explicit `ctx.Done()` loop checks, as they execute a bounded number of queries.
 
 ---
 

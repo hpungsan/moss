@@ -362,6 +362,30 @@ var searchToolDef = mcp.NewTool("capsule_search",
 	),
 )
 
+var appendToolDef = mcp.NewTool("capsule_append",
+	mcp.WithDescription("Append content to a specific section of a capsule. "+
+		"Finds section by header (case-insensitive, synonym-aware). "+
+		"Replaces placeholder content like '(pending)' or appends after existing content."),
+	mcp.WithDestructiveHintAnnotation(false),
+	mcp.WithString("id",
+		mcp.Description("Capsule ID (ULID). Mutually exclusive with workspace+name."),
+	),
+	mcp.WithString("workspace",
+		mcp.Description("Workspace namespace. Required with name."),
+	),
+	mcp.WithString("name",
+		mcp.Description("Capsule name within workspace."),
+	),
+	mcp.WithString("section",
+		mcp.Required(),
+		mcp.Description("Target section header (e.g., 'Status', 'Design Reviews')."),
+	),
+	mcp.WithString("content",
+		mcp.Required(),
+		mcp.Description("Text to append to the section."),
+	),
+)
+
 var composeToolDef = mcp.NewTool("capsule_compose",
 	mcp.WithDescription("Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing."),
 	mcp.WithReadOnlyHintAnnotation(false), // May write if store_as provided

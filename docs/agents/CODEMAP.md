@@ -13,7 +13,8 @@ moss/
 │   │   ├── capsule.go             # Capsule struct
 │   │   ├── summary.go             # CapsuleSummary struct (browse operations)
 │   │   ├── normalize.go           # Normalize, CountChars, EstimateTokens
-│   │   ├── lint.go                # Section detection, size validation
+│   │   ├── lint.go                # Section detection, size validation, MatchCanonical
+│   │   ├── sections.go            # ParseSections, FindSection, InsertContent (for append)
 │   │   └── export.go              # ExportRecord, ToCapsule, CapsuleToExportRecord
 │   ├── config/
 │   │   └── config.go              # Config loader (~/.moss/config.json)
@@ -30,7 +31,7 @@ moss/
 │   │   ├── decode.go              # Generic decode[T] helper for MCP requests
 │   │   ├── handlers.go            # Tool handlers calling ops functions
 │   │   ├── server.go              # NewServer, Run (stdio transport)
-│   │   └── tools.go               # 15 tool definitions with JSON schemas
+│   │   └── tools.go               # 16 tool definitions with JSON schemas
 │   └── ops/
 │       ├── ops.go                 # Address validation, FetchKey
 │       ├── store.go               # Store operation (create/replace)
@@ -48,6 +49,7 @@ moss/
 │       ├── bulk_delete.go         # Bulk soft-delete by filter
 │       ├── bulk_update.go         # Bulk metadata update by filter
 │       ├── compose.go             # Compose multiple capsules into bundle
+│       ├── append.go              # Append content to capsule section
 │       ├── pathcheck.go           # Path validation for import/export security
 │       ├── fileopen_unix.go       # O_NOFOLLOW file open (Unix/Darwin/Linux)
 │       └── fileopen_windows.go    # File open fallback (Windows)
@@ -83,8 +85,8 @@ moss/
 | `internal/db/` | SQLite init, schema, CRUD + browse queries, Querier interface for transactions |
 | `internal/config/` | Config loading from ~/.moss/config.json |
 | `internal/errors/` | Structured errors with codes (400/404/409/413/422/499/500) |
-| `internal/mcp/` | MCP server exposing 15 tools via stdio transport |
-| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Search, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose |
+| `internal/mcp/` | MCP server exposing 16 tools via stdio transport |
+| `internal/ops/` | Business logic: Store, Fetch, FetchMany, Update, Delete, List, Inventory, Search, Latest, Export, Import, Purge, BulkDelete, BulkUpdate, Compose, Append |
 | `docs/capsule/DESIGN.md` | Capsule API spec |
 
 ## Notes

@@ -82,6 +82,10 @@ var toolRegistry = map[string]toolEntry{
 		def:     composeToolDef,
 		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleCompose },
 	},
+	"capsule_append": {
+		def:     appendToolDef,
+		handler: func(h *Handlers) server.ToolHandlerFunc { return h.HandleAppend },
+	},
 }
 
 // AllToolNames returns a list of all valid tool names.
