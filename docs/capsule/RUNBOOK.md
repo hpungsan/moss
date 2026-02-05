@@ -128,9 +128,10 @@ capsule_append {
 }
 ```
 
-- **Section matching:** Case-insensitive, synonym-aware ("Status" matches "Current status")
+- **Section matching:** Exact header name, case-insensitive (use header as written, e.g., `## Status` → `"Status"`)
 - **Placeholder handling:** Replaces `(pending)`, `TBD`, `N/A`, etc. if section is empty
 - **Append behavior:** Otherwise appends after existing content with blank line separator
+- **Error messages:** Lists available sections if target not found
 
 ### Search Capsules
 

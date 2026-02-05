@@ -32,7 +32,7 @@ func TestAppend_AppendToExisting(t *testing.T) {
 	// Append to Status section
 	output, err := Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
-		Section: "Status",
+		Section: "Current status",
 		Content: "Update: feature complete",
 	})
 	if err != nil {
@@ -149,7 +149,7 @@ func TestAppend_ByName(t *testing.T) {
 	output, err := Append(context.Background(), database, cfg, AppendInput{
 		Workspace: "test-ws",
 		Name:      "auth",
-		Section:   "Status",
+		Section:   "Current status",
 		Content:   "Progress update",
 	})
 	if err != nil {
@@ -190,8 +190,8 @@ func TestAppend_SectionNotFound(t *testing.T) {
 	if !errors.Is(err, errors.ErrInvalidRequest) {
 		t.Errorf("Expected ErrInvalidRequest, got: %v", err)
 	}
-	if err != nil && !strings.Contains(err.Error(), "section not found") {
-		t.Errorf("Error should mention 'section not found', got: %v", err)
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		t.Errorf("Error should mention 'not found', got: %v", err)
 	}
 }
 
@@ -299,7 +299,7 @@ Round 1: APPROVE
 	}
 }
 
-func TestAppend_SynonymMatch(t *testing.T) {
+func TestAppend_ExactMatchOnly(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)
 	if err != nil {
@@ -317,17 +317,31 @@ func TestAppend_SynonymMatch(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	// Append using synonym "goal" → should match "Objective"
-	output, err := Append(context.Background(), database, cfg, AppendInput{
+	// Append using synonym "goal" → should NOT match (exact matching only)
+	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
 		Section: "goal",
 		Content: "Additional goal",
 	})
-	if err != nil {
-		t.Fatalf("Append with synonym failed: %v", err)
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("Expected ErrInvalidRequest for synonym 'goal', got: %v", err)
+	}
+	if err != nil && !strings.Contains(err.Error(), "not found") {
+		t.Errorf("Error should mention 'not found', got: %v", err)
+	}
+	if err != nil && !strings.Contains(err.Error(), "available") {
+		t.Errorf("Error should list available sections, got: %v", err)
 	}
 
-	// SectionHit should be the actual header
+	// Append using exact name "Objective" → should work
+	output, err := Append(context.Background(), database, cfg, AppendInput{
+		ID:      storeOutput.ID,
+		Section: "Objective",
+		Content: "Additional goal",
+	})
+	if err != nil {
+		t.Fatalf("Append with exact name failed: %v", err)
+	}
 	if !strings.Contains(output.SectionHit, "Objective") {
 		t.Errorf("SectionHit = %q, should contain 'Objective'", output.SectionHit)
 	}
@@ -345,7 +359,7 @@ func TestAppend_CapsuleNotFound(t *testing.T) {
 
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      "nonexistent-id",
-		Section: "Status",
+		Section: "Current status",
 		Content: "test",
 	})
 	if !errors.Is(err, errors.ErrNotFound) {
@@ -385,7 +399,7 @@ func TestAppend_EmptyContent(t *testing.T) {
 
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      "some-id",
-		Section: "Status",
+		Section: "Current status",
 		Content: "",
 	})
 	if !errors.Is(err, errors.ErrInvalidRequest) {
@@ -405,7 +419,7 @@ func TestAppend_WhitespaceOnlyContent(t *testing.T) {
 
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      "some-id",
-		Section: "Status",
+		Section: "Current status",
 		Content: "   \t\n  ",
 	})
 	if !errors.Is(err, errors.ErrInvalidRequest) {
@@ -469,7 +483,7 @@ func TestAppend_UnnamedCapsule(t *testing.T) {
 	// Append to unnamed capsule
 	output, err := Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
-		Section: "Status",
+		Section: "Current status",
 		Content: "Update",
 	})
 	if err != nil {
@@ -503,7 +517,7 @@ func TestAppend_SequentialAppends(t *testing.T) {
 	// First append
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
-		Section: "Status",
+		Section: "Current status",
 		Content: "Update 1",
 	})
 	if err != nil {
@@ -513,7 +527,7 @@ func TestAppend_SequentialAppends(t *testing.T) {
 	// Second append
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
-		Section: "Status",
+		Section: "Current status",
 		Content: "Update 2",
 	})
 	if err != nil {
@@ -523,7 +537,7 @@ func TestAppend_SequentialAppends(t *testing.T) {
 	// Third append
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
-		Section: "Status",
+		Section: "Current status",
 		Content: "Update 3",
 	})
 	if err != nil {
@@ -566,7 +580,7 @@ func TestAppend_ContentWithLeadingTrailingWhitespace(t *testing.T) {
 	contentWithWhitespace := "  Content with spaces  "
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      storeOutput.ID,
-		Section: "Status",
+		Section: "Current status",
 		Content: contentWithWhitespace,
 	})
 	if err != nil {
@@ -597,7 +611,7 @@ func TestAppend_AmbiguousAddressing(t *testing.T) {
 	_, err = Append(context.Background(), database, cfg, AppendInput{
 		ID:      "some-id",
 		Name:    "some-name",
-		Section: "Status",
+		Section: "Current status",
 		Content: "test",
 	})
 	if !errors.Is(err, errors.ErrAmbiguousAddressing) {

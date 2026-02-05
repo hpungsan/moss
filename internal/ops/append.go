@@ -69,10 +69,11 @@ func Append(ctx context.Context, database *sql.DB, cfg *config.Config, input App
 		return nil, errors.NewInvalidRequest("capsule_append requires markdown format (no sections found)")
 	}
 
-	// Find target section
-	section := capsule.FindSection(sections, input.Section)
+	// Find target section (exact match, no synonym resolution)
+	section := capsule.FindSectionExact(sections, input.Section)
 	if section == nil {
-		return nil, errors.NewInvalidRequest(fmt.Sprintf("section not found: %s", input.Section))
+		available := capsule.SectionNames(sections)
+		return nil, errors.NewInvalidRequest(fmt.Sprintf("section %q not found; available: %v", input.Section, available))
 	}
 
 	// Insert content

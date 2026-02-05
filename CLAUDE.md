@@ -3,6 +3,22 @@
 ## Project: Moss
 Local context store for AI session handoffs and multi-agent orchestration.
 
+## MUST READ
+
+Before working on this project, skim these design documents:
+
+**Core:**
+1. `docs/capsule/DESIGN.md` — API spec, tool behaviors (§5-6), config system (§8)
+2. `docs/capsule/BACKLOG.md` — Planned features (check before implementing new features)
+
+**Operations:**
+3. `docs/SETUP.md` — Config system, paths, CLI, tool filtering
+
+**Key points you'll miss otherwise:**
+- Tools can be disabled via config (`disabled_tools`) — tool count is less critical, users pick what they need
+- Check BACKLOG.md before implementing new features — may already be spec'd
+- Errors use `internal/errors.MossError` with codes (400/404/409/413/422/499/500)
+
 ## Tech Stack
 Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.com/urfave/cli/v2)
 
@@ -23,6 +39,19 @@ Go, SQLite (modernc.org/sqlite), MCP (github.com/mark3labs/mcp-go), CLI (github.
 - Explicit only (no auto-save/load)
 - Low-bloat (size limits + lint)
 - Type-specific (each type optimized for its consumer)
+- Library approach (users disable tools they don't need via config)
+
+## Adding a New MCP Tool
+
+Files to modify:
+1. `internal/mcp/tools.go` — Tool definition (schema)
+2. `internal/mcp/handlers.go` — Request struct + handler
+3. `internal/mcp/server.go` — Register in `toolRegistry`
+4. `internal/ops/<tool>.go` — Business logic
+5. `internal/ops/<tool>_test.go` — Tests
+6. `docs/capsule/DESIGN.md` — API documentation
+7. `docs/capsule/RUNBOOK.md` — Usage examples
+8. Update tool lists: `README.md`, `CLAUDE.md`, skill files
 
 ## Commands
 ```

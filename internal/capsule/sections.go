@@ -96,6 +96,7 @@ func ParseSections(text string) []Section {
 // FindSection finds a section by name (synonym-aware, case-insensitive).
 // First checks if input matches a canonical section synonym, then falls back
 // to exact case-insensitive match on header name.
+// Used by lint and other operations that benefit from flexible matching.
 func FindSection(sections []Section, name string) *Section {
 	if len(sections) == 0 {
 		return nil
@@ -121,6 +122,35 @@ func FindSection(sections []Section, name string) *Section {
 	}
 
 	return nil
+}
+
+// FindSectionExact finds a section by exact header name (case-insensitive).
+// No synonym resolution — returns the section whose HeaderName matches exactly.
+// Used by capsule_append where precise targeting is required.
+func FindSectionExact(sections []Section, name string) *Section {
+	if len(sections) == 0 {
+		return nil
+	}
+
+	nameLower := strings.ToLower(strings.TrimSpace(name))
+
+	for i := range sections {
+		if strings.ToLower(strings.TrimSpace(sections[i].HeaderName)) == nameLower {
+			return &sections[i]
+		}
+	}
+
+	return nil
+}
+
+// SectionNames returns the list of header names from parsed sections.
+// Useful for error messages listing available sections.
+func SectionNames(sections []Section) []string {
+	names := make([]string, len(sections))
+	for i, s := range sections {
+		names[i] = s.HeaderName
+	}
+	return names
 }
 
 // InsertContent inserts content into a section (replace if placeholder, else append).

@@ -484,9 +484,9 @@ Append content to a specific section of a capsule without rewriting the entire d
 **Required:** `section`, `content`
 
 **Section matching:**
-- Case-insensitive header match
-- Synonym-aware for canonical sections (e.g., "Status" matches "Current status", "goal" matches "Objective")
-- Custom sections (e.g., "Design Reviews") matched by exact header name
+- Exact header name match (case-insensitive)
+- No synonym resolution — use the header as written (e.g., `## Status` → `"Status"`)
+- Error message lists available sections if not found
 
 **Placeholder handling:** If section content is only a placeholder (`(pending)`, `TBD`, `N/A`, `-`, `none`, etc.), replaces it entirely. Otherwise appends after existing content with blank line separator.
 

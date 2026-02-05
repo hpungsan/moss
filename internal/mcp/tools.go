@@ -364,7 +364,7 @@ var searchToolDef = mcp.NewTool("capsule_search",
 
 var appendToolDef = mcp.NewTool("capsule_append",
 	mcp.WithDescription("Append content to a specific section of a capsule. "+
-		"Finds section by header (case-insensitive, synonym-aware). "+
+		"Section matching is exact and case-insensitive (use the header as written). "+
 		"Replaces placeholder content like '(pending)' or appends after existing content."),
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithString("id",

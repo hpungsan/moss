@@ -449,3 +449,82 @@ Questions
 		})
 	}
 }
+
+func TestFindSectionExact(t *testing.T) {
+	text := `## Objective
+Goal
+
+## Current status
+In progress
+
+## Design Reviews
+Round 1
+`
+	sections := ParseSections(text)
+
+	// Exact match works
+	s := FindSectionExact(sections, "Objective")
+	if s == nil || s.HeaderName != "Objective" {
+		t.Errorf("FindSectionExact('Objective') failed")
+	}
+
+	// Case-insensitive exact match works
+	s = FindSectionExact(sections, "objective")
+	if s == nil || s.HeaderName != "Objective" {
+		t.Errorf("FindSectionExact('objective') case-insensitive failed")
+	}
+
+	// Exact match with spaces
+	s = FindSectionExact(sections, "Current status")
+	if s == nil || s.HeaderName != "Current status" {
+		t.Errorf("FindSectionExact('Current status') failed")
+	}
+
+	// Custom section works
+	s = FindSectionExact(sections, "Design Reviews")
+	if s == nil || s.HeaderName != "Design Reviews" {
+		t.Errorf("FindSectionExact('Design Reviews') failed")
+	}
+
+	// Synonym does NOT match (this is the key difference from FindSection)
+	s = FindSectionExact(sections, "Status")
+	if s != nil {
+		t.Errorf("FindSectionExact('Status') should return nil (no synonym matching), got %q", s.HeaderName)
+	}
+
+	s = FindSectionExact(sections, "goal")
+	if s != nil {
+		t.Errorf("FindSectionExact('goal') should return nil (no synonym matching), got %q", s.HeaderName)
+	}
+
+	// Not found
+	s = FindSectionExact(sections, "Nonexistent")
+	if s != nil {
+		t.Errorf("FindSectionExact('Nonexistent') should return nil")
+	}
+}
+
+func TestSectionNames(t *testing.T) {
+	text := `## Objective
+Goal
+
+## Status
+Done
+
+## Custom Section
+Content
+`
+	sections := ParseSections(text)
+	names := SectionNames(sections)
+
+	if len(names) != 3 {
+		t.Fatalf("SectionNames returned %d names, want 3", len(names))
+	}
+
+	expected := []string{"Objective", "Status", "Custom Section"}
+	for i, want := range expected {
+		if names[i] != want {
+			t.Errorf("SectionNames[%d] = %q, want %q", i, names[i], want)
+		}
+	}
+}
