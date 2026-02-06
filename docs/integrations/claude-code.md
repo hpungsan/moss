@@ -66,6 +66,7 @@ skills:
 | `mcp__moss__capsule_inventory` | List capsules across all workspaces |
 | `mcp__moss__capsule_latest` | Get the most recently updated capsule |
 | `mcp__moss__capsule_compose` | Assemble multiple capsules into a bundle |
+| `mcp__moss__capsule_append` | Append content to a specific section |
 | `mcp__moss__capsule_export` | Export capsules to JSONL |
 | `mcp__moss__capsule_import` | Import capsules from JSONL |
 | `mcp__moss__capsule_purge` | Permanently delete soft-deleted capsules |

@@ -20,7 +20,63 @@ Add `if_updated_at` to `capsule_update`:
 
 Rejects if capsule was modified since timestamp (prevents overwrites).
 
-**Context:** `capsule_update` is a read-modify-write operation (`capsule_fetch` then `UpdateByID`) and can lose concurrent updates. `capsule_delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but the system does not enforce this, and humans/CLIs/orchestrators can still collide. Since `capsule_update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won’t merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
+**Context:** `capsule_update` is a read-modify-write operation (`capsule_fetch` then `UpdateByID`) and can lose concurrent updates. `capsule_delete` also does a name→id read before `SoftDelete`. In the common swarm pattern, capsules are treated as agent-owned (writers usually don't target the same capsule), but the system does not enforce this, and humans/CLIs/orchestrators can still collide. Since `capsule_update` replaces the full `capsule_text`, optimistic concurrency mainly prevents silent clobbering and forces a retry; it won't merge concurrent edits. Defer until a concrete collision-prone workflow emerges.
+
+### `capsule_append` Enhancements
+
+Extend `capsule_append` with additional capabilities:
+
+**Optimistic concurrency:** Add `if_updated_at` guard (same pattern as `capsule_update`):
+
+```json
+{
+  "section": "Design Reviews",
+  "content": "Round 2...",
+  "if_updated_at": 1737260500
+}
+```
+
+On mismatch: **409 CONFLICT** with current `updated_at`.
+
+**Multi-section:** Accept `sections` array for atomic multi-section updates:
+
+```json
+{
+  "name": "auth",
+  "sections": [
+    { "section": "Status", "content": "implementing" },
+    { "section": "Implementation", "content": "files_changed:..." },
+    { "section": "Decisions", "content": "Used mutex over channel" }
+  ],
+  "if_updated_at": 1737260500
+}
+```
+
+Behavior: all sections update atomically or none. Each section follows same placeholder/append logic. Returns array of `{ section_hit, replaced }` per section.
+
+**Position control:** Add `position` parameter:
+
+```json
+{
+  "section": "Status",
+  "content": "implementing",
+  "position": "prepend"
+}
+```
+
+Values: `"append"` (default), `"prepend"`. Use case: status updates where latest-at-top is cleaner.
+
+**Placeholder guard:** Add `if_placeholder` to only write if section is still placeholder:
+
+```json
+{
+  "section": "Design Reviews",
+  "content": "Round 1...",
+  "if_placeholder": true
+}
+```
+
+On non-placeholder: **409 CONFLICT**. Use case: first-write semantics, prevent accidental double-writes.
 
 ### Multi-Run Queries
 
