@@ -286,6 +286,68 @@ func TestCompose_SizeLimitExceeded(t *testing.T) {
 	}
 }
 
+func TestCompose_SizeLimitExceeded_WithSectionsFilter_AllowsCompose(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	// Use normal config for storing
+	storeCfg := config.DefaultConfig()
+
+	largeCapsuleText := `## Objective
+` + strings.Repeat("x", 2000) + `
+
+## Current status
+OK
+
+## Decisions
+- keep only this
+
+## Next actions
+- n/a
+
+## Key locations
+- n/a
+
+## Open questions
+- n/a
+`
+
+	_, err = Store(context.Background(), database, storeCfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: largeCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store cap1 failed: %v", err)
+	}
+
+	// Use small config for compose - smaller than the full capsule, but larger than filtered output
+	composeCfg := &config.Config{CapsuleMaxChars: 500}
+
+	output, err := Compose(context.Background(), database, composeCfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose with sections filter should succeed, got error: %v", err)
+	}
+	if output.BundleChars > composeCfg.CapsuleMaxChars {
+		t.Fatalf("BundleChars = %d, should be <= %d", output.BundleChars, composeCfg.CapsuleMaxChars)
+	}
+	if !strings.Contains(output.BundleText, "## Decisions") {
+		t.Error("BundleText should contain Decisions section")
+	}
+	if strings.Contains(output.BundleText, "## Objective") {
+		t.Error("BundleText should NOT contain Objective section (filtered out)")
+	}
+}
+
 func TestCompose_WithStoreAs(t *testing.T) {
 	tmpDir := t.TempDir()
 	database, err := db.Init(tmpDir)

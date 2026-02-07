@@ -131,8 +131,16 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 			return nil, fmt.Errorf("items[%d]: %w", i, err)
 		}
 
-		// Early size check (conservative estimate without formatting overhead)
-		estimatedChars += c.CapsuleChars
+		partText := c.CapsuleText
+		partChars := c.CapsuleChars
+		if len(input.Sections) > 0 {
+			partText = filterSections(partText, input.Sections)
+			partChars = capsule.CountChars(partText)
+		}
+
+		// Early size check (conservative estimate without formatting overhead).
+		// When sections filtering is enabled, estimate based on filtered text to avoid false positives.
+		estimatedChars += partChars
 		if estimatedChars > cfg.CapsuleMaxChars {
 			return nil, errors.NewComposeTooLarge(cfg.CapsuleMaxChars, estimatedChars)
 		}
@@ -156,21 +164,13 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 			Workspace:   c.WorkspaceRaw,
 			Name:        name,
 			DisplayName: displayName,
-			Text:        c.CapsuleText,
-			Chars:       c.CapsuleChars,
+			Text:        partText,
+			Chars:       partChars,
 		})
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, errors.NewInternal(err)
-	}
-
-	// Apply section filtering if requested
-	if len(input.Sections) > 0 {
-		for i := range parts {
-			parts[i].Text = filterSections(parts[i].Text, input.Sections)
-			parts[i].Chars = capsule.CountChars(parts[i].Text)
-		}
 	}
 
 	// Assemble bundle based on format
