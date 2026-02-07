@@ -388,7 +388,7 @@ var appendToolDef = mcp.NewTool("capsule_append",
 )
 
 var composeToolDef = mcp.NewTool("capsule_compose",
-	mcp.WithDescription("Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing."),
+	mcp.WithDescription("Assemble multiple capsules into a single bundle. Optionally filter to specific sections. All-or-nothing: fails if any capsule is missing."),
 	mcp.WithReadOnlyHintAnnotation(false), // May write if store_as provided
 	mcp.WithDestructiveHintAnnotation(false),
 	mcp.WithArray("items",

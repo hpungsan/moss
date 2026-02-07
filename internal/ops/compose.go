@@ -159,6 +159,11 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 			name = *c.NameRaw
 		}
 
+		// Skip empty parts when section filtering produces no content
+		if len(input.Sections) > 0 && partText == "" {
+			continue
+		}
+
 		parts = append(parts, ComposePart{
 			ID:          c.ID,
 			Workspace:   c.WorkspaceRaw,
@@ -202,6 +207,9 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 	if input.StoreAs != nil {
 		if input.StoreAs.Name == "" {
 			return nil, errors.NewInvalidRequest("store_as.name is required")
+		}
+		if bundleText == "" {
+			return nil, errors.NewInvalidRequest("cannot store empty bundle (sections filter matched no content)")
 		}
 
 		storeResult, err := Store(ctx, database, cfg, StoreInput{

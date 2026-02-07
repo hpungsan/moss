@@ -24,6 +24,58 @@ type Section struct {
 // Trailing spaces/tabs on the header line are trimmed by the [^\n]+ group.
 var headerPattern = regexp.MustCompile(`(?m)^(#{1,6})\s+([^\n]+?)[ \t]*$`)
 
+// fencePattern matches fenced code block delimiters (``` or ~~~) at the start of a line,
+// allowing 0-3 spaces of indentation per CommonMark spec. Captures the fence characters
+// (backticks or tildes) separately from leading whitespace.
+var fencePattern = regexp.MustCompile("(?m)^[ ]{0,3}(`{3,}|~{3,})")
+
+// fencedRanges returns byte offset ranges [start, end) for fenced code blocks in text.
+// Properly pairs opening and closing fences: closing fence must use the same character
+// (backtick or tilde) and be at least as long as the opening fence.
+func fencedRanges(text string) [][2]int {
+	matches := fencePattern.FindAllStringSubmatchIndex(text, -1)
+	if len(matches) < 2 {
+		return nil
+	}
+
+	var ranges [][2]int
+	var openChar byte
+	var openLen int
+	var openStart int
+	inFence := false
+
+	for _, match := range matches {
+		// match indices: [fullStart, fullEnd, fenceCharsStart, fenceCharsEnd]
+		fenceChars := text[match[2]:match[3]]
+		char := fenceChars[0]
+		fenceLen := len(fenceChars)
+
+		if !inFence {
+			// Opening fence
+			openChar = char
+			openLen = fenceLen
+			openStart = match[0]
+			inFence = true
+		} else if char == openChar && fenceLen >= openLen {
+			// Valid closing fence: same character, at least as long
+			ranges = append(ranges, [2]int{openStart, match[1]})
+			inFence = false
+		}
+		// Otherwise: different char or shorter fence inside open block — skip
+	}
+	return ranges
+}
+
+// insideFence returns true if byte offset pos falls inside any fenced range.
+func insideFence(pos int, ranges [][2]int) bool {
+	for _, r := range ranges {
+		if pos >= r[0] && pos < r[1] {
+			return true
+		}
+	}
+	return false
+}
+
 // placeholderPatterns are common placeholder values (case-insensitive, after trimming).
 var placeholderPatterns = []string{
 	"(pending)",
@@ -40,10 +92,26 @@ var placeholderPatterns = []string{
 
 // ParseSections finds all markdown section headers and their boundaries.
 // Returns nil if no sections found (e.g., JSON format capsule).
+// Headers inside fenced code blocks (``` or ~~~) are ignored.
 func ParseSections(text string) []Section {
-	matches := headerPattern.FindAllStringSubmatchIndex(text, -1)
-	if len(matches) == 0 {
+	allMatches := headerPattern.FindAllStringSubmatchIndex(text, -1)
+	if len(allMatches) == 0 {
 		return nil
+	}
+
+	// Filter out matches inside fenced code blocks
+	fences := fencedRanges(text)
+	matches := allMatches
+	if len(fences) > 0 {
+		matches = make([][]int, 0, len(allMatches))
+		for _, m := range allMatches {
+			if !insideFence(m[0], fences) {
+				matches = append(matches, m)
+			}
+		}
+		if len(matches) == 0 {
+			return nil
+		}
 	}
 
 	sections := make([]Section, len(matches))

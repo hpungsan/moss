@@ -1349,3 +1349,195 @@ func TestCompose_Sections_PreservesOrder(t *testing.T) {
 		t.Errorf("Open questions (pos %d) should appear before Decisions (pos %d) — caller order", oqIdx, dIdx)
 	}
 }
+
+func TestCompose_Sections_AllMissing_SkipsPart(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Request only sections that don't exist — part should be omitted entirely
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Nonexistent", "Also Missing"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if output.PartsCount != 0 {
+		t.Errorf("PartsCount = %d, want 0 (empty parts should be skipped)", output.PartsCount)
+	}
+	if strings.Contains(output.BundleText, "## ") {
+		t.Error("BundleText should be empty when all parts are filtered out")
+	}
+}
+
+func TestCompose_Sections_MixedEmptyAndNonEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// cap1 has Decisions content
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store cap1 failed: %v", err)
+	}
+
+	// cap2 has Decisions as placeholder — will produce empty filtered text
+	cap2Text := `## Objective
+Review.
+
+## Current status
+Done.
+
+## Decisions
+(pending)
+
+## Next actions
+Deploy.
+
+## Key locations
+main.go
+
+## Open questions
+(pending)
+`
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap2"),
+		CapsuleText: cap2Text,
+	})
+	if err != nil {
+		t.Fatalf("Store cap2 failed: %v", err)
+	}
+
+	// Request only Decisions — cap1 has content, cap2 is placeholder
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+			{Workspace: "default", Name: "cap2"},
+		},
+		Sections: []string{"Decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	// Only cap1 should appear (cap2's Decisions was placeholder → empty → skipped)
+	if output.PartsCount != 1 {
+		t.Errorf("PartsCount = %d, want 1 (cap2 should be skipped)", output.PartsCount)
+	}
+	if !strings.Contains(output.BundleText, "Using JWT") {
+		t.Error("BundleText should contain cap1's Decisions content")
+	}
+	if strings.Contains(output.BundleText, "cap2") {
+		t.Error("BundleText should NOT contain cap2 (empty filtered part)")
+	}
+}
+
+func TestCompose_Sections_FencedCodeBlock(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Capsule with ## Decisions inside a code fence in Key locations
+	capsuleWithFence := "## Objective\nGoal here.\n\n## Current status\nDone.\n\n## Decisions\nUsed JWT.\n\n## Next actions\nDeploy.\n\n## Key locations\n```markdown\n## Decisions\nThis is example markdown, not a real section\n```\n\n## Open questions\nNone.\n"
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("fenced"),
+		CapsuleText: capsuleWithFence,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Request Decisions — should get the real one, not the fenced one
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "fenced"},
+		},
+		Sections: []string{"Decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if !strings.Contains(output.BundleText, "Used JWT") {
+		t.Error("Should contain real Decisions content")
+	}
+	if strings.Contains(output.BundleText, "example markdown") {
+		t.Error("Should NOT contain fenced Decisions content")
+	}
+}
+
+func TestCompose_Sections_EmptyBundle_StoreAs_Rejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// All requested sections are nonexistent → empty bundle → store_as should fail
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Nonexistent"},
+		StoreAs: &ComposeStoreAs{
+			Workspace: "composed",
+			Name:      "empty-bundle",
+		},
+	})
+	if err == nil {
+		t.Fatal("Compose with store_as should fail when bundle is empty")
+	}
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("error = %v, want ErrInvalidRequest", err)
+	}
+	if !strings.Contains(err.Error(), "empty bundle") {
+		t.Errorf("error should mention empty bundle, got: %v", err)
+	}
+}

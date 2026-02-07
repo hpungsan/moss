@@ -1,41 +1,37 @@
 # Moss + Claude Code
 
-How Moss Capsules integrate with Claude Code's built-in Teams, Tasks, and SendMessage for context persistence across sessions, agents, and swarms.
+How Moss Capsules integrate with Claude Code's built-in Teams, Tasks, and SendMessage.
 
-> **Prerequisite:** This doc assumes the `moss-capsule` skill is installed (`.claude/skills/moss-capsule/`). The skill covers capsule format, addressing, errors, and tool reference. This doc covers **integration patterns** — how capsules complement Claude Code's built-in coordination tools.
+> **Prerequisite:** This doc assumes the `moss-capsule` skill is installed (`.claude/skills/moss-capsule/`). The skill covers capsule format, addressing, errors, and tool reference. This doc covers **integration patterns**.
 
-## Two Layers
+## What Moss Adds
 
-Claude Code ships with a **coordination layer** (Teams + Tasks + SendMessage). Moss adds a **knowledge layer** (Capsules) on top.
+Claude Code ships with coordination tools (Teams + Tasks + SendMessage). These handle who does what, in what order, and how agents talk to each other.
 
-| Layer | Built-in Tools | What It Handles |
-|-------|---------------|-----------------|
-| **Coordination** | `TeamCreate`, `Task`, `TaskCreate/Update/List/Get`, `SendMessage`, `TeamDelete` | Who does what, in what order, tell each other things |
-| **Knowledge** | `capsule_store`, `capsule_fetch`, `capsule_list`, `capsule_search`, ... | What was decided, why, where things are, what's still open |
+Moss adds **structured, queryable, persistent context** on top. Specifically:
 
-When a team shuts down and `TeamDelete` runs, the coordination layer is gone — tasks deleted, messages gone, team config removed. Capsules persist in `~/.moss/moss.db` indefinitely.
+- **Structure**: 6 lint-enforced sections vs free-text messages or ad-hoc files
+- **Queryability**: Search, filter by `run_id`/`phase`/`role`, compose across capsules
+- **Persistence**: Survives session restarts, `/clear`, `TeamDelete`, days between sessions
 
-### What Tasks Carry vs What They Don't
+You can achieve basic persistence by writing files. Capsules are worth the overhead when you need to **find context again later** — across sessions, across agents, or across time.
 
-Tasks have `subject`, `description`, `metadata`, `status`, `owner`, `blockedBy/blocks`. That covers coordination. But tasks don't carry:
+### When Capsules Are Worth It
 
-- Decisions made during implementation and **why**
-- Constraints discovered along the way
-- Key file locations, commands, gotchas
-- Open questions that affect other tasks or future work
+- Context that will be needed **across sessions** (decisions, research, key locations)
+- Multi-agent workflows where agents need to **discover what others found** (not just receive messages)
+- Workflows where you'll want to **query past work** by run, phase, role, or full-text search
+- Long-running projects where structured context beats grepping through old files
 
-**Capsules fill this gap.** They carry structured context (6 enforced sections — see skill `SKILL.md`) that survives:
+### When They're Not
 
-- Session restarts and `/clear` commands
-- Team shutdown (`TeamDelete`)
-- Days or weeks between work sessions
-- Agent and subagent boundaries
+- Single-session team workflows where `SendMessage` or shared files suffice
+- One-off tasks where the context won't be needed again
+- Simple agent handoffs where a file or task description carries enough context
 
 ---
 
 ## SendMessage vs Capsules
-
-Claude Code's `SendMessage` handles inter-agent communication within a team. Capsules handle persistent structured context.
 
 | Aspect | SendMessage | Capsule |
 |--------|------------|---------|
@@ -46,92 +42,100 @@ Claude Code's `SendMessage` handles inter-agent communication within a team. Cap
 | Scoping | Recipient name | `run_id`, `phase`, `role`, `workspace`, `tags` |
 | Batch retrieval | N/A | `capsule_list` → `capsule_fetch_many` |
 
-**When to use:**
-- **SendMessage**: Transient coordination ("done", "found a bug in auth.go", "need help with X")
-- **Capsule**: Context that outlives the conversation (decisions, key locations, next actions)
+Use `SendMessage` for transient coordination ("done", "found a bug", "need help"). Use capsules when the context should outlive the conversation.
 
 ---
 
 ## Patterns
 
-### Pattern 1: Parallel Specialists
+### Pattern 1: Session Continuity
 
-Multiple agents review in parallel. Each stores structured findings. Leader gathers them.
-
-```
-# Leader sets up the team
-TeamCreate { team_name: "pr-review" }
-TaskCreate { subject: "Security review", description: "Review PR for vulnerabilities" }
-TaskCreate { subject: "Performance review", description: "Review PR for perf issues" }
-
-# Spawn teammates (run in background so they work in parallel)
-Task {
-  team_name: "pr-review", name: "sec-reviewer",
-  subagent_type: "general-purpose",
-  prompt: "Claim your task, do the review, store findings as a capsule
-           with run_id 'pr-review-42' and role 'security-reviewer'.
-           Then SendMessage the leader that you're done.",
-  run_in_background: true
-}
-Task {
-  team_name: "pr-review", name: "perf-reviewer",
-  subagent_type: "general-purpose",
-  prompt: "Claim your task, do the review, store findings as a capsule
-           with run_id 'pr-review-42' and role 'performance-reviewer'.
-           Then SendMessage the leader that you're done.",
-  run_in_background: true
-}
-```
-
-Each teammate stores findings (see skill `examples.md` for capsule format):
+The simplest use case — no teams required. Persist context across sessions.
 
 ```
-# sec-reviewer does:
-capsule_store {
-  name: "security-findings",
-  run_id: "pr-review-42",
-  role: "security-reviewer",
-  capsule_text: "## Objective\nSecurity review of PR #42...
-## Current status\nFound 2 issues...
-## Decisions\n- SQL injection in user query needs parameterization...
-## Next actions\n- Fix parameterized query in db/users.go:47...
-## Key locations\n- db/users.go:47, handlers/auth.go:112...
-## Open questions\n- Is the admin endpoint intentionally unprotected?"
-}
-TaskUpdate { taskId: "1", status: "completed" }
-SendMessage {
-  type: "message", recipient: "team-lead",
-  content: "Done. Findings in capsule 'security-findings'.",
-  summary: "Security review complete"
-}
+Session A:
+  1. Do work, make decisions
+  2. capsule_store { name: "auth-progress", capsule_text: "..." }
+  3. End session (or /clear)
+
+Session B (hours/days later):
+  1. capsule_fetch { workspace: "default", name: "auth-progress" }
+  2. Continue with full context — decisions, locations, open questions
 ```
 
-Leader gathers all findings without context bloat:
-
-```
-# Step 1: Browse (summaries only, no text loaded)
-capsule_list { run_id: "pr-review-42" }
-
-# Step 2: Fetch only what you need
-capsule_fetch_many { items: [
-  { workspace: "default", name: "security-findings" },
-  { workspace: "default", name: "perf-findings" }
-]}
-
-# Or compose into a single bundle
-capsule_compose { items: [
-  { workspace: "default", name: "security-findings" },
-  { workspace: "default", name: "perf-findings" }
-]}
-```
-
-**Why Moss matters here:** Without capsules, findings go through `SendMessage` — unstructured, lost when the team shuts down. With capsules, findings are structured, queryable by `run_id`, and available next week if someone asks "what did we find in PR #42?"
+This is the core Moss value. Built-in tools (Tasks, SendMessage) are session-bound. Files persist but aren't searchable by metadata. Capsules give you `capsule_search { query: "auth" }` to find context you stored weeks ago, even if you forgot the exact name.
 
 ---
 
-### Pattern 2: Pipeline (Sequential Dependencies)
+### Pattern 2: Cross-Run Knowledge
 
-Each stage inherits context from the previous one via capsules. Tasks handle ordering via `blockedBy`.
+Query capsules from prior workflow runs to inform new ones.
+
+```
+# Starting a new OAuth implementation — check prior art
+capsule_inventory { phase: "research", tag: "oauth" }
+# Returns capsules from ANY prior run tagged "oauth" in research phase
+
+# Full-text search across all capsules
+capsule_search { query: "OAuth provider comparison", phase: "research" }
+
+# Fetch relevant prior research
+capsule_fetch { workspace: "feature-oauth-v1", name: "research" }
+# Decisions from months ago:
+# "Auth0 rejected due to cost, Google OAuth chosen for user-facing..."
+```
+
+**Use cases:**
+- **Onboarding**: New agent/session queries prior art before starting
+- **Avoiding re-work**: Check if similar research already exists
+- **Pattern mining**: `capsule_inventory { phase: "security" }` → all security reviews ever done
+- **Postmortems**: `capsule_inventory { tag: "incident" }` → related incidents
+
+---
+
+### Pattern 3: Shared Knowledge Pool (Swarm)
+
+`SendMessage` is point-to-point — Worker-2 can't read what Worker-1 sent to the leader. When agents need to build on each other's findings, capsules act as a shared knowledge pool.
+
+For simple parallel work where each agent is independent, `SendMessage` is fine. Use capsules when workers might overlap or when findings need to be discoverable by other agents.
+
+```
+# worker-2 checks what others found before starting
+capsule_list { run_id: "codebase-review" }
+# Sees worker-1 already stored "user-model-review"
+
+capsule_search { query: "payment OR validation", run_id: "codebase-review" }
+# Finds capsules mentioning payment even if named differently
+
+capsule_fetch { workspace: "default", name: "user-model-review" }
+# Learns: "Found shared validation logic that affects payment.go"
+# Can account for this instead of rediscovering it
+
+# After finishing, stores own findings
+capsule_store {
+  name: "payment-review", run_id: "codebase-review",
+  capsule_text: "## Decisions\n- Shared validation from user model confirmed...
+## Open questions\n- Rate limiting logic duplicated across 3 files..."
+}
+```
+
+Leader synthesizes:
+
+```
+capsule_list { run_id: "codebase-review" }
+capsule_fetch_many { items: [all capsule refs from list] }
+# Or compose — filtered to just decisions and open questions
+capsule_compose { items: [...], sections: ["Decisions", "Open questions"] }
+# Or compose and store the filtered bundle
+capsule_compose { items: [...], sections: ["Decisions", "Open questions"],
+  store_as: { name: "review-summary" } }
+```
+
+---
+
+### Pattern 4: Pipeline (Sequential Dependencies)
+
+Tasks handle ordering via `blockedBy`. Capsules carry evolving context forward through each stage.
 
 ```
 # Create pipeline tasks with dependencies
@@ -177,183 +181,82 @@ capsule_fetch_many { items: [
 # Has complete decision history: WHY Auth0, WHAT the plan is, WHERE to start
 ```
 
-**Why Moss matters here:** Task descriptions are static — written at creation time, before research happened. Capsules carry the evolving context forward through each stage.
+You could pass context through task descriptions or files instead. Capsules make it queryable — Stage 3 can `capsule_list { run_id: "feature-oauth" }` to discover all prior stages without knowing their names upfront.
 
 ---
 
-### Pattern 3: Swarm (Self-Organizing Workers)
+### Pattern 5: Parallel Specialists
 
-Workers claim tasks from a shared queue and share discoveries via capsules so others don't duplicate work.
+Multiple agents review in parallel. Each stores structured findings. Leader gathers them.
 
-```
-# Workers check what others found before starting
-worker-2 (about to review payment.go):
-  # Option A: Browse by run_id
-  capsule_list { run_id: "codebase-review" }
-  # Sees worker-1 already stored "user-model-review"
-
-  # Option B: Search for relevant findings
-  capsule_search { query: "payment OR validation", run_id: "codebase-review" }
-  # Finds capsules mentioning payment even if named something else
-
-  capsule_fetch { workspace: "default", name: "user-model-review" }
-  # Learns: "Found shared validation logic that affects payment.go"
-  # Can account for this instead of rediscovering it
-
-# After finishing, stores own findings
-worker-2:
-  capsule_store {
-    name: "payment-review", run_id: "codebase-review",
-    capsule_text: "## Decisions\n- Shared validation from user model confirmed...
-## Open questions\n- Rate limiting logic duplicated across 3 files..."
-  }
-```
-
-Leader synthesizes:
+This pattern is most useful when findings will be referenced again later (e.g., recurring reviews, audits). For a one-off review where you just need the results now, `SendMessage` with structured text works fine.
 
 ```
-capsule_list { run_id: "codebase-review" }
-capsule_fetch_many { items: [all capsule refs from list] }
-# Or compose into a single bundle for a summary
-capsule_compose { items: [...], store_as: { name: "review-summary" } }
-```
+# Leader ("team-lead") sets up the team
+TeamCreate { team_name: "pr-review" }
+TaskCreate { subject: "Security review", description: "Review PR for vulnerabilities" }
+TaskCreate { subject: "Performance review", description: "Review PR for perf issues" }
 
-**Why Moss matters here:** `SendMessage` is point-to-point — Worker-2 can't read what Worker-1 sent to the leader. Capsules are a shared knowledge pool any agent can browse and fetch.
-
----
-
-### Pattern 4: Research + Implementation (Across Sessions)
-
-Research happens in one session or subagent. Implementation may happen hours or days later.
-
-```
-# Session A / researcher agent:
-capsule_store {
-  name: "caching-research", phase: "research",
-  tags: ["redis", "caching", "performance"],
-  capsule_text: "## Decisions\n- Redis over Memcached: better persistence, pub/sub...
-## Key locations\n- Existing cache config at config/cache.yml..."
+# Spawn teammates
+Task {
+  team_name: "pr-review", name: "sec-reviewer",
+  subagent_type: "general-purpose",
+  prompt: "Claim your task, do the review, store findings as a capsule
+           with run_id 'pr-review-42' and role 'security-reviewer'.
+           Then SendMessage the leader that you're done.",
+  run_in_background: true
 }
-
-# Session B (days later, different session):
-capsule_search { query: "caching redis" }
-# Find it even if you forgot the exact name
-capsule_fetch { workspace: "default", name: "caching-research" }
-# Full research context even though the original session is long gone
-
-# Session C (review, different person):
-capsule_fetch { workspace: "default", name: "caching-research" }
-# Can verify implementation matches research recommendations
+Task {
+  team_name: "pr-review", name: "perf-reviewer",
+  subagent_type: "general-purpose",
+  prompt: "Claim your task, do the review, store findings as a capsule
+           with run_id 'pr-review-42' and role 'performance-reviewer'.
+           Then SendMessage the leader that you're done.",
+  run_in_background: true
+}
 ```
 
-**Why Moss matters here:** `SendMessage` and Tasks die with the session. There's no built-in mechanism to carry structured context across session boundaries. This is the simplest and most common Moss use case — no teams required.
-
----
-
-### Pattern 5: Coordinated Multi-File Refactoring
-
-Multiple workers refactor different parts. A downstream agent needs to know what changed and why.
+Each teammate stores findings (see skill `examples.md` for capsule format):
 
 ```
-# model-worker stores refactoring decisions
+# sec-reviewer does:
 capsule_store {
-  name: "user-refactor", run_id: "auth-refactor", role: "model-worker",
-  capsule_text: "## Decisions\n- Extracted AuthenticatableUser concern
-- Changed signature: authenticate(password) → authenticate!(password)
-## Key locations\n- New concern at app/models/concerns/authenticatable_user.rb"
+  name: "security-findings",
+  run_id: "pr-review-42",
+  role: "security-reviewer",
+  capsule_text: "## Objective\nSecurity review of PR #42...
+## Current status\nFound 2 issues...
+## Decisions\n- SQL injection in user query needs parameterization...
+## Next actions\n- Fix parameterized query in db/users.go:47...
+## Key locations\n- db/users.go:47, handlers/auth.go:112...
+## Open questions\n- Is the admin endpoint intentionally unprotected?"
 }
-
-# controller-worker stores its decisions
-capsule_store {
-  name: "session-refactor", run_id: "auth-refactor", role: "controller-worker",
-  capsule_text: "## Decisions\n- Now uses User.authenticate! (bang method)
-## Open questions\n- Should we add rate limiting to SessionsController?"
+TaskUpdate { taskId: "1", status: "completed" }
+SendMessage {
+  type: "message", recipient: "team-lead",
+  content: "Done. Findings in capsule 'security-findings'.",
+  summary: "Security review complete"
 }
+```
 
-# spec-worker (blocked by both) gathers all context
-capsule_list { run_id: "auth-refactor" }
+Leader gathers all findings:
+
+```
+capsule_list { run_id: "pr-review-42" }
+
 capsule_fetch_many { items: [
-  { workspace: "default", name: "user-refactor" },
-  { workspace: "default", name: "session-refactor" }
+  { workspace: "default", name: "security-findings" },
+  { workspace: "default", name: "perf-findings" }
 ]}
-# Knows: new concern location, method signature change, open rate-limiting question
+
+# Or compose with sections filter — only decisions and open questions
+capsule_compose { items: [
+  { workspace: "default", name: "security-findings" },
+  { workspace: "default", name: "perf-findings" }
+], sections: ["Decisions", "Open questions"]}
 ```
 
----
-
-## Non-Swarm Use Cases
-
-### Session Continuity
-
-No teams needed — just persist context across sessions.
-
-```
-Session A:
-  1. Do work, make decisions
-  2. capsule_store { name: "auth-progress", capsule_text: "..." }
-  3. End session (or /clear)
-
-Session B (hours/days later):
-  1. capsule_fetch { workspace: "default", name: "auth-progress" }
-  2. Continue with full context — decisions, locations, open questions
-```
-
-### Tasks + Capsules
-
-Use Claude Code's built-in Tasks for coordination, Moss for context.
-
-```
-1. TaskCreate { subject: "Implement auth" }
-2. Do work, make decisions
-3. capsule_store { name: "auth-context", ... }
-   # Response includes fetch_key: { moss_workspace: "default", moss_capsule: "auth-context" }
-4. TaskUpdate { taskId: "1", metadata: { moss_workspace: "default", moss_capsule: "auth-context" } }
-5. Later: TaskGet → read metadata → capsule_fetch
-```
-
-### Cross-Run Knowledge
-
-Query capsules from prior workflow runs to inform new ones.
-
-```
-# Starting a new OAuth implementation — check prior art
-capsule_inventory { phase: "research", tag: "oauth" }
-# Returns capsules from ANY prior run tagged "oauth" in research phase
-
-# Full-text search across all capsules (see skill reference.md § Full-Text Search)
-capsule_search { query: "OAuth provider comparison", phase: "research" }
-
-# Fetch relevant prior research
-capsule_fetch { workspace: "feature-oauth-v1", name: "research" }
-# Decisions from months ago:
-# "Auth0 rejected due to cost, Google OAuth chosen for user-facing..."
-```
-
-**Use cases:**
-- **Onboarding**: New agent/session queries prior art before starting
-- **Avoiding re-work**: Check if similar research already exists
-- **Pattern mining**: `capsule_inventory { phase: "security" }` → all security reviews ever done
-- **Postmortems**: `capsule_inventory { tag: "incident" }` → related incidents
-
----
-
-## Orchestration Fields
-
-Scope capsules to specific workflow runs (see skill `reference.md` § Multi-Agent Orchestration Fields):
-
-| Field | Purpose | Example |
-|-------|---------|---------|
-| `run_id` | Identify workflow run | `"pr-review-42"` |
-| `phase` | Workflow stage | `"research"`, `"plan"`, `"implement"`, `"review"` |
-| `role` | Agent role | `"security-reviewer"`, `"architect"` |
-
-**Query by scope:**
-```
-capsule_list { run_id: "pr-42" }                      # All capsules from this run
-capsule_list { run_id: "pr-42", phase: "research" }   # Just research phase
-capsule_latest { run_id: "pr-42", role: "architect" }  # Latest from architect
-capsule_search { query: "SQL injection", run_id: "pr-42" }  # Search within run
-```
+The payoff comes later: `capsule_search { query: "SQL injection", run_id: "pr-review-42" }` works next month. SendMessage content is long gone by then.
 
 ---
 
@@ -393,6 +296,26 @@ Moss responses include `fetch_key` for direct Task metadata linking (see skill `
 
 ---
 
+## Orchestration Fields
+
+Scope capsules to specific workflow runs (see skill `reference.md` § Multi-Agent Orchestration Fields):
+
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `run_id` | Identify workflow run | `"pr-review-42"` |
+| `phase` | Workflow stage | `"research"`, `"plan"`, `"implement"`, `"review"` |
+| `role` | Agent role | `"security-reviewer"`, `"architect"` |
+
+**Query by scope:**
+```
+capsule_list { run_id: "pr-42" }                      # All capsules from this run
+capsule_list { run_id: "pr-42", phase: "research" }   # Just research phase
+capsule_latest { run_id: "pr-42", role: "architect" }  # Latest from architect
+capsule_search { query: "SQL injection", run_id: "pr-42" }  # Search within run
+```
+
+---
+
 ## Giving Subagents Moss Access
 
 Teammates spawned via `Task` with `team_name` inherit MCP tools from the project config. For custom agent definitions (`.claude/agents/`), explicitly grant Moss tools in the frontmatter:
@@ -418,9 +341,8 @@ See `docs/integrations/claude-code.md` for full subagent configuration and avail
 | Enforce execution order | `addBlockedBy` / `addBlocks` on `TaskUpdate` | — |
 | Transient agent messages | `SendMessage` (DM or broadcast) | — |
 | Spawn teammates | `Task` with `team_name` + `name` | — |
-| Persist decisions | — | `capsule_store` |
-| Context across sessions | — | `capsule_store` → `capsule_fetch` |
-| Gather parallel results | — | `capsule_list` → `capsule_fetch_many` |
+| Persist decisions across sessions | — | `capsule_store` → `capsule_fetch` |
+| Discoverable shared knowledge | — | `capsule_list` → `capsule_fetch_many` |
 | Scope to workflow run | — | `run_id` filter on capsule tools |
 | Filter by stage / role | — | `phase` / `role` filters |
 | Link task to context | Task `metadata` field | `fetch_key` from capsule response |
