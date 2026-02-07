@@ -835,3 +835,455 @@ func TestCompose_AmbiguousAddressing(t *testing.T) {
 		t.Errorf("error = %v, should mention AMBIGUOUS_ADDRESSING", err)
 	}
 }
+
+func TestCompose_Sections_Markdown(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Decisions", "Open questions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if !strings.Contains(output.BundleText, "## Decisions") {
+		t.Error("BundleText should contain '## Decisions'")
+	}
+	if !strings.Contains(output.BundleText, "## Open questions") {
+		t.Error("BundleText should contain '## Open questions'")
+	}
+	if strings.Contains(output.BundleText, "## Objective") {
+		t.Error("BundleText should NOT contain '## Objective' (filtered out)")
+	}
+	if strings.Contains(output.BundleText, "## Current status") {
+		t.Error("BundleText should NOT contain '## Current status' (filtered out)")
+	}
+	if strings.Contains(output.BundleText, "## Next actions") {
+		t.Error("BundleText should NOT contain '## Next actions' (filtered out)")
+	}
+	if strings.Contains(output.BundleText, "## Key locations") {
+		t.Error("BundleText should NOT contain '## Key locations' (filtered out)")
+	}
+}
+
+func TestCompose_Sections_CaseInsensitive(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Use lowercase "decisions" to match "## Decisions"
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if !strings.Contains(output.BundleText, "## Decisions") {
+		t.Error("BundleText should contain '## Decisions' (matched case-insensitively)")
+	}
+	if strings.Contains(output.BundleText, "## Objective") {
+		t.Error("BundleText should NOT contain '## Objective'")
+	}
+}
+
+func TestCompose_Sections_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Request a section that doesn't exist + one that does
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Nonexistent Section", "Decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	// Part should still appear with just the found section
+	if output.PartsCount != 1 {
+		t.Errorf("PartsCount = %d, want 1", output.PartsCount)
+	}
+	if !strings.Contains(output.BundleText, "## Decisions") {
+		t.Error("BundleText should contain '## Decisions'")
+	}
+	if strings.Contains(output.BundleText, "Nonexistent") {
+		t.Error("BundleText should NOT contain nonexistent section")
+	}
+}
+
+func TestCompose_Sections_SkipsPlaceholders(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	// Create capsule with a placeholder section
+	capsuleWithPlaceholder := `## Objective
+Build auth system.
+
+## Current status
+Done.
+
+## Decisions
+(pending)
+
+## Next actions
+Deploy.
+
+## Key locations
+main.go
+
+## Open questions
+None.
+`
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: capsuleWithPlaceholder,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Decisions", "Open questions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	// Decisions is placeholder — should be skipped
+	if strings.Contains(output.BundleText, "(pending)") {
+		t.Error("BundleText should NOT contain placeholder '(pending)'")
+	}
+	// Open questions should still be present
+	if !strings.Contains(output.BundleText, "## Open questions") {
+		t.Error("BundleText should contain '## Open questions'")
+	}
+}
+
+func TestCompose_Sections_JSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Format:   "json",
+		Sections: []string{"Decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if !strings.Contains(output.BundleText, `"parts"`) {
+		t.Error("JSON BundleText should contain 'parts' key")
+	}
+	if !strings.Contains(output.BundleText, "Using JWT") {
+		t.Error("JSON BundleText should contain Decisions content")
+	}
+	if strings.Contains(output.BundleText, "Build a user authentication") {
+		t.Error("JSON BundleText should NOT contain Objective content (filtered out)")
+	}
+}
+
+func TestCompose_Sections_MultipleCapsules(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	cap1Text := `## Objective
+Security review.
+
+## Current status
+Complete.
+
+## Decisions
+- SQL injection found
+- XSS in templates
+
+## Next actions
+Fix issues.
+
+## Key locations
+auth.go
+
+## Open questions
+Is admin unprotected?
+`
+	cap2Text := `## Objective
+Perf review.
+
+## Current status
+Complete.
+
+## Decisions
+- N+1 query found
+
+## Next actions
+Optimize.
+
+## Key locations
+db.go
+
+## Open questions
+Latency threshold?
+`
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace: "default", Name: stringPtr("sec"), CapsuleText: cap1Text,
+	})
+	if err != nil {
+		t.Fatalf("Store sec failed: %v", err)
+	}
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace: "default", Name: stringPtr("perf"), CapsuleText: cap2Text,
+	})
+	if err != nil {
+		t.Fatalf("Store perf failed: %v", err)
+	}
+
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "sec"},
+			{Workspace: "default", Name: "perf"},
+		},
+		Sections: []string{"Decisions", "Open questions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if output.PartsCount != 2 {
+		t.Errorf("PartsCount = %d, want 2", output.PartsCount)
+	}
+	// Both capsules' Decisions should be present
+	if !strings.Contains(output.BundleText, "SQL injection") {
+		t.Error("Should contain sec Decisions content")
+	}
+	if !strings.Contains(output.BundleText, "N+1 query") {
+		t.Error("Should contain perf Decisions content")
+	}
+	// Objective should be filtered out from both
+	if strings.Contains(output.BundleText, "Security review") {
+		t.Error("Should NOT contain sec Objective")
+	}
+	if strings.Contains(output.BundleText, "Perf review") {
+		t.Error("Should NOT contain perf Objective")
+	}
+}
+
+func TestCompose_Sections_WithStoreAs(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Compose with sections + store_as — AllowThin should auto-set
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Decisions"},
+		StoreAs: &ComposeStoreAs{
+			Workspace: "composed",
+			Name:      "filtered-bundle",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	if output.Stored == nil {
+		t.Fatal("Stored should not be nil")
+	}
+	if output.Stored.ID == "" {
+		t.Error("Stored.ID should not be empty")
+	}
+
+	// Verify stored content only has filtered sections
+	fetched, err := Fetch(context.Background(), database, FetchInput{
+		Workspace: "composed",
+		Name:      "filtered-bundle",
+	})
+	if err != nil {
+		t.Fatalf("Fetch failed: %v", err)
+	}
+	if !strings.Contains(fetched.CapsuleText, "Decisions") {
+		t.Error("Stored capsule should contain Decisions")
+	}
+	if strings.Contains(fetched.CapsuleText, "## Objective") {
+		t.Error("Stored capsule should NOT contain Objective")
+	}
+}
+
+func TestCompose_Sections_EmptySectionName(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	_, err = Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Decisions", ""},
+	})
+	if err == nil {
+		t.Fatal("Compose should fail with empty section name")
+	}
+	if !errors.Is(err, errors.ErrInvalidRequest) {
+		t.Errorf("error = %v, want ErrInvalidRequest", err)
+	}
+	if !strings.Contains(err.Error(), "sections[1]") {
+		t.Errorf("error should mention sections[1], got: %v", err)
+	}
+}
+
+func TestCompose_Sections_PreservesOrder(t *testing.T) {
+	tmpDir := t.TempDir()
+	database, err := db.Init(tmpDir)
+	if err != nil {
+		t.Fatalf("db.Init failed: %v", err)
+	}
+	defer database.Close()
+
+	cfg := config.DefaultConfig()
+
+	_, err = Store(context.Background(), database, cfg, StoreInput{
+		Workspace:   "default",
+		Name:        stringPtr("cap1"),
+		CapsuleText: validCapsuleText,
+	})
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Request sections in reverse order from capsule
+	output, err := Compose(context.Background(), database, cfg, ComposeInput{
+		Items: []ComposeRef{
+			{Workspace: "default", Name: "cap1"},
+		},
+		Sections: []string{"Open questions", "Decisions"},
+	})
+	if err != nil {
+		t.Fatalf("Compose failed: %v", err)
+	}
+
+	// Open questions should appear before Decisions in the output
+	oqIdx := strings.Index(output.BundleText, "## Open questions")
+	dIdx := strings.Index(output.BundleText, "## Decisions")
+	if oqIdx == -1 || dIdx == -1 {
+		t.Fatal("Both sections should be present in output")
+	}
+	if oqIdx >= dIdx {
+		t.Errorf("Open questions (pos %d) should appear before Decisions (pos %d) — caller order", oqIdx, dIdx)
+	}
+}

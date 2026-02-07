@@ -188,9 +188,10 @@ type AppendRequest struct {
 
 // ComposeRequest represents the arguments for compose.
 type ComposeRequest struct {
-	Items   []ComposeRef    `json:"items"`
-	Format  string          `json:"format,omitempty"`
-	StoreAs *ComposeStoreAs `json:"store_as,omitempty"`
+	Items    []ComposeRef    `json:"items"`
+	Format   string          `json:"format,omitempty"`
+	Sections []string        `json:"sections,omitempty"`
+	StoreAs  *ComposeStoreAs `json:"store_as,omitempty"`
 }
 
 // ComposeRef identifies a capsule in compose.
@@ -584,8 +585,9 @@ func (h *Handlers) HandleCompose(ctx context.Context, req mcp.CallToolRequest) (
 
 	// Build ops input
 	opsInput := ops.ComposeInput{
-		Items:  refs,
-		Format: input.Format,
+		Items:    refs,
+		Format:   input.Format,
+		Sections: input.Sections,
 	}
 
 	if input.StoreAs != nil {

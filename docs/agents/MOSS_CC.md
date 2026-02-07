@@ -188,8 +188,14 @@ Workers claim tasks from a shared queue and share discoveries via capsules so ot
 ```
 # Workers check what others found before starting
 worker-2 (about to review payment.go):
+  # Option A: Browse by run_id
   capsule_list { run_id: "codebase-review" }
   # Sees worker-1 already stored "user-model-review"
+
+  # Option B: Search for relevant findings
+  capsule_search { query: "payment OR validation", run_id: "codebase-review" }
+  # Finds capsules mentioning payment even if named something else
+
   capsule_fetch { workspace: "default", name: "user-model-review" }
   # Learns: "Found shared validation logic that affects payment.go"
   # Can account for this instead of rediscovering it
@@ -230,6 +236,8 @@ capsule_store {
 }
 
 # Session B (days later, different session):
+capsule_search { query: "caching redis" }
+# Find it even if you forgot the exact name
 capsule_fetch { workspace: "default", name: "caching-research" }
 # Full research context even though the original session is long gone
 

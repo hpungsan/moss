@@ -391,13 +391,22 @@ Assemble multiple capsules into a single bundle. All-or-nothing: fails if any ca
 
 **Required:** `items` array (each addressed by `id` OR `workspace`+`name`)
 
-**Optional:** `format` ("markdown"|"json", default: "markdown"), `store_as` (persist result)
+**Optional:** `format` ("markdown"|"json", default: "markdown"), `sections` (string array), `store_as` (persist result)
 
 **Format options:**
 - `markdown`: `## <display_name>\n\n<text>\n\n---\n\n...`
 - `json`: `{ "parts": [{ "id", "workspace", "name", "display_name", "text", "chars" }, ...] }`
 
 **Display name:** computed as title > name > id (always present)
+
+**`sections` behavior:**
+- Only include named sections from each capsule (exact match, case-insensitive)
+- Output section order follows `sections` array order, not capsule order
+- Sections not found in a capsule are silently skipped
+- Placeholder sections (e.g., `(pending)`) are skipped
+- Thin capsules (no markdown headers) pass through unchanged
+- Empty array or omitted = no filtering (all sections included)
+- When combined with `store_as`, `allow_thin` is auto-set on the stored capsule
 
 **Behaviors:**
 - All-or-nothing: if any item missing → **404 NOT_FOUND**

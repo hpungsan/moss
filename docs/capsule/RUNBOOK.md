@@ -115,6 +115,26 @@ capsule_compose {
 
 **Note:** `store_as` requires `format:"markdown"` (the default). Using `format:"json"` with `store_as` returns an error because JSON output lacks section headers required for capsule lint.
 
+#### Sections Filter
+
+Extract only specific sections from each capsule to reduce context:
+
+```
+capsule_compose {
+  "items": [
+    { "workspace": "default", "name": "security-findings" },
+    { "workspace": "default", "name": "perf-findings" }
+  ],
+  "sections": ["Decisions", "Open questions"]
+}
+```
+
+- Sections matched by exact name, case-insensitive
+- Output order follows `sections` array order
+- Placeholder sections (e.g., `(pending)`) are skipped
+- Works with both `format:"markdown"` and `format:"json"`
+- When combined with `store_as`, `allow_thin` is auto-set
+
 ### Append to Section
 
 Append content to a specific section without rewriting the full capsule:
