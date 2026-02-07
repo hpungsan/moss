@@ -78,6 +78,130 @@ Values: `"append"` (default), `"prepend"`. Use case: status updates where latest
 
 On non-placeholder: **409 CONFLICT**. Use case: first-write semantics, prevent accidental double-writes.
 
+### Section-Pivoted Compose
+
+Extend `capsule_compose` with section-level regrouping for leader synthesis in swarms. (`sections` filter is shipped — see DESIGN.md §6.13. This backlog item covers `pivot` and `include_attribution`.)
+
+**Problem:** In a 5-10 agent swarm, the leader gathers findings via `capsule_fetch_many` or `capsule_compose`. Both output capsule-by-capsule — the leader reads N full capsules (~2-3K chars each) to extract maybe 200 chars of decisions per capsule. That's 80%+ wasted context window on Objective/Status/Key-locations boilerplate when the leader just needs "what did everyone decide?" and "what's still open?"
+
+**Current compose output** (capsule-by-capsule):
+
+```markdown
+## security-findings
+
+## Objective
+Security review of PR #42...
+## Current status
+Found 2 issues...
+## Decisions
+- SQL injection in user query needs parameterization
+## Next actions
+...
+## Key locations
+...
+## Open questions
+- Is the admin endpoint intentionally unprotected?
+
+---
+
+## perf-findings
+
+## Objective
+Performance review of PR #42...
+## Current status
+Found 1 issue...
+## Decisions
+- N+1 query in user listing
+...
+```
+
+**Proposed: section-pivoted output** (section-by-section, filtered):
+
+```json
+{
+  "items": [
+    { "workspace": "default", "name": "security-findings" },
+    { "workspace": "default", "name": "perf-findings" }
+  ],
+  "pivot": "section",
+  "sections": ["Decisions", "Open questions"],
+  "include_attribution": true
+}
+```
+
+Output:
+
+```markdown
+## Decisions
+
+**security-findings** (security-reviewer):
+- SQL injection in user query needs parameterization
+
+**perf-findings** (performance-reviewer):
+- N+1 query in user listing
+- Missing index on created_at
+
+## Open questions
+
+**security-findings** (security-reviewer):
+- Is the admin endpoint intentionally unprotected?
+
+**perf-findings** (performance-reviewer):
+- Acceptable latency threshold?
+```
+
+**New parameters on `capsule_compose`:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `pivot` | string | `null` | `"section"` regroups output by section instead of by capsule. Omit for current behavior. |
+| `include_attribution` | bool | `false` | Prefix each capsule's contribution with `**display_name** (role):`. Display name follows existing compose priority: `title > name > id`. Role omitted if capsule has no `role` field. |
+
+**Behavior details:**
+
+- `pivot: "section"` iterates sections in encounter order (first capsule's section ordering wins). When items include filter expansions (see Filter-Based Compose Items), the first capsule by `created_at` determines section order. Sections not present in a capsule are silently skipped for that capsule.
+- `include_attribution` without `pivot` adds attribution headers within each capsule's output block.
+- Section matching uses exact header name (same semantics as `capsule_append`).
+- Empty sections (only whitespace/placeholder) are skipped unless no capsule has content for that section.
+- Format must be `"markdown"` when using `pivot` (JSON pivot is not supported — return error).
+- `store_as` with `pivot` active: auto-set `allow_thin` on the stored capsule (same as existing `sections` behavior).
+
+**Context:** This is a swarm-era feature. The leader synthesis bottleneck didn't exist before Claude Code Teams — single-agent sessions never needed to merge findings from 5+ parallel workers. The key insight is that `capsule_compose` should support the leader's actual question ("what did everyone decide?") not just concatenation ("give me everything").
+
+**Complementary enhancement:** Filter-based item selection (e.g., `{ "run_id": "pr-42" }` as an item that expands to all matching capsules) would pair well with pivoted compose but is spec'd separately — it's useful without pivot too.
+
+### Filter-Based Compose Items
+
+Allow `capsule_compose` items to be filter objects that expand to matching capsules, instead of requiring explicit refs.
+
+```json
+{
+  "items": [{ "run_id": "pr-review-42" }],
+  "pivot": "section",
+  "sections": ["Decisions", "Open questions"]
+}
+```
+
+A filter item contains one or more of: `workspace`, `run_id`, `phase`, `role`, `tag`. The filter expands to all active capsules matching (AND semantics), ordered by `created_at`. Mixed refs and filters in the same `items` array are allowed.
+
+**Validation:**
+- Each item must be either a ref (has `id` or `name`) or a filter (has `run_id`/`phase`/`role`/`tag` but no `id`/`name`). Error if ambiguous.
+- Expanded items still count toward the 50-item limit. If expansion exceeds it: **422 INVALID_REQUEST** with `expanded_count` in error detail.
+- If a filter matches 0 capsules: skip silently (not all-or-nothing — the filter matched, it just had no results).
+- `workspace` in a filter item is a filter field (match all capsules in that workspace), not an addressing field. This differs from ref items where `workspace` + `name` addresses a specific capsule.
+
+**Ordering:**
+- Filter items expand in `created_at ASC` order. This matters for `pivot: "section"` where the first capsule's section ordering wins.
+- Explicit ref items retain their position in the `items` array. Expanded filter items are inserted at the filter's position in array order.
+- Example: `[ref-A, filter-expanding-to-B-C, ref-D]` → processing order is `A, B, C, D`.
+
+**Error handling:**
+- If a ref item fails (capsule not found): existing all-or-nothing behavior applies (whole compose fails).
+- If a filter item matches 0 capsules: skip silently (filter succeeded, just had no results).
+- Mixed failure: ref miss → fail. Filter miss → skip. This is intentional — refs are explicit expectations, filters are discovery.
+
+**Context:** In a swarm, the leader often doesn't know capsule names ahead of time — workers choose their own names. Today the leader does `capsule_list { run_id: "..." }` then manually builds the `items` array. Filter items collapse this to one call.
+
 ### Multi-Run Queries
 
 Allow `run_id` filter to accept an array for querying across multiple runs:

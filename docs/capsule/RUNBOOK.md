@@ -24,7 +24,7 @@ Operational guide for the Capsule type: MCP tools, common operations, orchestrat
 | `capsule_purge` | Permanently delete soft-deleted capsules |
 | `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
 | `capsule_bulk_update` | Update metadata on multiple capsules |
-| `capsule_compose` | Assemble multiple capsules into bundle |
+| `capsule_compose` | Assemble multiple capsules into bundle, optionally filter sections |
 | `capsule_append` | Append content to a specific section |
 
 ---
@@ -114,6 +114,28 @@ capsule_compose {
 ```
 
 **Note:** `store_as` requires `format:"markdown"` (the default). Using `format:"json"` with `store_as` returns an error because JSON output lacks section headers required for capsule lint.
+
+#### Sections Filter
+
+Extract only specific sections from each capsule to reduce context:
+
+```
+capsule_compose {
+  "items": [
+    { "workspace": "default", "name": "security-findings" },
+    { "workspace": "default", "name": "perf-findings" }
+  ],
+  "sections": ["Decisions", "Open questions"]
+}
+```
+
+- Sections matched by exact name, case-insensitive
+- Output order follows `sections` array order
+- Placeholder sections (e.g., `(pending)`) are skipped
+- Works with both `format:"markdown"` and `format:"json"`
+- Capsules with no matching sections are omitted from output (empty parts skipped)
+- `store_as` fails if the filtered bundle is empty; headers inside fenced code blocks are ignored
+- When combined with `store_as`, `allow_thin` is auto-set
 
 ### Append to Section
 

@@ -174,7 +174,7 @@ Uniqueness enforced on `(workspace_norm, name_norm)` when name is present.
 | `capsule_purge` | Permanently delete soft-deleted |
 | `capsule_bulk_delete` | Soft-delete multiple capsules by filter |
 | `capsule_bulk_update` | Update metadata on multiple capsules |
-| `capsule_compose` | Assemble multiple capsules into bundle |
+| `capsule_compose` | Assemble multiple capsules into bundle, optionally filter sections |
 | `capsule_append` | Append content to a specific section |
 
 Each tool has a focused schema — no `action` dispatch needed.
@@ -387,17 +387,29 @@ Permanently delete soft-deleted capsules.
 
 ## 6.13 `capsule_compose`
 
-Assemble multiple capsules into a single bundle. All-or-nothing: fails if any capsule is missing.
+Assemble multiple capsules into a single bundle. Optionally filter to specific sections. All-or-nothing: fails if any capsule is missing.
 
 **Required:** `items` array (each addressed by `id` OR `workspace`+`name`)
 
-**Optional:** `format` ("markdown"|"json", default: "markdown"), `store_as` (persist result)
+**Optional:** `format` ("markdown"|"json", default: "markdown"), `sections` (string array — filter to specific sections), `store_as` (persist result)
 
 **Format options:**
 - `markdown`: `## <display_name>\n\n<text>\n\n---\n\n...`
 - `json`: `{ "parts": [{ "id", "workspace", "name", "display_name", "text", "chars" }, ...] }`
 
 **Display name:** computed as title > name > id (always present)
+
+**`sections` behavior:**
+- Only include named sections from each capsule (exact match, case-insensitive)
+- Output section order follows `sections` array order, not capsule order
+- Sections not found in a capsule are silently skipped
+- Placeholder sections (e.g., `(pending)`) are skipped
+- Capsules where all requested sections are missing or placeholder are omitted from output entirely (`parts_count` reflects only capsules that contributed content)
+- Thin capsules (no markdown headers) pass through unchanged
+- Empty array or omitted = no filtering (all sections included)
+- When combined with `store_as`, `allow_thin` is auto-set on the stored capsule
+- `store_as` + empty bundle (all parts filtered out) → **400 INVALID_REQUEST**
+- Section matching ignores headers inside fenced code blocks (`` ``` `` or `~~~`)
 
 **Behaviors:**
 - All-or-nothing: if any item missing → **404 NOT_FOUND**
@@ -486,6 +498,7 @@ Append content to a specific section of a capsule without rewriting the entire d
 **Section matching:**
 - Exact header name match (case-insensitive)
 - No synonym resolution — use the header as written (e.g., `## Status` → `"Status"`)
+- Headers inside fenced code blocks (`` ``` `` or `~~~`) are ignored
 - Error message lists available sections if not found
 
 **Placeholder handling:** If section content is only a placeholder (`(pending)`, `TBD`, `N/A`, `-`, `none`, etc.), replaces it entirely. Otherwise appends after existing content with blank line separator.

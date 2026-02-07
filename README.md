@@ -73,7 +73,7 @@ capsule_fetch { "workspace": "myproject", "name": "auth" }
 | `capsule_list` | List capsules in workspace |
 | `capsule_inventory` | List all capsules globally |
 | `capsule_search` | Full-text search |
-| `capsule_compose` | Assemble multiple capsules |
+| `capsule_compose` | Assemble multiple capsules, optionally filter sections |
 | `capsule_export` | JSONL backup |
 | `capsule_import` | JSONL restore |
 | `capsule_purge` | Permanent delete |

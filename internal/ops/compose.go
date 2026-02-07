@@ -15,9 +15,10 @@ import (
 
 // ComposeInput contains parameters for the Compose operation.
 type ComposeInput struct {
-	Items   []ComposeRef    // required, 1-50 items
-	Format  string          // "markdown" (default) or "json"
-	StoreAs *ComposeStoreAs // optional: persist result
+	Items    []ComposeRef    // required, 1-50 items
+	Format   string          // "markdown" (default) or "json"
+	Sections []string        // only include these sections (exact match, case-insensitive)
+	StoreAs  *ComposeStoreAs // optional: persist result
 }
 
 // ComposeRef identifies a capsule by ID or by workspace+name.
@@ -78,6 +79,16 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 		return nil, errors.NewInvalidRequest("format must be one of: markdown, json")
 	}
 
+	// Validate sections
+	if len(input.Sections) > 0 {
+		for i, s := range input.Sections {
+			if strings.TrimSpace(s) == "" {
+				return nil, errors.NewInvalidRequest(
+					fmt.Sprintf("sections[%d]: section name must not be empty", i))
+			}
+		}
+	}
+
 	// Reject JSON format with store_as (JSON output lacks section headers, so lint would fail)
 	if format == "json" && input.StoreAs != nil {
 		return nil, errors.NewInvalidRequest("cannot use format:\"json\" with store_as; JSON output is not a valid capsule structure")
@@ -120,8 +131,16 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 			return nil, fmt.Errorf("items[%d]: %w", i, err)
 		}
 
-		// Early size check (conservative estimate without formatting overhead)
-		estimatedChars += c.CapsuleChars
+		partText := c.CapsuleText
+		partChars := c.CapsuleChars
+		if len(input.Sections) > 0 {
+			partText = filterSections(partText, input.Sections)
+			partChars = capsule.CountChars(partText)
+		}
+
+		// Early size check (conservative estimate without formatting overhead).
+		// When sections filtering is enabled, estimate based on filtered text to avoid false positives.
+		estimatedChars += partChars
 		if estimatedChars > cfg.CapsuleMaxChars {
 			return nil, errors.NewComposeTooLarge(cfg.CapsuleMaxChars, estimatedChars)
 		}
@@ -140,13 +159,18 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 			name = *c.NameRaw
 		}
 
+		// Skip empty parts when section filtering produces no content
+		if len(input.Sections) > 0 && partText == "" {
+			continue
+		}
+
 		parts = append(parts, ComposePart{
 			ID:          c.ID,
 			Workspace:   c.WorkspaceRaw,
 			Name:        name,
 			DisplayName: displayName,
-			Text:        c.CapsuleText,
-			Chars:       c.CapsuleChars,
+			Text:        partText,
+			Chars:       partChars,
 		})
 	}
 
@@ -184,13 +208,16 @@ func Compose(ctx context.Context, database *sql.DB, cfg *config.Config, input Co
 		if input.StoreAs.Name == "" {
 			return nil, errors.NewInvalidRequest("store_as.name is required")
 		}
+		if bundleText == "" {
+			return nil, errors.NewInvalidRequest("cannot store empty bundle (sections filter matched no content)")
+		}
 
 		storeResult, err := Store(ctx, database, cfg, StoreInput{
 			Workspace:   input.StoreAs.Workspace,
 			Name:        &input.StoreAs.Name,
 			CapsuleText: bundleText,
 			Mode:        input.StoreAs.Mode,
-			AllowThin:   false, // Lint the composed result
+			AllowThin:   len(input.Sections) > 0,
 		})
 		if err != nil {
 			return nil, err
@@ -224,4 +251,31 @@ func assembleJSON(parts []ComposePart) (string, error) {
 		return "", errors.NewInternal(err)
 	}
 	return string(data), nil
+}
+
+// filterSections extracts only the requested sections from capsule text.
+// Sections are matched by exact name (case-insensitive), in the order specified
+// by the caller. Placeholder sections are skipped. If no sections are found
+// (e.g., thin capsule without markdown headers), the original text is returned.
+func filterSections(text string, sections []string) string {
+	parsed := capsule.ParseSections(text)
+	if len(parsed) == 0 {
+		return text // thin capsule, no markdown headers — pass through unchanged
+	}
+
+	var sb strings.Builder
+	found := false
+	for _, name := range sections {
+		sec := capsule.FindSectionExact(parsed, name)
+		if sec == nil || sec.IsPlaceholder {
+			continue
+		}
+		if found {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(text[sec.HeaderStart:sec.ContentEnd])
+		found = true
+	}
+
+	return sb.String()
 }

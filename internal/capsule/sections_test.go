@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -501,6 +502,119 @@ Round 1
 	s = FindSectionExact(sections, "Nonexistent")
 	if s != nil {
 		t.Errorf("FindSectionExact('Nonexistent') should return nil")
+	}
+}
+
+func TestParseSections_IgnoresHeadersInFencedCodeBlocks(t *testing.T) {
+	text := "## Objective\nGoal here\n\n## Key locations\n```go\n// ## Decisions\nfunc main() {}\n```\n\n## Decisions\nUsed JWT\n"
+	sections := ParseSections(text)
+
+	// Should find 3 real sections, NOT the ## Decisions inside the code fence
+	if len(sections) != 3 {
+		t.Fatalf("Expected 3 sections, got %d", len(sections))
+	}
+
+	expected := []string{"Objective", "Key locations", "Decisions"}
+	for i, want := range expected {
+		if sections[i].HeaderName != want {
+			t.Errorf("Section %d: HeaderName = %q, want %q", i, sections[i].HeaderName, want)
+		}
+	}
+
+	// Key locations content should include the full code fence block
+	klContent := text[sections[1].ContentStart:sections[1].ContentEnd]
+	if !strings.Contains(klContent, "```go") {
+		t.Error("Key locations content should include the code fence")
+	}
+	if !strings.Contains(klContent, "func main()") {
+		t.Error("Key locations content should include code inside the fence")
+	}
+}
+
+func TestParseSections_IgnoresHeadersInTildeFence(t *testing.T) {
+	text := "## Objective\nGoal\n\n~~~\n## Fake Header\nContent\n~~~\n\n## Status\nDone\n"
+	sections := ParseSections(text)
+
+	if len(sections) != 2 {
+		t.Fatalf("Expected 2 sections, got %d", len(sections))
+	}
+	if sections[0].HeaderName != "Objective" {
+		t.Errorf("Section 0 = %q, want 'Objective'", sections[0].HeaderName)
+	}
+	if sections[1].HeaderName != "Status" {
+		t.Errorf("Section 1 = %q, want 'Status'", sections[1].HeaderName)
+	}
+}
+
+func TestParseSections_NoFences_Unchanged(t *testing.T) {
+	// Ensure normal capsules without fences still work identically
+	text := "## Objective\nGoal\n\n## Status\nDone\n"
+	sections := ParseSections(text)
+	if len(sections) != 2 {
+		t.Fatalf("Expected 2 sections, got %d", len(sections))
+	}
+	if sections[0].HeaderName != "Objective" || sections[1].HeaderName != "Status" {
+		t.Error("Sections should parse normally without fences")
+	}
+}
+
+func TestParseSections_UnclosedFence_NoFiltering(t *testing.T) {
+	// An unclosed fence (only one ```) should not filter anything
+	text := "## Objective\nGoal\n\n```\n## Status\nDone\n"
+	sections := ParseSections(text)
+
+	// With only one fence delimiter, no ranges are produced — all headers visible
+	if len(sections) != 2 {
+		t.Fatalf("Expected 2 sections (unclosed fence = no filtering), got %d", len(sections))
+	}
+}
+
+func TestParseSections_IndentedFence(t *testing.T) {
+	// CommonMark allows 0-3 spaces before fence delimiter
+	text := "## Objective\nGoal\n\n   ```\n## Fake\nContent\n   ```\n\n## Status\nDone\n"
+	sections := ParseSections(text)
+
+	if len(sections) != 2 {
+		t.Fatalf("Expected 2 sections (indented fence should be recognized), got %d", len(sections))
+	}
+	if sections[0].HeaderName != "Objective" {
+		t.Errorf("Section 0 = %q, want 'Objective'", sections[0].HeaderName)
+	}
+	if sections[1].HeaderName != "Status" {
+		t.Errorf("Section 1 = %q, want 'Status'", sections[1].HeaderName)
+	}
+}
+
+func TestParseSections_FenceTypeMustMatch(t *testing.T) {
+	// Closing fence must use same character as opening fence.
+	// Here ~~~ opens but ``` should NOT close it — ## Fake stays inside the fence.
+	text := "## Objective\nGoal\n\n~~~\n## Fake\n```\nstill in fence\n~~~\n\n## Status\nDone\n"
+	sections := ParseSections(text)
+
+	if len(sections) != 2 {
+		t.Fatalf("Expected 2 sections (mismatched fence type should not close), got %d", len(sections))
+	}
+	if sections[0].HeaderName != "Objective" {
+		t.Errorf("Section 0 = %q, want 'Objective'", sections[0].HeaderName)
+	}
+	if sections[1].HeaderName != "Status" {
+		t.Errorf("Section 1 = %q, want 'Status'", sections[1].HeaderName)
+	}
+}
+
+func TestParseSections_ClosingFenceMustBeAtLeastAsLong(t *testing.T) {
+	// Opening with ```` (4 backticks) — closing ``` (3) should NOT close it
+	text := "## Objective\nGoal\n\n````\n## Fake\n```\nstill in fence\n````\n\n## Status\nDone\n"
+	sections := ParseSections(text)
+
+	if len(sections) != 2 {
+		t.Fatalf("Expected 2 sections (shorter fence should not close), got %d", len(sections))
+	}
+	if sections[0].HeaderName != "Objective" {
+		t.Errorf("Section 0 = %q, want 'Objective'", sections[0].HeaderName)
+	}
+	if sections[1].HeaderName != "Status" {
+		t.Errorf("Section 1 = %q, want 'Status'", sections[1].HeaderName)
 	}
 }
 
