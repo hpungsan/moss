@@ -7,6 +7,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.7
+	github.com/yuin/goldmark v1.7.16
 	modernc.org/sqlite v1.44.3
 )
 

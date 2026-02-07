@@ -71,6 +71,7 @@ moss fetch --name=X                # Fetch by name
 moss fetch <id>                    # Fetch by ID
 moss list                          # List in workspace
 moss inventory                     # List all
+moss serve                         # Start web UI
 moss --help                        # All commands
 ```
 
@@ -85,7 +86,8 @@ internal/
 ├── db/          # SQLite init, migrations, queries (CRUD)
 ├── errors/      # MossError with codes (400/404/409/413/422/499/500)
 ├── mcp/         # MCP server, tool definitions, handlers
-└── ops/         # Business logic (capsule operations)
+├── ops/         # Business logic (capsule operations)
+└── web/         # Web UI server, handlers, templates, static assets
 ```
 
 ## Paths
@@ -104,5 +106,6 @@ internal/
 | `docs/capsule/BACKLOG.md` | Post-v1 capsule features |
 | `docs/capsule/RUNBOOK.md` | Capsule operations guide |
 | `docs/integrations/claude-code.md` | Claude Code integration |
+| `docs/ui/DESIGN.md` | Web UI spec + architecture |
 | `docs/agents/CODEMAP.md` | File-level lookup table |
 | `docs/agents/MOSS_CC.md` | Claude Code patterns |

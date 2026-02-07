@@ -1,0 +1,101 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="page-header">
+    <h1>Capsules</h1>
+</div>
+
+<div class="list-layout">
+    <aside class="filter-sidebar">
+        <form hx-get="/capsules" hx-push-url="true" hx-target="#main">
+            <h3>Filters</h3>
+            <div class="form-group">
+                <label for="workspace">Workspace</label>
+                <input type="text" id="workspace" name="workspace" value="{{.Workspace}}" placeholder="default">
+            </div>
+            <div class="form-group">
+                <label for="run_id">Run ID</label>
+                <input type="text" id="run_id" name="run_id" value="{{.RunID}}" placeholder="Filter by run ID">
+            </div>
+            <div class="form-group">
+                <label for="phase">Phase</label>
+                <input type="text" id="phase" name="phase" value="{{.Phase}}" placeholder="Filter by phase">
+            </div>
+            <div class="form-group">
+                <label for="role">Role</label>
+                <input type="text" id="role" name="role" value="{{.Role}}" placeholder="Filter by role">
+            </div>
+            <div class="form-group form-check">
+                <label>
+                    <input type="checkbox" name="include_deleted" value="true" {{if .Deleted}}checked{{end}}>
+                    Include deleted
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Apply</button>
+        </form>
+    </aside>
+
+    <div class="list-content">
+        {{if .Items}}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name / ID</th>
+                    <th>Title</th>
+                    <th>Chars</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Items}}
+                <tr{{if .DeletedAt}} class="row-deleted"{{end}}>
+                    <td>
+                        <a href="/capsules/{{.ID}}{{if $.Deleted}}?include_deleted=true{{end}}">
+                            {{if hasValue .Name}}{{deref .Name}}{{else}}{{printf "%.10s" .ID}}...{{end}}
+                        </a>
+                        {{if .Tags}}
+                        <div class="tag-list">
+                            {{range .Tags}}<span class="badge badge-tag">{{.}}</span>{{end}}
+                        </div>
+                        {{end}}
+                    </td>
+                    <td>{{if hasValue .Title}}{{deref .Title}}{{else}}<span class="text-muted">—</span>{{end}}</td>
+                    <td>{{formatChars .CapsuleChars}}</td>
+                    <td>{{formatTime .CreatedAt}}</td>
+                    <td>{{formatTime .UpdatedAt}}</td>
+                    <td>
+                        {{if not .DeletedAt}}
+                        <button class="btn btn-danger btn-sm"
+                                hx-delete="/capsules/{{.ID}}"
+                                hx-confirm="Delete this capsule?">Delete</button>
+                        {{else}}
+                        <span class="text-muted">Deleted</span>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            {{if gt .Pagination.Offset 0}}
+            <a href="?workspace={{urlquery .Workspace}}&run_id={{urlquery .RunID}}&phase={{urlquery .Phase}}&role={{urlquery .Role}}{{if .Deleted}}&include_deleted=true{{end}}&offset={{sub .Pagination.Offset .Pagination.Limit}}&limit={{.Pagination.Limit}}" class="btn btn-secondary">Previous</a>
+            {{end}}
+            <span class="pagination-info">
+                Showing {{add .Pagination.Offset 1}}–{{if .Pagination.HasMore}}{{add .Pagination.Offset .Pagination.Limit}}{{else}}{{.Pagination.Total}}{{end}} of {{.Pagination.Total}}
+            </span>
+            {{if .Pagination.HasMore}}
+            <a href="?workspace={{urlquery .Workspace}}&run_id={{urlquery .RunID}}&phase={{urlquery .Phase}}&role={{urlquery .Role}}{{if .Deleted}}&include_deleted=true{{end}}&offset={{add .Pagination.Offset .Pagination.Limit}}&limit={{.Pagination.Limit}}" class="btn btn-secondary">Next</a>
+            {{end}}
+        </div>
+        {{else}}
+        <div class="empty-state">
+            <p>No capsules found.</p>
+            <p class="text-muted">Try adjusting your filters or create a new capsule.</p>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{end}}

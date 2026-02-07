@@ -84,6 +84,18 @@ capsule_fetch { "workspace": "myproject", "name": "auth" }
 
 See [Capsule Runbook](docs/capsule/RUNBOOK.md) for full usage, addressing modes, and error handling.
 
+## Web UI
+
+Browse, search, and inspect capsules from a browser:
+
+```bash
+moss serve
+```
+
+Opens at `http://127.0.0.1:8314`. Provides list, search, inventory, and detail views — calls the same ops layer as MCP.
+
+See [UI Design Spec](docs/ui/DESIGN.md) for details.
+
 ## CLI
 
 The CLI mirrors MCP capsule operations for debugging and scripting. Note: orchestration fields (`run_id`, `phase`, `role`) are MCP-only.
@@ -98,6 +110,9 @@ moss fetch --name=auth
 
 # List all
 moss inventory
+
+# Start web UI
+moss serve
 
 # Export
 moss export
@@ -120,6 +135,7 @@ Run `moss --help` for all commands.
 - [Capsule Design Spec](docs/capsule/DESIGN.md)
 - [Capsule Runbook](docs/capsule/RUNBOOK.md) — Operations, configuration, troubleshooting
 - [Capsule Backlog](docs/capsule/BACKLOG.md) — Future capsule features
+- [UI Design Spec](docs/ui/DESIGN.md) — Web UI architecture
 
 ## License
 

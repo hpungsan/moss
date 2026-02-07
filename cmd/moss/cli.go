@@ -17,6 +17,7 @@ import (
 	"github.com/hpungsan/moss/internal/errors"
 	"github.com/hpungsan/moss/internal/mcp"
 	"github.com/hpungsan/moss/internal/ops"
+	"github.com/hpungsan/moss/internal/web"
 )
 
 // newCLIApp creates the CLI application with all commands.
@@ -37,6 +38,7 @@ func newCLIApp(db *sql.DB, cfg *config.Config) *cli.App {
 			importCmd(db, cfg),
 			purgeCmd(db),
 			toolsCmd(cfg),
+			serveCmd(db, cfg),
 		},
 	}
 	// Disable default exit error handler to allow proper error return in tests
@@ -471,6 +473,31 @@ func toolsCmd(cfg *config.Config) *cli.Command {
 			}
 
 			return outputJSON(output)
+		},
+	}
+}
+
+// serveCmd creates the serve command.
+func serveCmd(db *sql.DB, cfg *config.Config) *cli.Command {
+	return &cli.Command{
+		Name:  "serve",
+		Usage: "Start the web UI server",
+		Flags: []cli.Flag{
+			&cli.IntFlag{Name: "port", Usage: "Port number (default: from config or 8314)"},
+			&cli.StringFlag{Name: "bind", Usage: "Bind address (default: from config or 127.0.0.1)"},
+		},
+		Action: func(c *cli.Context) error {
+			port := cfg.UIPort
+			if c.IsSet("port") {
+				port = c.Int("port")
+			}
+			bind := cfg.UIBind
+			if c.IsSet("bind") {
+				bind = c.String("bind")
+			}
+
+			srv := web.NewServer(db, cfg, Version, bind, port)
+			return web.Run(srv)
 		},
 	}
 }

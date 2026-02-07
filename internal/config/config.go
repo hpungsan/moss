@@ -40,12 +40,20 @@ type Config struct {
 	// All tools belonging to disabled types are excluded from registration.
 	// Known types: "capsule". Unknown type names are logged as warnings.
 	DisabledTypes []string `json:"disabled_types,omitempty"`
+
+	// UIPort is the port for the web UI server (moss serve).
+	UIPort int `json:"ui_port,omitempty"`
+
+	// UIBind is the bind address for the web UI server (moss serve).
+	UIBind string `json:"ui_bind,omitempty"`
 }
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
 		CapsuleMaxChars: 12000,
+		UIPort:          8314,
+		UIBind:          "127.0.0.1",
 	}
 }
 
@@ -145,6 +153,16 @@ func Merge(base, overlay *Config) *Config {
 	result.DBMaxIdleConns = overlay.DBMaxIdleConns
 	if result.DBMaxIdleConns == 0 {
 		result.DBMaxIdleConns = base.DBMaxIdleConns
+	}
+
+	result.UIPort = overlay.UIPort
+	if result.UIPort == 0 {
+		result.UIPort = base.UIPort
+	}
+
+	result.UIBind = overlay.UIBind
+	if result.UIBind == "" {
+		result.UIBind = base.UIBind
 	}
 
 	// Booleans: overlay wins if true, else base
