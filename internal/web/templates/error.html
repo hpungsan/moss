@@ -1,0 +1,12 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="error-page">
+    <div class="error-code">{{.StatusCode}}</div>
+    <p class="error-message">{{.Message}}</p>
+    <div class="error-actions">
+        <a href="/capsules" class="btn btn-primary">Back to capsules</a>
+        <button type="button" class="btn btn-secondary" data-go-back>Go back</button>
+    </div>
+</div>
+{{end}}

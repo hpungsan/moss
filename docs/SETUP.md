@@ -182,6 +182,10 @@ moss import --path=~/.moss/exports/backup.jsonl --mode=replace
 # Purge deleted capsules
 moss purge --older-than=7d
 
+# Start web UI
+moss serve
+moss serve --port=9000 --bind=0.0.0.0
+
 # List MCP tools with enabled/disabled status
 moss tools
 ```
@@ -226,7 +230,9 @@ Moss loads config from two locations:
   "db_max_open_conns": 0,
   "db_max_idle_conns": 0,
   "disabled_tools": [],
-  "disabled_types": []
+  "disabled_types": [],
+  "ui_port": 8314,
+  "ui_bind": "127.0.0.1"
 }
 ```
 
@@ -239,6 +245,8 @@ Moss loads config from two locations:
 | `db_max_idle_conns` | 0 | Max idle DB connections (0 = default; typically match `db_max_open_conns`) |
 | `disabled_tools` | `[]` | MCP tool names to exclude from registration |
 | `disabled_types` | `[]` | Type names to disable entirely (e.g., `["capsule"]` disables all capsule tools) |
+| `ui_port` | 8314 | Port for `moss serve` |
+| `ui_bind` | `127.0.0.1` | Bind address for `moss serve` |
 
 If the file doesn't exist, defaults are used.
 

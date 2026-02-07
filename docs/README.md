@@ -46,6 +46,12 @@ Distilled context snapshots for LLM consumption. Markdown-based with 6 required 
 - [RUNBOOK.md](capsule/RUNBOOK.md) — Operations guide, configuration, troubleshooting
 - [BACKLOG.md](capsule/BACKLOG.md) — Future features
 
+## Web UI
+
+`moss serve` launches a local web UI at `http://127.0.0.1:8314` for browsing, searching, and inspecting capsules. Read-only plus delete — no store/update/append. Calls the same ops layer as MCP.
+
+- [UI Design Spec](ui/DESIGN.md) — Routes, templates, htmx patterns, configuration
+
 ## Integration
 
 | Doc | Purpose |

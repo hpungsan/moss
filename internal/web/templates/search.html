@@ -1,0 +1,94 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="page-header">
+    <h1>Search</h1>
+</div>
+
+<div class="search-layout">
+    <form class="search-form" data-no-submit>
+        <div class="search-bar">
+            <input type="search" name="q" value="{{.Query}}" placeholder="Search capsules..." class="search-input" autofocus
+                   hx-get="/capsules/search"
+                   hx-trigger="input changed delay:300ms, search"
+                   hx-target="#results"
+                   hx-push-url="true"
+                   hx-include="[name='workspace'],[name='tag'],[name='run_id'],[name='phase'],[name='role']">
+        </div>
+        <div class="search-filters">
+            <div class="form-group-inline">
+                <label for="workspace">Workspace</label>
+                <input type="text" id="workspace" name="workspace" value="{{.Workspace}}" placeholder="All">
+            </div>
+            <div class="form-group-inline">
+                <label for="tag">Tag</label>
+                <input type="text" id="tag" name="tag" value="{{.Tag}}" placeholder="All">
+            </div>
+            <div class="form-group-inline">
+                <label for="run_id">Run ID</label>
+                <input type="text" id="run_id" name="run_id" value="{{.RunID}}" placeholder="All">
+            </div>
+            <div class="form-group-inline">
+                <label for="phase">Phase</label>
+                <input type="text" id="phase" name="phase" value="{{.Phase}}" placeholder="All">
+            </div>
+            <div class="form-group-inline">
+                <label for="role">Role</label>
+                <input type="text" id="role" name="role" value="{{.Role}}" placeholder="All">
+            </div>
+        </div>
+    </form>
+
+    <div id="results">
+        {{template "search-results" .}}
+    </div>
+</div>
+{{end}}
+
+{{define "search-results"}}
+{{if .HasQuery}}
+    {{if .Items}}
+    <div class="search-results">
+        {{range .Items}}
+        <a href="/capsules/{{.ID}}{{if $.Deleted}}?include_deleted=true{{end}}" class="card search-card">
+            <div class="card-header">
+                <span class="card-title">
+                    {{if hasValue .Name}}{{deref .Name}}{{else}}{{printf "%.10s" .ID}}...{{end}}
+                </span>
+                <span class="badge badge-workspace">{{.Workspace}}</span>
+            </div>
+            <div class="card-snippet">{{safeHTML .Snippet}}</div>
+            <div class="card-meta">
+                {{formatChars .CapsuleChars}} chars &middot; Updated {{formatTime .UpdatedAt}}
+                {{if .Tags}}
+                    {{range .Tags}} &middot; <span class="badge badge-tag">{{.}}</span>{{end}}
+                {{end}}
+            </div>
+        </a>
+        {{end}}
+    </div>
+
+    <div class="pagination">
+        {{if gt .Pagination.Offset 0}}
+        <a href="?q={{urlquery .Query}}&workspace={{urlquery .Workspace}}&tag={{urlquery .Tag}}&run_id={{urlquery .RunID}}&phase={{urlquery .Phase}}&role={{urlquery .Role}}&offset={{sub .Pagination.Offset .Pagination.Limit}}&limit={{.Pagination.Limit}}" class="btn btn-secondary">Previous</a>
+        {{end}}
+        <span class="pagination-info">
+            Showing {{add .Pagination.Offset 1}}–{{if .Pagination.HasMore}}{{add .Pagination.Offset .Pagination.Limit}}{{else}}{{.Pagination.Total}}{{end}} of {{.Pagination.Total}}
+        </span>
+        {{if .Pagination.HasMore}}
+        <a href="?q={{urlquery .Query}}&workspace={{urlquery .Workspace}}&tag={{urlquery .Tag}}&run_id={{urlquery .RunID}}&phase={{urlquery .Phase}}&role={{urlquery .Role}}&offset={{add .Pagination.Offset .Pagination.Limit}}&limit={{.Pagination.Limit}}" class="btn btn-secondary">Next</a>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state">
+        <p>No results for "{{.Query}}"</p>
+        <p class="text-muted">Try a different search term or adjust your filters.</p>
+    </div>
+    {{end}}
+{{else}}
+<div class="empty-state">
+    <p>Enter a search query to find capsules.</p>
+    <p class="text-muted">Supports phrases ("exact match"), prefix (auth*), and boolean (A OR B, NOT A).</p>
+</div>
+{{end}}
+{{end}}
