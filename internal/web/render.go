@@ -98,13 +98,13 @@ type Renderer struct {
 // NewRenderer creates a Renderer by parsing templates from the given FS.
 func NewRenderer(templateFS fs.FS, version string) *Renderer {
 	funcMap := template.FuncMap{
-		"add":         func(a, b int) int { return a + b },
-		"sub":         func(a, b int) int { return a - b },
-		"formatTime":  formatTime,
-		"formatChars": formatChars,
-		"safeHTML":    func(s string) template.HTML { return template.HTML(s) },
-		"deref":       deref,
-		"hasValue":    hasValue,
+		"add":            func(a, b int) int { return a + b },
+		"sub":            func(a, b int) int { return a - b },
+		"formatTime":     formatTime,
+		"formatChars":    formatChars,
+		"trustedSnippet": func(s string) template.HTML { return template.HTML(s) },
+		"deref":          deref,
+		"hasValue":       hasValue,
 	}
 
 	// Parse layout as the base template

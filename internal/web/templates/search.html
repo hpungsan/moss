@@ -57,7 +57,7 @@
                 </span>
                 <span class="badge badge-workspace">{{.Workspace}}</span>
             </div>
-            <div class="card-snippet">{{safeHTML .Snippet}}</div>
+            <div class="card-snippet">{{trustedSnippet .Snippet}}</div>
             <div class="card-meta">
                 {{formatChars .CapsuleChars}} chars &middot; Updated {{formatTime .UpdatedAt}}
                 {{if .Tags}}

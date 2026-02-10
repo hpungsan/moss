@@ -497,7 +497,7 @@ func serveCmd(db *sql.DB, cfg *config.Config) *cli.Command {
 			}
 
 			srv := web.NewServer(db, cfg, Version, bind, port)
-			return web.Run(srv)
+			return web.Run(srv, bind)
 		},
 	}
 }

@@ -468,10 +468,10 @@ Flag precedence: CLI flag > repo config > global config > default.
 1. Load config (global + repo merge)
 2. Open database (`~/.moss/moss.db`)
 3. Apply flag overrides to config values
-4. Create HTTP server with routes
+4. Create HTTP server with routes (address built via `net.JoinHostPort` for IPv6 safety)
 5. Start listening
-6. Log: `Moss UI running at http://{bind}:{port}`
-7. If bind is `0.0.0.0` or `::`, log warning: `WARNING: Server is binding to all interfaces and may be accessible from the network`
+6. Log: `Moss UI running at http://{addr}`
+7. If bind is exactly `0.0.0.0` or `::`, log warning: `WARNING: Server is binding to all interfaces and may be accessible from the network`
 
 ## 6.3 Graceful shutdown
 
@@ -533,9 +533,9 @@ The error rendering function checks request context to determine response format
 
 - `html/template` auto-escapes all template variables
 - Capsule markdown rendered by goldmark with `html.WithUnsafe()` **disabled** (default safe mode strips raw HTML from markdown)
-- FTS5 search snippets are pre-escaped by the ops layer (only `<b>` tags for highlights); rendered in templates via `template.HTML` after verifying the source is the ops layer
+- FTS5 search snippets are pre-escaped by the ops layer (only `<b>` tags for highlights); rendered in templates via the `trustedSnippet` template function (named to signal that only ops-produced content should be passed)
 - htmx attributes use static values, no user-controlled injection points
-- No `template.HTML` for user-supplied content (only for goldmark-rendered output and ops-generated snippets)
+- No `template.HTML` for user-supplied content (only for goldmark-rendered output and ops-generated snippets via `trustedSnippet`)
 
 ## 8.3 Destructive operations
 

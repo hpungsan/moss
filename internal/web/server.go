@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -65,7 +65,7 @@ func NewServer(db *sql.DB, cfg *config.Config, version, bind string, port int) *
 	handler := securityHeaders(mux)
 
 	return &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", bind, port),
+		Addr:    net.JoinHostPort(bind, strconv.Itoa(port)),
 		Handler: handler,
 	}
 }
@@ -81,7 +81,8 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 // Run starts the HTTP server and handles graceful shutdown on SIGINT/SIGTERM.
-func Run(srv *http.Server) error {
+// The bind parameter is the original bind address (before port joining) used for warning checks.
+func Run(srv *http.Server, bind string) error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
@@ -92,7 +93,7 @@ func Run(srv *http.Server) error {
 
 	log.Printf("Moss UI running at http://%s", srv.Addr)
 
-	if strings.Contains(srv.Addr, "0.0.0.0") || strings.Contains(srv.Addr, "::") {
+	if bind == "0.0.0.0" || bind == "::" {
 		log.Printf("WARNING: Server is binding to all interfaces and may be accessible from the network")
 	}
 
