@@ -1,0 +1,76 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<nav class="breadcrumb">
+    <a href="/capsules">Capsules</a> &rsaquo; <span>{{.DisplayName}}</span>
+</nav>
+
+<div class="detail-layout">
+    <article class="detail-main">
+        <div class="rendered-content">
+            {{.RenderedHTML}}
+        </div>
+        <details class="raw-toggle">
+            <summary>Raw capsule text</summary>
+            <pre class="raw-text">{{.Capsule.CapsuleText}}</pre>
+        </details>
+    </article>
+
+    <aside class="detail-sidebar">
+        <h3>Metadata</h3>
+        <dl class="metadata">
+            <dt>ID</dt>
+            <dd class="mono">{{.Capsule.ID}}</dd>
+
+            <dt>Workspace</dt>
+            <dd><span class="badge badge-workspace">{{.Capsule.Workspace}}</span></dd>
+
+            <dt>Name</dt>
+            <dd>{{if hasValue .Capsule.Name}}{{deref .Capsule.Name}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+
+            <dt>Title</dt>
+            <dd>{{if hasValue .Capsule.Title}}{{deref .Capsule.Title}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+
+            {{if .Capsule.Tags}}
+            <dt>Tags</dt>
+            <dd>{{range .Capsule.Tags}}<span class="badge badge-tag">{{.}}</span> {{end}}</dd>
+            {{end}}
+
+            <dt>Source</dt>
+            <dd>{{if hasValue .Capsule.Source}}{{deref .Capsule.Source}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+
+            <dt>Run ID</dt>
+            <dd>{{if hasValue .Capsule.RunID}}{{deref .Capsule.RunID}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+
+            <dt>Phase</dt>
+            <dd>{{if hasValue .Capsule.Phase}}{{deref .Capsule.Phase}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+
+            <dt>Role</dt>
+            <dd>{{if hasValue .Capsule.Role}}{{deref .Capsule.Role}}{{else}}<span class="text-muted">—</span>{{end}}</dd>
+
+            <dt>Chars</dt>
+            <dd>{{formatChars .Capsule.CapsuleChars}}</dd>
+
+            <dt>Tokens (est.)</dt>
+            <dd>{{formatChars .Capsule.TokensEstimate}}</dd>
+
+            <dt>Created</dt>
+            <dd>{{formatTime .Capsule.CreatedAt}}</dd>
+
+            <dt>Updated</dt>
+            <dd>{{formatTime .Capsule.UpdatedAt}}</dd>
+
+            {{if hasValue .Capsule.DeletedAt}}
+            <dt>Deleted</dt>
+            <dd class="text-danger">{{formatTime (deref .Capsule.DeletedAt)}}</dd>
+            {{end}}
+        </dl>
+
+        {{if not (hasValue .Capsule.DeletedAt)}}
+        <button class="btn btn-danger btn-block"
+                hx-delete="/capsules/{{.Capsule.ID}}"
+                hx-confirm="Delete this capsule?">Delete Capsule</button>
+        {{end}}
+    </aside>
+</div>
+{{end}}
